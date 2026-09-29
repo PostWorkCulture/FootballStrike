@@ -1,9 +1,9 @@
 node_modules/
 *.log
 __pycache__/
-test_pw.py
-test_browser.py
-test_ball.js
-test_ball2.js
+test_*.py
+verify_*.py
+tools/
 get_kenney*.py
-*.png
+test_ball*.js
+assets/kenney_sports/
