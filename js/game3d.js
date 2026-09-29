@@ -171,9 +171,9 @@ const pitchPhysMat = new CANNON.Material("pitch");
 const postPhysMat = new CANNON.Material("post");
 const netPhysMat = new CANNON.Material("net");
 
-world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, pitchPhysMat, { friction: 0.35, restitution: 0.65 }));
-world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, postPhysMat, { friction: 0.2, restitution: 0.8 }));
-world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, netPhysMat, { friction: 0.6, restitution: 0.05 }));
+world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, pitchPhysMat, { friction: 0.75, restitution: 0.45 }));
+world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, postPhysMat, { friction: 0.2, restitution: 0.75 }));
+world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, netPhysMat, { friction: 0.98, restitution: 0.0 }));
 
 // --- Atmospheric Lighting ---
 const ambientLight = new THREE.AmbientLight(0x7590b5, 0.45);
@@ -409,11 +409,13 @@ rightAd.position.set(34, 0.5, -8);
 stadium.add(rightAd);
 scene.add(stadium);
 
-// --- Regulation Goal Frame & Net ---
+// --- Regulation Goal Frame & Fully Enclosed Dynamic Net ---
 const goalGroup = new THREE.Group();
 const postMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.35 });
+const stanchionMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.3, metalness: 0.8 });
 const postRadius = 0.06, postHeight = 2.44, goalWidth = 7.32, goalDepth = 2.0;
 
+// Front Goal Posts & Crossbar
 const leftPost = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, postHeight, 32), postMat);
 leftPost.position.set(-goalWidth / 2, postHeight / 2, 0); leftPost.castShadow = true; goalGroup.add(leftPost);
 
@@ -423,20 +425,106 @@ rightPost.position.set(goalWidth / 2, postHeight / 2, 0); rightPost.castShadow =
 const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, goalWidth + postRadius * 2, 32), postMat);
 crossbar.rotation.z = Math.PI / 2; crossbar.position.set(0, postHeight, 0); crossbar.castShadow = true; goalGroup.add(crossbar);
 
-// Goal Net Texture
+// Rear Support Tension Stanchions
+const leftStanchion = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 3.15, 16), stanchionMat);
+leftStanchion.position.set(-goalWidth / 2 - 0.02, postHeight / 2, -goalDepth / 2);
+leftStanchion.rotation.x = -0.58; goalGroup.add(leftStanchion);
+
+const rightStanchion = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 3.15, 16), stanchionMat);
+rightStanchion.position.set(goalWidth / 2 + 0.02, postHeight / 2, -goalDepth / 2);
+rightStanchion.rotation.x = -0.58; goalGroup.add(rightStanchion);
+
+// Bottom Ground Anchor Frame
+const bottomBackBar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, goalWidth, 16), stanchionMat);
+bottomBackBar.rotation.z = Math.PI / 2; bottomBackBar.position.set(0, 0.03, -goalDepth); goalGroup.add(bottomBackBar);
+
+// High-Fidelity Diamond Mesh Netting Texture
 const netCanvas = document.createElement('canvas'); netCanvas.width = 128; netCanvas.height = 128;
 const nctx = netCanvas.getContext('2d'); nctx.clearRect(0, 0, 128, 128);
-nctx.strokeStyle = 'rgba(255, 255, 255, 0.94)'; nctx.lineWidth = 5;
+nctx.strokeStyle = 'rgba(255, 255, 255, 0.94)'; nctx.lineWidth = 4.5;
 nctx.beginPath(); nctx.moveTo(64, 0); nctx.lineTo(128, 64); nctx.lineTo(64, 128); nctx.lineTo(0, 64); nctx.closePath(); nctx.stroke();
-const netTex = new THREE.CanvasTexture(netCanvas); netTex.wrapS = THREE.RepeatWrapping; netTex.wrapT = THREE.RepeatWrapping; netTex.repeat.set(24, 12);
-const netMat = new THREE.MeshStandardMaterial({ map: netTex, transparent: true, alphaTest: 0.25, side: THREE.DoubleSide, roughness: 0.75 });
+const netTex = new THREE.CanvasTexture(netCanvas); netTex.wrapS = THREE.RepeatWrapping; netTex.wrapT = THREE.RepeatWrapping;
+const netMat = new THREE.MeshStandardMaterial({ map: netTex, transparent: true, alphaTest: 0.2, side: THREE.DoubleSide, roughness: 0.85 });
 
-const backNet = new THREE.Mesh(new THREE.PlaneGeometry(goalWidth, 3.16), netMat);
-backNet.rotation.x = 0.68; backNet.position.set(0, 1.22, -1.0); goalGroup.add(backNet);
+// 1. Deformable Subdivided Back Net (Dynamic Billow)
+const backNetGeo = new THREE.PlaneGeometry(goalWidth, postHeight, 32, 20);
+const netVertexCount = backNetGeo.attributes.position.count;
+const netOrigPositions = new Float32Array(backNetGeo.attributes.position.array);
+const netDisplacements = new Float32Array(netVertexCount);
+const netVelocities = new Float32Array(netVertexCount);
+
+const backNet = new THREE.Mesh(backNetGeo, netMat);
+backNet.position.set(0, postHeight / 2, -goalDepth);
+goalGroup.add(backNet);
+
+// 2. Left Side Net
+const sideNetTex = netTex.clone(); sideNetTex.repeat.set(8, 12);
+const sideNetMat = new THREE.MeshStandardMaterial({ map: sideNetTex, transparent: true, alphaTest: 0.2, side: THREE.DoubleSide, roughness: 0.85 });
+const leftSideNet = new THREE.Mesh(new THREE.PlaneGeometry(goalDepth, postHeight), sideNetMat);
+leftSideNet.rotation.y = Math.PI / 2;
+leftSideNet.position.set(-goalWidth / 2, postHeight / 2, -goalDepth / 2);
+goalGroup.add(leftSideNet);
+
+// 3. Right Side Net
+const rightSideNet = new THREE.Mesh(new THREE.PlaneGeometry(goalDepth, postHeight), sideNetMat);
+rightSideNet.rotation.y = -Math.PI / 2;
+rightSideNet.position.set(goalWidth / 2, postHeight / 2, -goalDepth / 2);
+goalGroup.add(rightSideNet);
+
+// 4. Roof Net
+const roofNetTex = netTex.clone(); roofNetTex.repeat.set(24, 8);
+const roofNetMat = new THREE.MeshStandardMaterial({ map: roofNetTex, transparent: true, alphaTest: 0.2, side: THREE.DoubleSide, roughness: 0.85 });
+const roofNet = new THREE.Mesh(new THREE.PlaneGeometry(goalWidth, goalDepth), roofNetMat);
+roofNet.rotation.x = Math.PI / 2;
+roofNet.position.set(0, postHeight, -goalDepth / 2);
+goalGroup.add(roofNet);
+
 goalGroup.position.set(0, 0, -20);
 scene.add(goalGroup);
 
-// Cannon Goal Colliders
+// Dynamic Net Billow & Wave Spring Solver
+function triggerNetBillow(worldHitX, worldHitY) {
+    const localHitX = worldHitX;
+    const localHitY = worldHitY - (postHeight / 2);
+    const pos = backNetGeo.attributes.position.array;
+
+    for (let i = 0; i < netVertexCount; i++) {
+        const vx = netOrigPositions[i * 3];
+        const vy = netOrigPositions[i * 3 + 1];
+        const dist = Math.hypot(vx - localHitX, vy - localHitY);
+        if (dist < 1.35) {
+            const gaussian = Math.exp(-(dist * dist) / (2 * 0.42 * 0.42));
+            netVelocities[i] -= gaussian * 14.0; // Pocket backwards into goal
+        }
+    }
+}
+
+function updateNetDeformation(dt) {
+    const pos = backNetGeo.attributes.position.array;
+    let active = false;
+
+    for (let i = 0; i < netVertexCount; i++) {
+        if (Math.abs(netDisplacements[i]) > 0.0005 || Math.abs(netVelocities[i]) > 0.0005) {
+            active = true;
+            // Spring force towards rest + viscous air damping
+            const springForce = -36.0 * netDisplacements[i];
+            const dampingForce = -8.5 * netVelocities[i];
+            netVelocities[i] += (springForce + dampingForce) * dt;
+            netDisplacements[i] += netVelocities[i] * dt;
+            pos[i * 3 + 2] = netOrigPositions[i * 3 + 2] + netDisplacements[i];
+        } else {
+            pos[i * 3 + 2] = netOrigPositions[i * 3 + 2];
+            netDisplacements[i] = 0;
+            netVelocities[i] = 0;
+        }
+    }
+    if (active) {
+        backNetGeo.attributes.position.needsUpdate = true;
+        backNetGeo.computeVertexNormals();
+    }
+}
+
+// Rigid Goal Post & Crossbar Cannon Colliders
 const addCylinderCollider = (x, y, z, r, h, rotZ) => {
     const b = new CANNON.Body({ mass: 0, material: postPhysMat });
     b.addShape(new CANNON.Cylinder(r, r, h, 16));
@@ -448,10 +536,18 @@ addCylinderCollider(-goalWidth / 2, postHeight / 2, -20, postRadius, postHeight)
 addCylinderCollider(goalWidth / 2, postHeight / 2, -20, postRadius, postHeight);
 addCylinderCollider(0, postHeight, -20, postRadius, goalWidth, Math.PI / 2);
 
-const backNetBody = new CANNON.Body({ mass: 0, material: netPhysMat });
-backNetBody.addShape(new CANNON.Box(new CANNON.Vec3(goalWidth / 2, 1.5, 0.05)));
-backNetBody.position.set(0, 1.22, -21.0);
-world.addBody(backNetBody);
+// Fully Enclosed Zero-Rebound Net Boundary Colliders
+const addNetWall = (x, y, z, hx, hy, hz) => {
+    const b = new CANNON.Body({ mass: 0, material: netPhysMat });
+    b.addShape(new CANNON.Box(new CANNON.Vec3(hx, hy, hz)));
+    b.position.set(x, y, z);
+    world.addBody(b);
+    return b;
+};
+addNetWall(0, 1.22, -22.0, goalWidth / 2, 1.22, 0.05); // Rear Net
+addNetWall(-goalWidth / 2, 1.22, -21.0, 0.05, 1.22, goalDepth / 2); // Left Side Net
+addNetWall(goalWidth / 2, 1.22, -21.0, 0.05, 1.22, goalDepth / 2); // Right Side Net
+addNetWall(0, postHeight, -21.0, goalWidth / 2, 0.05, goalDepth / 2); // Roof Net
 
 // --- High-Poly 3D Football ---
 const ballRadius = 0.22;
@@ -473,8 +569,8 @@ const ballBody = new CANNON.Body({
     mass: 0.43,
     shape: new CANNON.Sphere(ballRadius),
     material: ballPhysMat,
-    linearDamping: 0.05,
-    angularDamping: 0.1
+    linearDamping: 0.15,
+    angularDamping: 0.35
 });
 world.addBody(ballBody);
 
@@ -551,6 +647,7 @@ const gkBodyCollider = new CANNON.Body({
     position: new CANNON.Vec3(0, 1.05, -19.6),
     material: postPhysMat
 });
+gkBodyCollider.collisionResponse = 0;
 world.addBody(gkBodyCollider);
 
 // --- Professional Training Mannequin Wall (Free Kick Mode) ---
@@ -612,7 +709,9 @@ function spawnTargets() {
 
     if (currentGameMode === 'targets') {
         wallGroup.visible = false;
+        wallBodies.forEach(b => { b.collisionResponse = 0; });
         gkGroup.visible = false;
+        gkBodyCollider.collisionResponse = 0;
 
         // 1. Top-Left & Top-Right Corner Shattering Glass Targets
         const corners = [
@@ -646,7 +745,8 @@ function spawnTargets() {
             mesh.castShadow = true;
             scene.add(mesh);
 
-            const body = new CANNON.Body({ isTrigger: true, shape: new CANNON.Box(new CANNON.Vec3(size, size, 0.1)), position: new CANNON.Vec3(c.x, c.y, -20.1) });
+            const body = new CANNON.Body({ shape: new CANNON.Box(new CANNON.Vec3(size, size, 0.1)), position: new CANNON.Vec3(c.x, c.y, -20.1) });
+            body.collisionResponse = 0;
             world.addBody(body);
 
             activeTargets.push({ mesh, body, active: true, pts: c.pts, label: c.label, type: c.type, originX: c.x, isMoving: c.type === 'bullseye' });
@@ -794,7 +894,7 @@ function showBanner(main, sub, color = '#38bdf8') {
 
 // Swipe Gesture Parser with Multi-Point Curve Sampling
 window.addEventListener('pointerdown', (e) => {
-    if (!isPlaying || !isAiming || e.target.closest('button')) return;
+    if (!isPlaying || !isAiming || (e.target && e.target.closest && e.target.closest('button'))) return;
     sfx.init();
     swipeSamples = [{ x: e.clientX, y: e.clientY, time: performance.now() }];
 });
@@ -923,19 +1023,22 @@ function animate() {
 
         // Check Goalkeeper Save
         if (ballInFlight && !ballBody.scored && !ballBody.saved) {
-            const distGk = ballMesh.position.distanceTo(gkGroup.position);
-            if (distGk < 1.15 && Math.abs(ballMesh.position.z - (-19.6)) < 0.6) {
+            const distGk = ballMesh.position.distanceTo(gkBodyCollider.position);
+            if (distGk < 1.35 && Math.abs(ballMesh.position.z - (-19.6)) < 0.65) {
                 ballBody.saved = true;
                 streak = 0;
                 updateHUD();
                 sfx.playPost();
                 showBanner('SAVED!', 'DENIED BY THE KEEPER', '#f59e0b');
-                ballBody.velocity.x *= -0.4;
-                ballBody.velocity.z *= -0.3;
-                ballBody.velocity.y += 2.5;
+                ballBody.velocity.x *= -0.35;
+                ballBody.velocity.z *= -0.25;
+                ballBody.velocity.y = Math.max(1.5, ballBody.velocity.y + 2.0);
             }
         }
     }
+
+    // Dynamic Net Deform & Spring Relaxation
+    updateNetDeformation(dt);
 
     // Continuous 3D Magnus Aerodynamic Forces
     if (ballInFlight && ballBody.position.z > -22) {
@@ -992,18 +1095,59 @@ function animate() {
             }
         }
 
-        // Check Goal Net Entry
-        if (ballBody.position.z < -20.0 && ballBody.position.z > -22.5 && Math.abs(ballBody.position.x) < 3.6 && ballBody.position.y < 2.44 && !ballBody.scored && !ballBody.saved) {
-            ballBody.scored = true;
-            streak++;
-            const pts = 200 * streak;
-            score += pts;
-            updateHUD();
-            sfx.playNet();
-            sfx.playCheer();
-            showBanner('GOAL!', `+${pts} PTS!`, '#22c55e');
-            slowMo = true;
-            setTimeout(() => { slowMo = false; }, 800);
+        // Check Goal Net Entry & Volumetric Entrapment
+        const inGoal = (ballBody.position.z <= -20.05 && ballBody.position.z >= -22.3 &&
+                        Math.abs(ballBody.position.x) <= 3.66 && ballBody.position.y <= 2.48);
+
+        if (inGoal) {
+            if (!ballBody.scored && !ballBody.saved) {
+                ballBody.scored = true;
+                streak++;
+                const pts = 200 * streak;
+                score += pts;
+                updateHUD();
+                sfx.playNet();
+                sfx.playCheer();
+                showBanner('GOAL!', `+${pts} PTS!`, '#22c55e');
+                slowMo = true;
+                setTimeout(() => { slowMo = false; }, 600);
+                triggerNetBillow(ballBody.position.x, ballBody.position.y);
+            }
+
+            // High Viscous Cord Drag (Dissipate kinetic energy without bounce)
+            const netDamping = Math.max(0, 1 - 9.0 * dt);
+            ballBody.velocity.x *= netDamping;
+            ballBody.velocity.z *= netDamping;
+            ballBody.angularVelocity.scale(netDamping, ballBody.angularVelocity);
+
+            // Gravity drops the ball down to the turf inside the goal pocket
+            ballBody.velocity.y -= 14.0 * dt;
+
+            // Soft back net arrest (enforce zero forward rebound)
+            if (ballBody.position.z < -21.85) {
+                ballBody.position.z = -21.85;
+                ballBody.velocity.z = 0;
+            }
+            if (ballBody.position.z < -20.15 && ballBody.velocity.z > 0.04) {
+                ballBody.velocity.z = 0.04;
+            }
+        }
+
+        // Realistic Turf Rolling Deceleration (Prevents infinite roll)
+        if (ballBody.position.y <= ballRadius + 0.03 && Math.abs(ballBody.velocity.y) < 0.8) {
+            const hSpeed = Math.hypot(ballBody.velocity.x, ballBody.velocity.z);
+            const decel = inGoal ? 6.5 : 2.8; // Decelerate to rest in <= 2.0s
+            if (hSpeed > 0.02) {
+                const newSpeed = Math.max(0, hSpeed - decel * dt);
+                const ratio = newSpeed / hSpeed;
+                ballBody.velocity.x *= ratio;
+                ballBody.velocity.z *= ratio;
+                ballBody.angularVelocity.scale(ratio, ballBody.angularVelocity);
+            } else {
+                ballBody.velocity.x = 0;
+                ballBody.velocity.z = 0;
+                ballBody.angularVelocity.set(0, 0, 0);
+            }
         }
     }
 
