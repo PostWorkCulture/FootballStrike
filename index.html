@@ -34,13 +34,53 @@
         #banner-sub { font-size: 22px; font-weight: 700; color: #facc15; display: block; margin-top: 4px; }
 
         /* Swipe Instruction & Controls */
-        #hint-bar { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); padding: 10px 24px; font-size: 14px; font-weight: 600; color: #e2e8f0; text-align: center; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #hint-bar { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); padding: 10px 24px; font-size: 14px; font-weight: 600; color: #e2e8f0; text-align: center; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); pointer-events: none !important; }
         #swipe-trail { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
         /* Action Buttons */
-        .btn-action { background: #2563eb; color: #fff; border: 1px solid #60a5fa; border-radius: 12px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.15s; }
+        .btn-action { background: #2563eb; color: #fff; border: 1px solid #60a5fa; border-radius: 12px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.15s; pointer-events: auto; }
         .btn-action:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 0 16px rgba(37, 99, 235, 0.6); }
         .btn-action:active { transform: translateY(1px); }
+
+        /* Tournament Next Round Pulsing Action Button */
+        .btn-next-action {
+            position: absolute;
+            bottom: 74px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #1d4ed8 100%);
+            color: #ffffff;
+            border: 2px solid #38bdf8;
+            border-radius: 9999px;
+            padding: 14px 44px;
+            font-size: 15px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            cursor: pointer;
+            pointer-events: auto !important;
+            z-index: 60;
+            box-shadow: 0 0 35px rgba(56, 189, 248, 0.6), 0 10px 30px rgba(0, 0, 0, 0.7);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: pulseGlow 1.8s infinite ease-in-out;
+            user-select: none;
+        }
+        .btn-next-action:hover {
+            transform: translateX(-50%) scale(1.05);
+            background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 50%, #1e40af 100%);
+            box-shadow: 0 0 50px rgba(56, 189, 248, 0.9), 0 14px 40px rgba(0, 0, 0, 0.8);
+        }
+        .btn-next-action:active {
+            transform: translateX(-50%) scale(0.96);
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 25px rgba(56, 189, 248, 0.5), 0 8px 24px rgba(0, 0, 0, 0.4); }
+            50% { box-shadow: 0 0 45px rgba(56, 189, 248, 0.9), 0 14px 36px rgba(0, 0, 0, 0.6); }
+        }
 
         /* Mode Selection Menu */
         #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, rgba(15, 23, 42, 0.75) 0%, rgba(3, 7, 18, 0.95) 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; }
@@ -48,12 +88,37 @@
         .title-logo span { color: #38bdf8; text-shadow: 0 0 25px rgba(56, 189, 248, 0.6); }
         .sub-tag { font-size: 14px; color: #94a3b8; font-weight: 500; margin-bottom: 36px; text-align: center; }
         
-        .mode-grid { display: flex; gap: 20px; max-width: 720px; width: 90%; }
+        .mode-grid { display: flex; gap: 20px; max-width: 1040px; width: 94%; }
         .mode-card { flex: 1; padding: 28px 24px; border-radius: 20px; cursor: pointer; transition: all 0.2s cubic-bezier(0.4,0,0.2,1); display: flex; flex-direction: column; align-items: flex-start; }
         .mode-card:hover { transform: translateY(-4px); border-color: rgba(96, 165, 250, 0.6); box-shadow: 0 15px 35px rgba(37, 99, 235, 0.3); }
         .mode-card h3 { font-size: 20px; font-weight: 800; margin: 0 0 8px 0; color: #f8fafc; }
         .mode-card p { font-size: 13px; color: #94a3b8; margin: 0 0 20px 0; line-height: 1.5; }
         .mode-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 8px; text-transform: uppercase; }
+
+        .practice-toggle-btn {
+            background: rgba(255, 255, 255, 0.08);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            pointer-events: auto !important;
+        }
+        .practice-toggle-btn:hover {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: #38bdf8;
+            color: #38bdf8;
+        }
+        .practice-toggle-btn.active {
+            background: rgba(16, 185, 129, 0.25);
+            border-color: #10b981;
+            color: #34d399;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+        }
     </style>
     <script src="js/three.min.js"></script>
     <script src="js/GLTFLoader.js"></script>
@@ -79,6 +144,13 @@
                 <p>Beat the jumping defensive wall and athletic diving goalkeeper with swerving bend and knuckleballs.</p>
                 <button class="btn-action w-full text-center" style="background: #0284c7; border-color: #38bdf8;">Play Free Kick Duel</button>
             </div>
+
+            <div class="hud-glass mode-card" onclick="selectMode('practice')">
+                <span class="mode-badge bg-amber-500/20 text-amber-400 border border-amber-500/30 mb-3">Infinite Drill</span>
+                <h3>PRACTICE ARENA</h3>
+                <p>Unlimited free kicks. Toggle target bullseyes, wall, or keeper on and off anytime to master your shot curve.</p>
+                <button class="btn-action w-full text-center" style="background: #d97706; border-color: #fbbf24;">Enter Practice</button>
+            </div>
         </div>
     </div>
 
@@ -93,7 +165,7 @@
                 <div class="streak-pill" id="streak-badge">1X STREAK</div>
             </div>
 
-            <!-- Central Round Indicator (Duel Shots / Target Timer) -->
+            <!-- Central Round Indicator (Duel Shots / Target Timer / Practice) -->
             <div id="round-tracker" class="hud-glass" style="padding: 10px 20px; display: flex; align-items: center; gap: 12px;">
                 <span id="tracker-label" style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">ROUND</span>
                 <div id="shot-pills" style="display: flex; gap: 6px;"></div>
@@ -104,6 +176,15 @@
                 <button class="btn-action hud-glass" onclick="resetToMenu()">Exit Menu</button>
                 <button id="next-shot-btn" class="btn-action" style="display:none;" onclick="triggerNextShot()">Next Shot ➔</button>
             </div>
+        </div>
+
+        <!-- Practice Mode Toolbar -->
+        <div id="practice-toolbar" class="hud-glass" style="display: none; position: absolute; top: 88px; left: 18px; padding: 10px 16px; align-items: center; gap: 10px; z-index: 25;">
+            <button id="toggle-targets-btn" class="practice-toggle-btn active" onclick="togglePracticeOption('targets')">🎯 Targets: ON</button>
+            <button id="toggle-wall-btn" class="practice-toggle-btn active" onclick="togglePracticeOption('wall')">🛡️ Wall: ON</button>
+            <button id="toggle-keeper-btn" class="practice-toggle-btn active" onclick="togglePracticeOption('keeper')">🧤 Keeper: ON</button>
+            <button id="practice-spot-btn" class="practice-toggle-btn" onclick="cyclePracticeSpot()">📍 Spot: Center</button>
+            <button id="reset-ball-btn" class="practice-toggle-btn" style="background: rgba(239, 68, 68, 0.2); border-color: #ef4444;" onclick="resetBall()">🔄 Reset Ball</button>
         </div>
 
         <!-- Telemetry Radar -->
@@ -128,10 +209,12 @@
             <span id="banner-sub">+100 PTS</span>
         </div>
 
-        <!-- Tap Anywhere Prompt -->
-        <div id="tap-prompt" class="hud-glass" style="position: absolute; bottom: 82px; left: 50%; transform: translateX(-50%); padding: 10px 26px; font-size: 14px; font-weight: 700; color: #38bdf8; display: none; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; border-color: rgba(56, 189, 248, 0.4); box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);" onclick="triggerNextShot()">
-            Tap screen for next shot ➔
-        </div>
+        <!-- Tournament Next Shot Action Button -->
+        <button id="next-round-btn" class="btn-next-action" style="display: none;" onclick="triggerNextShot()">
+            <span>NEXT SHOT</span>
+            <span style="font-size: 18px; font-weight: 900;">➔</span>
+        </button>
+        <div id="tap-prompt" style="display: none;"></div>
 
         <!-- Swipe Guide Hint -->
         <div class="hud-glass" id="hint-bar">
@@ -174,6 +257,6 @@
     </div>
 
     <!-- Core 3D Game Script -->
-    <script src="js/game3d.js?v=3.4.0"></script>
+    <script src="js/game3d.js?v=5.0.0"></script>
 </body>
 </html>
