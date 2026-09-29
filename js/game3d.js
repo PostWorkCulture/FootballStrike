@@ -11,7 +11,6 @@ let score = 0;
 let streak = 0;
 let activeTargets = [];
 let particles = [];
-let trailPoints = [];
 
 // --- Procedural Web Audio Synthesizer (Zero External Dependencies) ---
 class StadiumAudio {
@@ -439,12 +438,13 @@ const bottomBackBar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, goal
 bottomBackBar.rotation.z = Math.PI / 2; bottomBackBar.position.set(0, 0.03, -goalDepth); goalGroup.add(bottomBackBar);
 
 // High-Fidelity Diamond Mesh Netting Texture
-const netCanvas = document.createElement('canvas'); netCanvas.width = 128; netCanvas.height = 128;
-const nctx = netCanvas.getContext('2d'); nctx.clearRect(0, 0, 128, 128);
-nctx.strokeStyle = 'rgba(255, 255, 255, 0.94)'; nctx.lineWidth = 4.5;
-nctx.beginPath(); nctx.moveTo(64, 0); nctx.lineTo(128, 64); nctx.lineTo(64, 128); nctx.lineTo(0, 64); nctx.closePath(); nctx.stroke();
+const netCanvas = document.createElement('canvas'); netCanvas.width = 64; netCanvas.height = 64;
+const nctx = netCanvas.getContext('2d'); nctx.clearRect(0, 0, 64, 64);
+nctx.strokeStyle = 'rgba(255, 255, 255, 0.85)'; nctx.lineWidth = 2.0;
+nctx.beginPath(); nctx.moveTo(32, 0); nctx.lineTo(64, 32); nctx.lineTo(32, 64); nctx.lineTo(0, 32); nctx.closePath(); nctx.stroke();
 const netTex = new THREE.CanvasTexture(netCanvas); netTex.wrapS = THREE.RepeatWrapping; netTex.wrapT = THREE.RepeatWrapping;
-const netMat = new THREE.MeshStandardMaterial({ map: netTex, transparent: true, alphaTest: 0.2, side: THREE.DoubleSide, roughness: 0.85 });
+netTex.repeat.set(36, 12);
+const netMat = new THREE.MeshStandardMaterial({ map: netTex, transparent: true, alphaTest: 0.15, side: THREE.DoubleSide, roughness: 0.85 });
 
 // 1. Deformable Subdivided Back Net (Dynamic Billow)
 const backNetGeo = new THREE.PlaneGeometry(goalWidth, postHeight, 32, 20);
@@ -458,8 +458,8 @@ backNet.position.set(0, postHeight / 2, -goalDepth);
 goalGroup.add(backNet);
 
 // 2. Left Side Net
-const sideNetTex = netTex.clone(); sideNetTex.repeat.set(8, 12);
-const sideNetMat = new THREE.MeshStandardMaterial({ map: sideNetTex, transparent: true, alphaTest: 0.2, side: THREE.DoubleSide, roughness: 0.85 });
+const sideNetTex = netTex.clone(); sideNetTex.repeat.set(10, 12);
+const sideNetMat = new THREE.MeshStandardMaterial({ map: sideNetTex, transparent: true, alphaTest: 0.15, side: THREE.DoubleSide, roughness: 0.85 });
 const leftSideNet = new THREE.Mesh(new THREE.PlaneGeometry(goalDepth, postHeight), sideNetMat);
 leftSideNet.rotation.y = Math.PI / 2;
 leftSideNet.position.set(-goalWidth / 2, postHeight / 2, -goalDepth / 2);
@@ -472,8 +472,8 @@ rightSideNet.position.set(goalWidth / 2, postHeight / 2, -goalDepth / 2);
 goalGroup.add(rightSideNet);
 
 // 4. Roof Net
-const roofNetTex = netTex.clone(); roofNetTex.repeat.set(24, 8);
-const roofNetMat = new THREE.MeshStandardMaterial({ map: roofNetTex, transparent: true, alphaTest: 0.2, side: THREE.DoubleSide, roughness: 0.85 });
+const roofNetTex = netTex.clone(); roofNetTex.repeat.set(36, 10);
+const roofNetMat = new THREE.MeshStandardMaterial({ map: roofNetTex, transparent: true, alphaTest: 0.15, side: THREE.DoubleSide, roughness: 0.85 });
 const roofNet = new THREE.Mesh(new THREE.PlaneGeometry(goalWidth, goalDepth), roofNetMat);
 roofNet.rotation.x = Math.PI / 2;
 roofNet.position.set(0, postHeight, -goalDepth / 2);
@@ -494,12 +494,13 @@ function triggerNetBillow(worldHitX, worldHitY) {
         const dist = Math.hypot(vx - localHitX, vy - localHitY);
         if (dist < 1.35) {
             const gaussian = Math.exp(-(dist * dist) / (2 * 0.42 * 0.42));
-            netVelocities[i] -= gaussian * 14.0; // Pocket backwards into goal
+            netVelocities[i] -= gaussian * 8.0; // Pocket backwards into goal
         }
     }
 }
 
 function updateNetDeformation(dt) {
+    dt = Math.min(0.033, dt); // Clamped for absolute numerical stability
     const pos = backNetGeo.attributes.position.array;
     let active = false;
 
@@ -510,7 +511,10 @@ function updateNetDeformation(dt) {
             const springForce = -36.0 * netDisplacements[i];
             const dampingForce = -8.5 * netVelocities[i];
             netVelocities[i] += (springForce + dampingForce) * dt;
+            netVelocities[i] = Math.max(-8, Math.min(8, netVelocities[i])); // velocity clamp
             netDisplacements[i] += netVelocities[i] * dt;
+            netDisplacements[i] = Math.max(-0.55, Math.min(0.02, netDisplacements[i])); // physical pocket clamp
+
             pos[i * 3 + 2] = netOrigPositions[i * 3 + 2] + netDisplacements[i];
         } else {
             pos[i * 3 + 2] = netOrigPositions[i * 3 + 2];
@@ -536,19 +540,6 @@ addCylinderCollider(-goalWidth / 2, postHeight / 2, -20, postRadius, postHeight)
 addCylinderCollider(goalWidth / 2, postHeight / 2, -20, postRadius, postHeight);
 addCylinderCollider(0, postHeight, -20, postRadius, goalWidth, Math.PI / 2);
 
-// Fully Enclosed Zero-Rebound Net Boundary Colliders
-const addNetWall = (x, y, z, hx, hy, hz) => {
-    const b = new CANNON.Body({ mass: 0, material: netPhysMat });
-    b.addShape(new CANNON.Box(new CANNON.Vec3(hx, hy, hz)));
-    b.position.set(x, y, z);
-    world.addBody(b);
-    return b;
-};
-addNetWall(0, 1.22, -22.0, goalWidth / 2, 1.22, 0.05); // Rear Net
-addNetWall(-goalWidth / 2, 1.22, -21.0, 0.05, 1.22, goalDepth / 2); // Left Side Net
-addNetWall(goalWidth / 2, 1.22, -21.0, 0.05, 1.22, goalDepth / 2); // Right Side Net
-addNetWall(0, postHeight, -21.0, goalWidth / 2, 0.05, goalDepth / 2); // Roof Net
-
 // --- High-Poly 3D Football ---
 const ballRadius = 0.22;
 const ballGeo = new THREE.SphereGeometry(ballRadius, 32, 32);
@@ -569,19 +560,10 @@ const ballBody = new CANNON.Body({
     mass: 0.43,
     shape: new CANNON.Sphere(ballRadius),
     material: ballPhysMat,
-    linearDamping: 0.15,
-    angularDamping: 0.35
+    linearDamping: 0.35,
+    angularDamping: 0.75
 });
 world.addBody(ballBody);
-
-// 3D Motion Ribbon Trail
-const trailGeo = new THREE.BufferGeometry();
-const trailMaxPoints = 50;
-const trailPositions = new Float32Array(trailMaxPoints * 3);
-trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
-const trailMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.7, linewidth: 3 });
-const trailLine = new THREE.Line(trailGeo, trailMat);
-scene.add(trailLine);
 
 // --- Goalkeeper Rig & AI (Athletic 3D Mesh) ---
 const gkGroup = new THREE.Group();
@@ -702,7 +684,108 @@ scene.add(wallGroup);
 wallGroup.visible = false;
 wallBodies.forEach(b => { b.collisionResponse = 0; });
 
-// --- Targets System (Shattering Glass & Bullseyes) ---
+// --- Tournament State & Records ---
+let currentRound = 1;
+const maxDuelShots = 5;
+let duelResults = [];
+let targetRaceTimeLeft = 45;
+let targetRaceTimer = null;
+let maxSpeedRecord = 0;
+let maxSpinRecord = 0;
+let highestStreak = 0;
+let targetsShattered = 0;
+let shotComplete = false;
+
+const freeKickSpots = [
+    { x: 0, z: -9.0 },       // Round 1: Central 11m penalty spot
+    { x: 2.2, z: -7.6 },     // Round 2: Right side 14.5m
+    { x: -2.4, z: -7.0 },    // Round 3: Left side 15m
+    { x: 0.5, z: -5.5 },     // Round 4: Deep center 16.5m (over wall)
+    { x: -3.4, z: -6.5 }     // Round 5: Sharp wide angle 16m
+];
+
+const targetSlotDefs = [
+    { id: 0, x: -3.0, y: 2.05, type: 'glass', pts: 500, label: 'TOP CORNER!' },
+    { id: 1, x: 3.0, y: 2.05, type: 'glass', pts: 500, label: 'TOP CORNER!' },
+    { id: 2, x: 0, y: 1.25, type: 'bullseye', pts: 300, label: 'BULLSEYE!', isMoving: true },
+    { id: 3, x: -2.8, y: 0.65, type: 'glass', pts: 350, label: 'BOTTOM CORNER!' },
+    { id: 4, x: 2.8, y: 0.65, type: 'glass', pts: 350, label: 'BOTTOM CORNER!' }
+];
+
+// --- Target Factory & Continuous Respawning ---
+function createTargetMeshAndBody(c) {
+    const size = 0.5;
+    let mesh;
+    if (c.type === 'glass') {
+        mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(0.85, 0.85, 0.05),
+            new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.8, roughness: 0.1, metalness: 0.9 })
+        );
+    } else {
+        const tCanvas = document.createElement('canvas'); tCanvas.width = 256; tCanvas.height = 256;
+        const tctx = tCanvas.getContext('2d');
+        tctx.fillStyle = '#ef4444'; tctx.beginPath(); tctx.arc(128,128,128,0,Math.PI*2); tctx.fill();
+        tctx.fillStyle = '#ffffff'; tctx.beginPath(); tctx.arc(128,128,85,0,Math.PI*2); tctx.fill();
+        tctx.fillStyle = '#ef4444'; tctx.beginPath(); tctx.arc(128,128,42,0,Math.PI*2); tctx.fill();
+        mesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(size, size, 0.05, 32),
+            new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(tCanvas), roughness: 0.3 })
+        );
+        mesh.rotation.x = Math.PI / 2;
+    }
+    mesh.position.set(c.x, c.y, -20.1);
+    mesh.castShadow = true;
+    scene.add(mesh);
+
+    const body = new CANNON.Body({ shape: new CANNON.Box(new CANNON.Vec3(size, size, 0.1)), position: new CANNON.Vec3(c.x, c.y, -20.1) });
+    body.collisionResponse = 0;
+    world.addBody(body);
+
+    return { mesh, body, active: true, pts: c.pts, label: c.label, type: c.type, originX: c.x, isMoving: !!c.isMoving, slotId: c.id };
+}
+
+function spawnSingleTarget(slotId) {
+    if (currentGameMode !== 'targets' || !isPlaying) return;
+    if (activeTargets.some(t => t.active && t.slotId === slotId)) return;
+    const def = targetSlotDefs.find(s => s.id === slotId);
+    if (def) {
+        activeTargets.push(createTargetMeshAndBody(def));
+    }
+}
+
+function spawnRandomTarget() {
+    if (currentGameMode !== 'targets' || !isPlaying) return;
+    const occupiedSlotIds = activeTargets.filter(t => t.active).map(t => t.slotId);
+    const availableDefs = targetSlotDefs.filter(d => !occupiedSlotIds.includes(d.id));
+    if (availableDefs.length > 0) {
+        const picked = availableDefs[Math.floor(Math.random() * availableDefs.length)];
+        activeTargets.push(createTargetMeshAndBody(picked));
+    }
+}
+
+let shotOutcomeTimer = null;
+function finishShot(outcome, bannerMain, bannerSub, bannerColor) {
+    if (shotComplete) return;
+    shotComplete = true;
+    if (shotOutcomeTimer) clearTimeout(shotOutcomeTimer);
+
+    if (bannerMain) {
+        showBanner(bannerMain, bannerSub, bannerColor);
+    }
+
+    if (currentGameMode === 'duel') {
+        duelResults[currentRound - 1] = outcome;
+        updateDuelPills();
+    }
+
+    document.getElementById('next-shot-btn').style.display = 'block';
+    document.getElementById('tap-prompt').style.display = 'block';
+
+    shotOutcomeTimer = setTimeout(() => {
+        triggerNextShot();
+    }, 2200);
+}
+
 function spawnTargets() {
     activeTargets.forEach(t => { scene.remove(t.mesh); world.removeBody(t.body); });
     activeTargets = [];
@@ -713,65 +796,83 @@ function spawnTargets() {
         gkGroup.visible = false;
         gkBodyCollider.collisionResponse = 0;
 
-        // 1. Top-Left & Top-Right Corner Shattering Glass Targets
-        const corners = [
-            { x: -3.0, y: 2.05, type: 'glass', pts: 500, label: 'TOP CORNER!' },
-            { x: 3.0, y: 2.05, type: 'glass', pts: 500, label: 'TOP CORNER!' },
-            { x: 0, y: 1.2, type: 'bullseye', pts: 250, label: 'BULLSEYE!' }
-        ];
-
-        corners.forEach(c => {
-            const size = 0.5;
-            let mesh;
-            if (c.type === 'glass') {
-                mesh = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.85, 0.85, 0.05),
-                    new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.8, roughness: 0.1, metalness: 0.9 })
-                );
-            } else {
-                // Bullseye
-                const tCanvas = document.createElement('canvas'); tCanvas.width = 256; tCanvas.height = 256;
-                const tctx = tCanvas.getContext('2d');
-                tctx.fillStyle = '#ef4444'; tctx.beginPath(); tctx.arc(128,128,128,0,Math.PI*2); tctx.fill();
-                tctx.fillStyle = '#ffffff'; tctx.beginPath(); tctx.arc(128,128,85,0,Math.PI*2); tctx.fill();
-                tctx.fillStyle = '#ef4444'; tctx.beginPath(); tctx.arc(128,128,42,0,Math.PI*2); tctx.fill();
-                mesh = new THREE.Mesh(
-                    new THREE.CylinderGeometry(size, size, 0.05, 32),
-                    new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(tCanvas), roughness: 0.3 })
-                );
-                mesh.rotation.x = Math.PI / 2;
-            }
-            mesh.position.set(c.x, c.y, -20.1);
-            mesh.castShadow = true;
-            scene.add(mesh);
-
-            const body = new CANNON.Body({ shape: new CANNON.Box(new CANNON.Vec3(size, size, 0.1)), position: new CANNON.Vec3(c.x, c.y, -20.1) });
-            body.collisionResponse = 0;
-            world.addBody(body);
-
-            activeTargets.push({ mesh, body, active: true, pts: c.pts, label: c.label, type: c.type, originX: c.x, isMoving: c.type === 'bullseye' });
-        });
+        // Spawn initial 3 targets
+        [0, 1, 2].forEach(slotId => spawnSingleTarget(slotId));
     } else {
         // Duel Mode (Goalkeeper + Defensive Wall)
-        const wallSide = Math.random() > 0.5 ? 1 : -1;
-        const wallX = wallSide * 1.35;
-        wallGroup.position.set(wallX, 0, -13.5);
         wallGroup.visible = true;
-        wallBodies.forEach((b, idx) => {
-            const offset = (idx - 1) * 0.85;
-            b.position.set(wallX + offset, 0.95, -13.5);
-            b.collisionResponse = 1;
-        });
-
-        // Goalkeeper starts covering opposite post angle
-        const gkStartX = -wallSide * 0.9;
-        gkGroup.position.set(gkStartX, 0, -19.6);
-        gkGroup.rotation.set(0, 0, 0);
         gkGroup.visible = true;
-        gkBodyCollider.position.set(gkStartX, 1.05, -19.6);
         gkBodyCollider.collisionResponse = 1;
     }
 }
+
+function updateDuelPills() {
+    const container = document.getElementById('shot-pills');
+    if (!container) return;
+    container.innerHTML = '';
+    for (let i = 0; i < maxDuelShots; i++) {
+        const pill = document.createElement('div');
+        pill.style.width = '24px';
+        pill.style.height = '24px';
+        pill.style.borderRadius = '50%';
+        pill.style.display = 'flex';
+        pill.style.alignItems = 'center';
+        pill.style.justifyContent = 'center';
+        pill.style.fontSize = '12px';
+        pill.style.fontWeight = 'bold';
+        
+        if (duelResults[i] === 'goal') {
+            pill.style.background = '#22c55e';
+            pill.style.color = '#fff';
+            pill.innerText = '✓';
+            pill.style.boxShadow = '0 0 10px rgba(34, 197, 94, 0.6)';
+        } else if (duelResults[i] === 'miss') {
+            pill.style.background = '#ef4444';
+            pill.style.color = '#fff';
+            pill.innerText = '✕';
+        } else if (i === currentRound - 1) {
+            pill.style.border = '2px solid #38bdf8';
+            pill.style.background = 'rgba(56, 189, 248, 0.2)';
+            pill.innerText = (i + 1).toString();
+            pill.style.color = '#38bdf8';
+        } else {
+            pill.style.background = 'rgba(255, 255, 255, 0.1)';
+            pill.style.color = '#64748b';
+            pill.innerText = (i + 1).toString();
+        }
+        container.appendChild(pill);
+    }
+}
+
+window.showMatchResults = function(title) {
+    isPlaying = false;
+    isAiming = false;
+    if (targetRaceTimer) clearInterval(targetRaceTimer);
+    if (shotOutcomeTimer) clearTimeout(shotOutcomeTimer);
+    
+    sfx.playCheer();
+    
+    document.getElementById('modal-title').innerText = title;
+    document.getElementById('modal-final-score').innerText = score.toLocaleString() + ' PTS';
+    
+    if (currentGameMode === 'duel') {
+        const goalsCount = duelResults.filter(r => r === 'goal').length;
+        document.getElementById('stat-modal-accuracy').innerText = `${goalsCount} / ${maxDuelShots} Goals`;
+    } else {
+        document.getElementById('stat-modal-accuracy').innerText = `${targetsShattered} Targets Hit`;
+    }
+    
+    document.getElementById('stat-modal-speed').innerText = `${maxSpeedRecord || 85} KM/H`;
+    document.getElementById('stat-modal-spin').innerText = `${maxSpinRecord || 0} RPM`;
+    document.getElementById('stat-modal-streak').innerText = `${Math.max(1, highestStreak)}X STREAK`;
+    
+    document.getElementById('results-modal').style.display = 'flex';
+};
+
+window.restartCurrentMode = function() {
+    document.getElementById('results-modal').style.display = 'none';
+    selectMode(currentGameMode);
+};
 
 // Dynamic Animation State
 let gkDiving = false;
@@ -807,7 +908,18 @@ let ballInFlight = false;
 let slowMo = false;
 
 window.resetBall = function() {
-    ballBody.position.set(0, ballRadius, -9);
+    if (shotOutcomeTimer) clearTimeout(shotOutcomeTimer);
+    swipeSamples = [];
+    let spotX = 0;
+    let spotZ = -9.0;
+    if (currentGameMode === 'duel') {
+        const spotIdx = (currentRound - 1) % freeKickSpots.length;
+        const spot = freeKickSpots[spotIdx];
+        spotX = spot.x;
+        spotZ = spot.z;
+    }
+
+    ballBody.position.set(spotX, ballRadius, spotZ);
     ballBody.velocity.set(0, 0, 0);
     ballBody.angularVelocity.set(0, 0, 0);
     ballMesh.position.copy(ballBody.position);
@@ -818,6 +930,7 @@ window.resetBall = function() {
     slowMo = false;
     ballBody.scored = false;
     ballBody.saved = false;
+    shotComplete = false;
 
     // Reset Goalkeeper & Wall
     gkDiving = false;
@@ -827,27 +940,29 @@ window.resetBall = function() {
     wallBodies.forEach(b => { b.position.y = 0.95; });
 
     if (currentGameMode === 'duel') {
-        const wallSide = Math.random() > 0.5 ? 1 : -1;
-        const wallX = wallSide * 1.35;
-        wallGroup.position.set(wallX, 0, -13.5);
+        const dxToGoal = -spotX;
+        const wallSide = dxToGoal >= 0 ? 1 : -1;
+        const wallX = spotX * 0.45 + (wallSide * 0.75);
+        const wallZ = spotZ - 5.5;
+        wallGroup.position.set(wallX, 0, wallZ);
         wallBodies.forEach((b, idx) => {
             const offset = (idx - 1) * 0.85;
-            b.position.set(wallX + offset, 0.95, -13.5);
+            b.position.set(wallX + offset, 0.95, wallZ);
+            b.collisionResponse = 1;
         });
-        const gkStartX = -wallSide * 0.9;
+
+        const gkStartX = -wallSide * 0.95;
         gkGroup.position.set(gkStartX, 0, -19.6);
         gkGroup.rotation.set(0, 0, 0);
         gkBodyCollider.position.set(gkStartX, 1.05, -19.6);
     }
 
-    // Reset Camera
-    camera.position.set(0, 1.4, -4.8);
+    // Dynamic Camera Framing
+    camera.position.set(spotX * 0.65, 1.4, spotZ + 4.2);
     camera.lookAt(0, 0.8, -20);
 
-    trailPoints = [];
-    updateTrail();
-
     document.getElementById('next-shot-btn').style.display = 'none';
+    document.getElementById('tap-prompt').style.display = 'none';
     document.getElementById('banner').classList.remove('show');
     document.getElementById('telemetry').classList.remove('visible');
 
@@ -860,23 +975,77 @@ window.selectMode = function(mode) {
     sfx.init();
     currentGameMode = mode;
     document.getElementById('menu').style.display = 'none';
+    document.getElementById('results-modal').style.display = 'none';
     document.getElementById('hud').style.display = 'block';
     isPlaying = true;
     score = 0;
     streak = 0;
+    maxSpeedRecord = 0;
+    maxSpinRecord = 0;
+    highestStreak = 0;
+    targetsShattered = 0;
     updateHUD();
+
+    if (targetRaceTimer) clearInterval(targetRaceTimer);
+
+    if (mode === 'duel') {
+        currentRound = 1;
+        duelResults = [];
+        document.getElementById('tracker-label').innerText = 'ROUND';
+        document.getElementById('shot-pills').style.display = 'flex';
+        document.getElementById('timer-display').style.display = 'none';
+        updateDuelPills();
+    } else {
+        targetRaceTimeLeft = 45;
+        document.getElementById('tracker-label').innerText = 'TIME';
+        document.getElementById('shot-pills').style.display = 'none';
+        document.getElementById('timer-display').style.display = 'block';
+        document.getElementById('timer-display').style.color = '#38bdf8';
+        document.getElementById('timer-display').innerText = '45s';
+
+        targetRaceTimer = setInterval(() => {
+            if (!isPlaying) { clearInterval(targetRaceTimer); return; }
+            targetRaceTimeLeft--;
+            document.getElementById('timer-display').innerText = targetRaceTimeLeft + 's';
+            if (targetRaceTimeLeft <= 5 && targetRaceTimeLeft > 0) {
+                sfx.playWhistle();
+                document.getElementById('timer-display').style.color = '#ef4444';
+            }
+            if (targetRaceTimeLeft <= 0) {
+                clearInterval(targetRaceTimer);
+                showMatchResults('TARGET RACE COMPLETE!');
+            }
+        }, 1000);
+    }
+
     spawnTargets();
     resetBall();
 };
 
 window.resetToMenu = function() {
     isPlaying = false;
+    if (targetRaceTimer) clearInterval(targetRaceTimer);
+    if (shotOutcomeTimer) clearTimeout(shotOutcomeTimer);
     document.getElementById('menu').style.display = 'flex';
     document.getElementById('hud').style.display = 'none';
+    document.getElementById('results-modal').style.display = 'none';
 };
 
 window.triggerNextShot = function() {
-    resetBall();
+    if (shotOutcomeTimer) clearTimeout(shotOutcomeTimer);
+    if (!isPlaying && document.getElementById('results-modal').style.display === 'flex') return;
+
+    if (currentGameMode === 'duel') {
+        if (currentRound >= maxDuelShots) {
+            showMatchResults('MATCH FINISHED!');
+            return;
+        }
+        currentRound++;
+        updateDuelPills();
+        resetBall();
+    } else {
+        resetBall();
+    }
 };
 
 function updateHUD() {
@@ -894,7 +1063,12 @@ function showBanner(main, sub, color = '#38bdf8') {
 
 // Swipe Gesture Parser with Multi-Point Curve Sampling
 window.addEventListener('pointerdown', (e) => {
-    if (!isPlaying || !isAiming || (e.target && e.target.closest && e.target.closest('button'))) return;
+    if (!isPlaying) return;
+    if (shotComplete) {
+        triggerNextShot();
+        return;
+    }
+    if (!isAiming || (e.target && e.target.closest && e.target.closest('button'))) return;
     sfx.init();
     swipeSamples = [{ x: e.clientX, y: e.clientY, time: performance.now() }];
 });
@@ -908,27 +1082,29 @@ window.addEventListener('pointerup', (e) => {
     if (!isPlaying || !isAiming || swipeSamples.length < 2) return;
     swipeSamples.push({ x: e.clientX, y: e.clientY, time: performance.now() });
 
-    const first = swipeSamples[0];
     const last = swipeSamples[swipeSamples.length - 1];
-    const dt = (last.time - first.time) / 1000;
-    const dy = last.y - first.y;
-    const dx = last.x - first.x;
+    // Filter to active upward flick portion (within last 750ms)
+    const activeSamples = swipeSamples.filter(s => (last.time - s.time) <= 750);
+    const strokeStart = activeSamples.length >= 2 ? activeSamples[0] : swipeSamples[0];
+    const dt = Math.max(0.02, (last.time - strokeStart.time) / 1000);
+    const dy = last.y - strokeStart.y;
+    const dx = last.x - strokeStart.x;
 
     // Must be an upward stroke
-    if (dy < -20 && dt > 0.05 && dt < 0.8) {
+    if (dy < -15) {
         isAiming = false;
         ballInFlight = true;
 
         // Calculate Curvature Deflection (midpoint deviation from straight chord)
         let maxDeflection = 0;
-        const midIdx = Math.floor(swipeSamples.length / 2);
-        const mid = swipeSamples[midIdx];
-        const chordX = first.x + (last.x - first.x) * 0.5;
+        const midIdx = Math.floor(activeSamples.length / 2);
+        const mid = activeSamples[midIdx];
+        const chordX = strokeStart.x + (last.x - strokeStart.x) * 0.5;
         maxDeflection = mid.x - chordX;
 
         // Launch Velocities
         const strokeSpeed = Math.hypot(dx, dy) / dt; // px/sec
-        const powerNorm = Math.min(1.0, Math.max(0.4, strokeSpeed / 1800));
+        const powerNorm = Math.min(1.0, Math.max(0.35, strokeSpeed / 1600));
 
         const vz = -18 - powerNorm * 18; // -18 to -36 m/s (~65 to 130 km/h)
         const vy = Math.min(14, Math.max(3.5, (-dy / window.innerHeight) * 22));
@@ -937,8 +1113,6 @@ window.addEventListener('pointerup', (e) => {
         ballBody.velocity.set(vx, vy, vz);
 
         // Angular Spin Vector (Magnus Effect)
-        // Deflection to left (< 0) -> clockwise spin -> swerves left
-        // Deflection to right (> 0) -> counter-clockwise spin -> swerves right
         const spinRPM = (maxDeflection / 40) * 800; // up to 1200 RPM
         const omegaY = (spinRPM * Math.PI * 2) / 60;
         spinVector.set(0, omegaY, 0);
@@ -950,8 +1124,11 @@ window.addEventListener('pointerup', (e) => {
         else if (spinRPM > 200) style = 'Curling Inswing';
         else if (spinRPM < -200) style = 'Curling Outswing';
 
-        // Telemetry Update
+        // Telemetry Update & Match Records
         const speedKmh = Math.round(Math.abs(vz) * 3.6);
+        maxSpeedRecord = Math.max(maxSpeedRecord, speedKmh);
+        maxSpinRecord = Math.max(maxSpinRecord, Math.round(Math.abs(spinRPM)));
+
         document.getElementById('stat-speed').innerText = speedKmh + ' KM/H';
         document.getElementById('stat-spin').innerText = Math.round(Math.abs(spinRPM)) + ' RPM';
         document.getElementById('stat-style').innerText = style;
@@ -964,30 +1141,29 @@ window.addEventListener('pointerup', (e) => {
             wallJumping = true;
             wallJumpTimer = 0;
             gkDiving = true;
-            const predX = vx * 0.72 + (spinVector.y * -0.045);
-            gkTargetX = Math.max(-3.3, Math.min(3.3, predX));
+            const predX = vx * 0.70 + (spinVector.y * -0.04);
+            const speedRatio = Math.min(1.0, speedKmh / 115);
+            const keeperSkill = 0.82 - speedRatio * 0.25;
+            gkTargetX = Math.max(-3.2, Math.min(3.2, predX * keeperSkill));
             const predY = Math.max(0.65, Math.min(2.1, vy * 0.22));
             gkTargetY = predY;
-            gkTargetRotZ = (gkTargetX > gkGroup.position.x ? -1 : 1) * Math.min(1.2, Math.abs(gkTargetX - gkGroup.position.x) * 0.45);
+            gkTargetRotZ = (gkTargetX > gkGroup.position.x ? -1 : 1) * Math.min(1.1, Math.abs(gkTargetX - gkGroup.position.x) * 0.4);
         }
 
+        // Safety timeout for shot completion
         setTimeout(() => {
-            document.getElementById('next-shot-btn').style.display = 'block';
-        }, 2200);
+            if (ballInFlight && !shotComplete && isPlaying) {
+                if (currentGameMode === 'duel') {
+                    finishShot(ballBody.scored ? 'goal' : 'miss', ballBody.scored ? 'GOAL!' : 'OFF TARGET', '', ballBody.scored ? '#22c55e' : '#ef4444');
+                } else {
+                    finishShot('complete');
+                    setTimeout(() => { if (currentGameMode === 'targets' && isPlaying) resetBall(); }, 600);
+                }
+            }
+        }, 2800);
     }
     swipeSamples = [];
 });
-
-function updateTrail() {
-    const pos = trailGeo.attributes.position.array;
-    for (let i = 0; i < trailMaxPoints; i++) {
-        const pt = trailPoints[i] || (trailPoints.length > 0 ? trailPoints[trailPoints.length - 1] : ballMesh.position);
-        pos[i * 3] = pt.x;
-        pos[i * 3 + 1] = pt.y;
-        pos[i * 3 + 2] = pt.z;
-    }
-    trailGeo.attributes.position.needsUpdate = true;
-}
 
 // --- Main Render & Physics Loop ---
 const clock = new THREE.Clock();
@@ -995,7 +1171,7 @@ function animate() {
     requestAnimationFrame(animate);
     if (!isPlaying) return;
 
-    let dt = clock.getDelta();
+    let dt = Math.min(0.033, clock.getDelta());
     if (slowMo) dt *= 0.35; // Cinematic slow motion near goal
 
     world.step(1 / 60, dt, 3);
@@ -1029,20 +1205,30 @@ function animate() {
                 streak = 0;
                 updateHUD();
                 sfx.playPost();
-                showBanner('SAVED!', 'DENIED BY THE KEEPER', '#f59e0b');
                 ballBody.velocity.x *= -0.35;
                 ballBody.velocity.z *= -0.25;
                 ballBody.velocity.y = Math.max(1.5, ballBody.velocity.y + 2.0);
+                finishShot('miss', 'SAVED!', 'DENIED BY THE KEEPER', '#f59e0b');
             }
         }
+    }
+
+    // Moving Bullseye Oscillation (Target Race Mode)
+    if (currentGameMode === 'targets') {
+        activeTargets.forEach(t => {
+            if (t.isMoving && t.active) {
+                const moveX = t.originX + Math.sin(clock.getElapsedTime() * 2.2) * 1.6;
+                t.mesh.position.x = moveX;
+                t.body.position.x = moveX;
+            }
+        });
     }
 
     // Dynamic Net Deform & Spring Relaxation
     updateNetDeformation(dt);
 
     // Continuous 3D Magnus Aerodynamic Forces
-    if (ballInFlight && ballBody.position.z > -22) {
-        // F_magnus = S * (omega x v)
+    if (ballInFlight && ballBody.position.z > -19.9) {
         const v = ballBody.velocity;
         const magnusCoeff = 0.0035;
         const fx = -spinVector.y * v.z * magnusCoeff;
@@ -1055,98 +1241,145 @@ function animate() {
         ballMesh.rotation.y += spinVector.y * dt;
         ballMesh.rotation.x += v.z * dt * 2.0;
 
-        // Record flight trail
-        if (trailPoints.length === 0 || ballMesh.position.distanceTo(trailPoints[trailPoints.length - 1]) > 0.4) {
-            trailPoints.push(ballMesh.position.clone());
-            if (trailPoints.length > trailMaxPoints) trailPoints.shift();
-            updateTrail();
-        }
-
         // Camera Smooth Tracking
         camera.position.z += ((ballMesh.position.z + 4.2) - camera.position.z) * 0.12;
         camera.position.x += ((ballMesh.position.x * 0.4) - camera.position.x) * 0.12;
         camera.lookAt(ballMesh.position.x, ballMesh.position.y + 0.3, ballMesh.position.z - 3);
 
-        // Check Target Collisions (Target Race Mode)
-        activeTargets.forEach(t => {
-            if (t.active && ballMesh.position.distanceTo(t.mesh.position) < 0.65) {
-                t.active = false;
-                scene.remove(t.mesh);
-                world.removeBody(t.body);
-
-                streak++;
-                const awarded = t.pts * streak;
-                score += awarded;
-                updateHUD();
-
-                if (t.type === 'glass') sfx.playShatter();
-                else sfx.playNet();
-                sfx.playCheer();
-
-                createShatterFX(t.mesh.position.x, t.mesh.position.y, t.mesh.position.z, t.type === 'glass' ? 0x38bdf8 : 0xef4444);
-                showBanner(t.label, `+${awarded} PTS (${streak}X STREAK)`, '#38bdf8');
-            }
-        });
-
         // Check Goal Post Collisions
-        if (Math.abs(ballBody.position.z - (-20)) < 0.3 && Math.abs(ballBody.position.x) < 3.8 && ballBody.position.y < 2.6) {
-            if (Math.abs(Math.abs(ballBody.position.x) - 3.66) < 0.2 || Math.abs(ballBody.position.y - 2.44) < 0.2) {
+        if (Math.abs(ballBody.position.z - (-20)) < 0.35 && Math.abs(ballBody.position.x) < 3.8 && ballBody.position.y < 2.6) {
+            if (Math.abs(Math.abs(ballBody.position.x) - 3.66) < 0.22 || Math.abs(ballBody.position.y - 2.44) < 0.22) {
                 sfx.playPost();
             }
         }
+    }
 
-        // Check Goal Net Entry & Volumetric Entrapment
-        const inGoal = (ballBody.position.z <= -20.05 && ballBody.position.z >= -22.3 &&
-                        Math.abs(ballBody.position.x) <= 3.66 && ballBody.position.y <= 2.48);
+    // Check Target Collisions (Target Race Mode - targets located at z = -20.1)
+    if (currentGameMode === 'targets' && ballInFlight) {
+        activeTargets.forEach(t => {
+            if (t.active) {
+                const distXY = Math.hypot(ballBody.position.x - t.mesh.position.x, ballBody.position.y - t.mesh.position.y);
+                const distZ = Math.abs(ballBody.position.z - (-20.1));
+                if (distXY < 0.75 && distZ < 1.1) {
+                    t.active = false;
+                    scene.remove(t.mesh);
+                    world.removeBody(t.body);
 
-        if (inGoal) {
-            if (!ballBody.scored && !ballBody.saved) {
-                ballBody.scored = true;
-                streak++;
-                const pts = 200 * streak;
-                score += pts;
-                updateHUD();
-                sfx.playNet();
-                sfx.playCheer();
-                showBanner('GOAL!', `+${pts} PTS!`, '#22c55e');
-                slowMo = true;
-                setTimeout(() => { slowMo = false; }, 600);
-                triggerNetBillow(ballBody.position.x, ballBody.position.y);
+                    targetsShattered++;
+                    streak++;
+                    highestStreak = Math.max(highestStreak, streak);
+                    const awarded = t.pts * streak;
+                    score += awarded;
+                    updateHUD();
+
+                    if (t.type === 'glass') sfx.playShatter();
+                    else sfx.playNet();
+                    sfx.playCheer();
+
+                    createShatterFX(t.mesh.position.x, t.mesh.position.y, t.mesh.position.z, t.type === 'glass' ? 0x38bdf8 : 0xef4444);
+                    showBanner(t.label, `+${awarded} PTS (${streak}X STREAK)`, '#38bdf8');
+
+                    setTimeout(() => { spawnRandomTarget(); }, 750);
+                    setTimeout(() => {
+                        if (currentGameMode === 'targets' && isPlaying) resetBall();
+                    }, 650);
+                }
             }
+        });
+    }
 
-            // High Viscous Cord Drag (Dissipate kinetic energy without bounce)
-            const netDamping = Math.max(0, 1 - 9.0 * dt);
-            ballBody.velocity.x *= netDamping;
-            ballBody.velocity.z *= netDamping;
-            ballBody.angularVelocity.scale(netDamping, ballBody.angularVelocity);
+    // Target Race: Auto-Reset on Miss / Low Speed
+    if (currentGameMode === 'targets' && ballInFlight && (ballBody.position.z < -20.5 || (ballBody.position.z < -16 && ballBody.velocity.length() < 1.0))) {
+        ballInFlight = false;
+        streak = 0;
+        updateHUD();
+        setTimeout(() => {
+            if (currentGameMode === 'targets' && isPlaying) resetBall();
+        }, 650);
+    }
 
-            // Gravity drops the ball down to the turf inside the goal pocket
-            ballBody.velocity.y -= 14.0 * dt;
+    // Check Goal Net Entry & Volumetric Entrapment
+    const inGoal = (ballBody.position.z <= -19.95 && ballBody.position.z >= -22.5 &&
+                    Math.abs(ballBody.position.x) <= 3.70 && ballBody.position.y <= 2.50);
 
-            // Soft back net arrest (enforce zero forward rebound)
-            if (ballBody.position.z < -21.85) {
-                ballBody.position.z = -21.85;
-                ballBody.velocity.z = 0;
-            }
-            if (ballBody.position.z < -20.15 && ballBody.velocity.z > 0.04) {
-                ballBody.velocity.z = 0.04;
-            }
+    if (inGoal) {
+        if (!ballBody.scored && !ballBody.saved) {
+            ballBody.scored = true;
+            streak++;
+            highestStreak = Math.max(highestStreak, streak);
+            const pts = 200 * streak;
+            score += pts;
+            updateHUD();
+            sfx.playNet();
+            sfx.playCheer();
+            slowMo = true;
+            setTimeout(() => { slowMo = false; }, 600);
+            triggerNetBillow(ballBody.position.x, ballBody.position.y);
+            finishShot('goal', 'GOAL!', `+${pts} PTS!`, '#22c55e');
         }
 
-        // Realistic Turf Rolling Deceleration (Prevents infinite roll)
-        if (ballBody.position.y <= ballRadius + 0.03 && Math.abs(ballBody.velocity.y) < 0.8) {
-            const hSpeed = Math.hypot(ballBody.velocity.x, ballBody.velocity.z);
-            const decel = inGoal ? 6.5 : 2.8; // Decelerate to rest in <= 2.0s
-            if (hSpeed > 0.02) {
-                const newSpeed = Math.max(0, hSpeed - decel * dt);
-                const ratio = newSpeed / hSpeed;
-                ballBody.velocity.x *= ratio;
-                ballBody.velocity.z *= ratio;
-                ballBody.angularVelocity.scale(ratio, ballBody.angularVelocity);
-            } else {
-                ballBody.velocity.x = 0;
-                ballBody.velocity.z = 0;
-                ballBody.angularVelocity.set(0, 0, 0);
+        // Heavy Viscous Net Cord Damping (Instant energy dissipation)
+        const netDamping = Math.max(0, 1 - 12.0 * dt);
+        ballBody.velocity.x *= netDamping;
+        ballBody.velocity.z *= netDamping;
+        ballBody.angularVelocity.scale(netDamping, ballBody.angularVelocity);
+
+        // Net downward pocket gravity
+        ballBody.velocity.y -= 16.0 * dt;
+
+        // Hard boundary containment (ZERO rebound, ZERO forward escape)
+        if (ballBody.position.z < -21.85) {
+            ballBody.position.z = -21.85;
+            ballBody.velocity.z = 0;
+        }
+        if (ballBody.position.z < -20.10 && ballBody.velocity.z > 0) {
+            ballBody.velocity.z = 0; // Forward escape physically impossible
+        }
+        ballBody.position.x = Math.max(-3.55, Math.min(3.55, ballBody.position.x));
+        if (ballBody.position.y > 2.38) {
+            ballBody.position.y = 2.38;
+            ballBody.velocity.y = -1.5;
+        }
+
+        // Drop to rest on turf inside net
+        if (ballBody.position.y <= ballRadius + 0.02) {
+            ballBody.position.y = ballRadius;
+            ballBody.velocity.set(0, 0, 0);
+            ballBody.angularVelocity.set(0, 0, 0);
+            ballInFlight = false;
+        }
+    }
+
+    // Duel: Check Off-Target Miss (passed goal plane without scoring or save)
+    if (currentGameMode === 'duel' && ballInFlight && ballBody.position.z < -20.2 && !inGoal && !ballBody.saved && !ballBody.scored) {
+        streak = 0;
+        updateHUD();
+        finishShot('miss', 'OFF TARGET!', 'MISSED THE GOAL', '#ef4444');
+    }
+
+    // Realistic Turf Rolling Deceleration (Prevents infinite rolling anywhere on the pitch)
+    if (ballBody.position.y <= ballRadius + 0.05) {
+        const hSpeed = Math.hypot(ballBody.velocity.x, ballBody.velocity.z);
+        if (hSpeed > 0.01) {
+            const decel = inGoal ? 8.0 : 3.8; // Arrests roll in < 1 second
+            const newSpeed = Math.max(0, hSpeed - decel * dt);
+            const ratio = newSpeed / hSpeed;
+            ballBody.velocity.x *= ratio;
+            ballBody.velocity.z *= ratio;
+            ballBody.angularVelocity.scale(ratio, ballBody.angularVelocity);
+        } else {
+            ballBody.velocity.x = 0;
+            ballBody.velocity.z = 0;
+            ballBody.angularVelocity.set(0, 0, 0);
+            if (ballInFlight) {
+                ballInFlight = false;
+                if (!shotComplete && currentGameMode === 'duel') {
+                    finishShot(ballBody.scored ? 'goal' : 'miss', ballBody.scored ? 'GOAL!' : 'OFF TARGET', '', ballBody.scored ? '#22c55e' : '#ef4444');
+                } else if (currentGameMode === 'targets') {
+                    setTimeout(() => {
+                        if (currentGameMode === 'targets' && isPlaying) resetBall();
+                    }, 650);
+                }
             }
         }
     }
