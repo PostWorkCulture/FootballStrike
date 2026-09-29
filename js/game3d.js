@@ -1,33 +1,155 @@
-// Global UI State
-let gameActive = false;
+// ============================================================================
+// FOOTBALL STRIKE 3D: PRO SHOOTOUT ENGINE
+// True Aerodynamic Magnus Effect • Procedural Web Audio • AAA Pitch & Stadium
+// ============================================================================
+
+// --- Global State ---
+let currentGameMode = 'targets'; // 'targets' | 'duel'
+let isPlaying = false;
+let isAiming = false;
 let score = 0;
+let streak = 0;
+let activeTargets = [];
+let particles = [];
+let trailPoints = [];
 
-window.startGame = function(avatarUrl) {
-    document.getElementById('menu').style.display = 'none';
-    document.getElementById('game-ui').style.display = 'block';
-    document.getElementById('player-avatar').src = avatarUrl;
-    gameActive = true;
-    score = 0;
-    document.getElementById('score').innerText = score;
-    spawnTargets();
-    resetBall();
-};
+// --- Procedural Web Audio Synthesizer (Zero External Dependencies) ---
+class StadiumAudio {
+    constructor() {
+        this.ctx = null;
+    }
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    }
+    playKick(power = 1.0) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(140 * power, now);
+        osc.frequency.exponentialRampToValueAtTime(35, now + 0.12);
+        gain.gain.setValueAtTime(0.85 * power, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.14);
+    }
+    playPost() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        [1150, 2300, 3450].forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(0.3 / (i + 1), now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.6);
+        });
+    }
+    playShatter() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const bufferSize = this.ctx.sampleRate * 0.25;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.2));
+        }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(2500, now);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.6, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(now);
+    }
+    playNet() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const bufferSize = this.ctx.sampleRate * 0.3;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+        }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(800, now);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(now);
+    }
+    playCheer() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const bufferSize = this.ctx.sampleRate * 1.5;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.sin((i / bufferSize) * Math.PI);
+        }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1400, now);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(0.45, now + 0.4);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(now);
+    }
+    playWhistle() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc1 = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc1.type = 'sine'; osc1.frequency.setValueAtTime(2800, now);
+        osc2.type = 'sine'; osc2.frequency.setValueAtTime(3050, now);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        osc1.connect(gain); osc2.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc1.start(now); osc2.start(now);
+        osc1.stop(now + 0.35); osc2.stop(now + 0.35);
+    }
+}
+const sfx = new StadiumAudio();
 
-window.showMenu = function() {
-    document.getElementById('menu').style.display = 'flex';
-    document.getElementById('game-ui').style.display = 'none';
-    gameActive = false;
-};
-
-// Init Three.js
+// --- Three.js & Cannon.js Initialization ---
 const scene = new THREE.Scene();
-const textureLoader = new THREE.TextureLoader();
-scene.background = new THREE.Color(0x060b13); 
-scene.fog = new THREE.FogExp2(0x060b13, 0.012);
+scene.background = new THREE.Color(0x030712);
+scene.fog = new THREE.FogExp2(0x030712, 0.009);
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 2, 6);
-camera.lookAt(0, 1, 0);
+const camera = new THREE.PerspectiveCamera(54, window.innerWidth / window.innerHeight, 0.05, 600);
+camera.position.set(0, 1.4, -4.8);
+camera.lookAt(0, 0.8, -20);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -35,590 +157,880 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMappingExposure = 1.2;
 document.body.appendChild(renderer.domElement);
 
-// Lighting (Dramatic Night Game)
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-scene.add(ambientLight);
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.4);
-dirLight.position.set(10, 20, 10);
-dirLight.castShadow = true;
-dirLight.shadow.camera.top = 30;
-dirLight.shadow.camera.bottom = -30;
-dirLight.shadow.camera.left = -30;
-dirLight.shadow.camera.right = 30;
-scene.add(dirLight);
-
-// Init Cannon.js (Physics)
+// Cannon Physics World
 const world = new CANNON.World();
-world.gravity.set(0, -9.82, 0);
+world.gravity.set(0, -9.81, 0);
 world.broadphase = new CANNON.NaiveBroadphase();
 world.solver.iterations = 10;
 
-const physicsMaterial = new CANNON.Material("standard");
-const physicsContactMaterial = new CANNON.ContactMaterial(physicsMaterial, physicsMaterial, { friction: 0.3, restitution: 0.7 });
-world.addContactMaterial(physicsContactMaterial);
+const ballPhysMat = new CANNON.Material("ball");
+const pitchPhysMat = new CANNON.Material("pitch");
+const postPhysMat = new CANNON.Material("post");
+const netPhysMat = new CANNON.Material("net");
 
-// --- Realistic High-Granularity Premier League Pitch & Markings ---
-function createGranularTurfTexture() {
+world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, pitchPhysMat, { friction: 0.35, restitution: 0.65 }));
+world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, postPhysMat, { friction: 0.2, restitution: 0.8 }));
+world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, netPhysMat, { friction: 0.6, restitution: 0.05 }));
+
+// --- Atmospheric Lighting ---
+const ambientLight = new THREE.AmbientLight(0x7590b5, 0.45);
+scene.add(ambientLight);
+
+const mainSun = new THREE.DirectionalLight(0xffffff, 0.55);
+mainSun.position.set(20, 35, 10);
+mainSun.castShadow = true;
+scene.add(mainSun);
+
+const createFloodlight = (x, y, z, tx, ty, tz) => {
+    const spot = new THREE.SpotLight(0xf2f7ff, 3.5, 160, Math.PI / 3.6, 0.35, 1.0);
+    spot.position.set(x, y, z);
+    spot.target.position.set(tx, ty, tz);
+    spot.castShadow = true;
+    spot.shadow.mapSize.width = 1024; spot.shadow.mapSize.height = 1024;
+    scene.add(spot);
+    scene.add(spot.target);
+    return spot;
+};
+createFloodlight(36, 32, -45, 0, 0, -15);
+createFloodlight(-36, 32, -45, 0, 0, -15);
+createFloodlight(36, 32, 25, 0, 0, -10);
+createFloodlight(-36, 32, 25, 0, 0, -10);
+
+// --- High-Granularity Procedural Pitch & Markings ---
+function generateTurf() {
     const canvas = document.createElement('canvas');
     canvas.width = 2048; canvas.height = 2048;
     const ctx = canvas.getContext('2d');
-
-    const baseGrad = ctx.createLinearGradient(0, 0, 0, 2048);
-    baseGrad.addColorStop(0, '#103314');
-    baseGrad.addColorStop(0.5, '#143d19');
-    baseGrad.addColorStop(1, '#0e2b12');
-    ctx.fillStyle = baseGrad;
-    ctx.fillRect(0, 0, 2048, 2048);
+    const base = ctx.createLinearGradient(0, 0, 0, 2048);
+    base.addColorStop(0, '#0e2b12'); base.addColorStop(0.5, '#133917'); base.addColorStop(1, '#0c2610');
+    ctx.fillStyle = base; ctx.fillRect(0, 0, 2048, 2048);
 
     const imgData = ctx.getImageData(0, 0, 2048, 2048);
-    const data = imgData.data;
-    for (let i = 0; i < data.length; i += 4) {
-        const noise = (Math.random() - 0.5) * 44;
-        const soilTint = Math.random() < 0.04 ? -22 : 0;
-        data[i] = Math.min(255, Math.max(0, data[i] + noise * 0.6 + soilTint));
-        data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise * 1.1));
-        data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise * 0.45 + soilTint));
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+        const n = (Math.random() - 0.5) * 44;
+        const soil = Math.random() < 0.04 ? -22 : 0;
+        d[i] = Math.min(255, Math.max(0, d[i] + n * 0.6 + soil));
+        d[i + 1] = Math.min(255, Math.max(0, d[i + 1] + n * 1.15));
+        d[i + 2] = Math.min(255, Math.max(0, d[i + 2] + n * 0.45 + soil));
     }
     ctx.putImageData(imgData, 0, 0);
 
-    ctx.lineWidth = 1.3;
-    for (let b = 0; b < 18000; b++) {
-        const bx = Math.random() * 2048;
-        const by = Math.random() * 2048;
-        const len = 3 + Math.random() * 7;
-        const ang = -Math.PI / 2 + (Math.random() - 0.5) * 0.7;
-        const tone = Math.random();
-        ctx.strokeStyle = tone > 0.65 ? 'rgba(56, 158, 68, 0.22)' : tone > 0.3 ? 'rgba(18, 64, 25, 0.28)' : 'rgba(88, 185, 102, 0.16)';
-        ctx.beginPath();
-        ctx.moveTo(bx, by);
-        ctx.lineTo(bx + Math.cos(ang) * len, by + Math.sin(ang) * len);
-        ctx.stroke();
+    ctx.lineWidth = 1.35;
+    for (let b = 0; b < 22000; b++) {
+        const bx = Math.random() * 2048; const by = Math.random() * 2048;
+        const len = 3 + Math.random() * 8;
+        const ang = -Math.PI / 2 + (Math.random() - 0.5) * 0.75;
+        ctx.strokeStyle = Math.random() > 0.65 ? 'rgba(62, 172, 76, 0.24)' : 'rgba(18, 64, 25, 0.3)';
+        ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + Math.cos(ang) * len, by + Math.sin(ang) * len); ctx.stroke();
     }
 
-    const stripeHeight = 2048 / 8;
+    const stripeH = 2048 / 8;
     for (let s = 0; s < 8; s++) {
-        ctx.fillStyle = (s % 2 === 0) ? 'rgba(255, 255, 255, 0.065)' : 'rgba(0, 0, 0, 0.085)';
-        ctx.fillRect(0, s * stripeHeight, 2048, stripeHeight);
+        ctx.fillStyle = (s % 2 === 0) ? 'rgba(255, 255, 255, 0.068)' : 'rgba(0, 0, 0, 0.088)';
+        ctx.fillRect(0, s * stripeH, 2048, stripeH);
     }
-
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(5, 10);
-    tex.anisotropy = 16;
+    tex.repeat.set(5, 10); tex.anisotropy = 16;
     return tex;
 }
 
-function createGrassBumpTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512; canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#808080';
-    ctx.fillRect(0, 0, 512, 512);
-
-    const imgData = ctx.getImageData(0, 0, 512, 512);
-    const data = imgData.data;
-    for (let i = 0; i < data.length; i += 4) {
+function generateBump() {
+    const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512;
+    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 512, 512);
+    const imgData = ctx.getImageData(0, 0, 512, 512); const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
         const val = 128 + (Math.random() - 0.5) * 95;
-        data[i] = val; data[i + 1] = val; data[i + 2] = val;
+        d[i] = val; d[i + 1] = val; d[i + 2] = val;
     }
     ctx.putImageData(imgData, 0, 0);
-
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(35, 70);
+    tex.repeat.set(40, 80);
     return tex;
 }
 
-function createChalkMarkingsTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 2048; canvas.height = 2048;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 2048, 2048);
+function generateChalkDecal() {
+    const canvas = document.createElement('canvas'); canvas.width = 2048; canvas.height = 2048;
+    const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, 2048, 2048);
+    const goalLineY = 512, centerX = 1024, pxPerMeter = 51.2;
 
-    const goalLineY = 512;
-    const centerX = 1024;
-    const pxPerMeter = 51.2;
-
-    function drawChalkLine(x1, y1, x2, y2, width) {
-        ctx.save();
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.32)';
-        ctx.lineWidth = width * 1.8;
+    function drawChalk(x1, y1, x2, y2, width) {
+        ctx.save(); ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)'; ctx.lineWidth = width * 1.8;
         ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.94)';
-        ctx.lineWidth = width;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)'; ctx.lineWidth = width;
         ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-
-        const len = Math.hypot(x2 - x1, y2 - y1);
-        const steps = Math.floor(len / 3.5);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
-        for (let i = 0; i < steps; i++) {
-            const t = i / steps;
-            const cx = x1 + (x2 - x1) * t + (Math.random() - 0.5) * width * 1.6;
-            const cy = y1 + (y2 - y1) * t + (Math.random() - 0.5) * width * 1.6;
-            ctx.beginPath();
-            ctx.arc(cx, cy, 0.9 + Math.random() * 1.3, 0, Math.PI * 2);
-            ctx.fill();
-        }
         ctx.restore();
     }
-
     const regLineWidth = 12 * 0.0512 * 10;
 
-    // 1. Goal Line
-    drawChalkLine(0, goalLineY, 2048, goalLineY, regLineWidth);
+    // Goal Line, 6-Yard Box, 18-Yard Box
+    drawChalk(0, goalLineY, 2048, goalLineY, regLineWidth);
+    const hG = (18.32 / 2) * pxPerMeter, dG = 5.5 * pxPerMeter;
+    drawChalk(centerX - hG, goalLineY, centerX - hG, goalLineY + dG, regLineWidth);
+    drawChalk(centerX + hG, goalLineY, centerX + hG, goalLineY + dG, regLineWidth);
+    drawChalk(centerX - hG, goalLineY + dG, centerX + hG, goalLineY + dG, regLineWidth);
 
-    // 2. 6-Yard Box: 5.5m deep x 18.32m wide
-    const halfGoalBoxW = (18.32 / 2) * pxPerMeter;
-    const goalBoxDepth = 5.5 * pxPerMeter;
-    drawChalkLine(centerX - halfGoalBoxW, goalLineY, centerX - halfGoalBoxW, goalLineY + goalBoxDepth, regLineWidth);
-    drawChalkLine(centerX + halfGoalBoxW, goalLineY, centerX + halfGoalBoxW, goalLineY + goalBoxDepth, regLineWidth);
-    drawChalkLine(centerX - halfGoalBoxW, goalLineY + goalBoxDepth, centerX + halfGoalBoxW, goalLineY + goalBoxDepth, regLineWidth);
+    const hP = (40.32 / 2) * pxPerMeter, dP = 16.5 * pxPerMeter;
+    drawChalk(centerX - hP, goalLineY, centerX - hP, goalLineY + dP, regLineWidth);
+    drawChalk(centerX + hP, goalLineY, centerX + hP, goalLineY + dP, regLineWidth);
+    drawChalk(centerX - hP, goalLineY + dP, centerX + hP, goalLineY + dP, regLineWidth);
 
-    // 3. 18-Yard Box: 16.5m deep x 40.32m wide
-    const halfPenBoxW = (40.32 / 2) * pxPerMeter;
-    const penBoxDepth = 16.5 * pxPerMeter;
-    drawChalkLine(centerX - halfPenBoxW, goalLineY, centerX - halfPenBoxW, goalLineY + penBoxDepth, regLineWidth);
-    drawChalkLine(centerX + halfPenBoxW, goalLineY, centerX + halfPenBoxW, goalLineY + penBoxDepth, regLineWidth);
-    drawChalkLine(centerX - halfPenBoxW, goalLineY + penBoxDepth, centerX + halfPenBoxW, goalLineY + penBoxDepth, regLineWidth);
-
-    // 4. Penalty Spot (11m from goal line)
-    const penSpotY = goalLineY + 11 * pxPerMeter;
-    const spotRadius = (0.22 / 2) * pxPerMeter * 1.25;
-
-    const wearGrad = ctx.createRadialGradient(centerX, penSpotY, spotRadius * 0.8, centerX, penSpotY, spotRadius * 8.5);
-    wearGrad.addColorStop(0, 'rgba(34, 22, 11, 0.55)');
-    wearGrad.addColorStop(0.35, 'rgba(78, 89, 39, 0.42)');
+    // 11m Penalty Spot & Wear Divot
+    const spotY = goalLineY + 11 * pxPerMeter;
+    const sRad = (0.22 / 2) * pxPerMeter * 1.25;
+    const wearGrad = ctx.createRadialGradient(centerX, spotY, sRad * 0.7, centerX, spotY, sRad * 8.5);
+    wearGrad.addColorStop(0, 'rgba(32, 20, 10, 0.58)');
+    wearGrad.addColorStop(0.35, 'rgba(74, 85, 36, 0.44)');
     wearGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = wearGrad;
-    ctx.beginPath();
-    ctx.arc(centerX, penSpotY, spotRadius * 8.5, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = wearGrad; ctx.beginPath(); ctx.arc(centerX, spotY, sRad * 8.5, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
-    ctx.beginPath();
-    ctx.arc(centerX, penSpotY, spotRadius, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
+    ctx.beginPath(); ctx.arc(centerX, spotY, sRad, 0, Math.PI * 2); ctx.fill();
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    for (let p = 0; p < 90; p++) {
-        const ra = Math.random() * spotRadius * 4.0;
-        const th = Math.random() * Math.PI * 2;
-        ctx.beginPath();
-        ctx.arc(centerX + Math.cos(th) * ra, penSpotY + Math.sin(th) * ra, 1.3, 0, Math.PI * 2);
-        ctx.fill();
-    }
+    // D-Arc
+    const dRad = 9.15 * pxPerMeter;
+    const sAng = Math.asin((dP - 11 * pxPerMeter) / dRad);
+    ctx.save(); ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)'; ctx.lineWidth = regLineWidth;
+    ctx.beginPath(); ctx.arc(centerX, spotY, dRad, sAng, Math.PI - sAng, false); ctx.stroke(); ctx.restore();
 
-    // 5. Penalty D-Arc (9.15m radius outside 18-yard box)
-    const dRadius = 9.15 * pxPerMeter;
-    const startAngle = Math.asin((penBoxDepth - 11 * pxPerMeter) / dRadius);
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.94)';
-    ctx.lineWidth = regLineWidth;
-    ctx.beginPath();
-    ctx.arc(centerX, penSpotY, dRadius, startAngle, Math.PI - startAngle, false);
-    ctx.stroke();
-    ctx.restore();
-
-    // 6. Goalkeeper Shuffle Wear Trough (center of goal line)
-    const gkWearGrad = ctx.createRadialGradient(centerX, goalLineY, 25, centerX, goalLineY, 300);
-    gkWearGrad.addColorStop(0, 'rgba(42, 28, 14, 0.48)');
-    gkWearGrad.addColorStop(0.5, 'rgba(85, 98, 48, 0.32)');
-    gkWearGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = gkWearGrad;
-    ctx.beginPath();
-    ctx.ellipse(centerX, goalLineY, 300, 55, 0, 0, Math.PI * 2);
-    ctx.fill();
+    // Goalkeeper Shuffle Wear
+    const gkWear = ctx.createRadialGradient(centerX, goalLineY, 25, centerX, goalLineY, 320);
+    gkWear.addColorStop(0, 'rgba(38, 25, 12, 0.52)');
+    gkWear.addColorStop(0.5, 'rgba(80, 94, 42, 0.35)');
+    gkWear.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = gkWear; ctx.beginPath(); ctx.ellipse(centerX, goalLineY, 320, 60, 0, 0, Math.PI * 2); ctx.fill();
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.anisotropy = 16;
     return tex;
 }
 
-const turfTexture = createGranularTurfTexture();
-const grassBump = createGrassBumpTexture();
-
 const groundMat = new THREE.MeshStandardMaterial({
-    map: turfTexture,
-    bumpMap: grassBump,
-    bumpScale: 0.05,
-    roughness: 0.52,
-    metalness: 0.08
+    map: generateTurf(), bumpMap: generateBump(), bumpScale: 0.05, roughness: 0.5, metalness: 0.06
 });
-
-const groundGeo = new THREE.PlaneGeometry(80, 160);
-const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+const groundMesh = new THREE.Mesh(new THREE.PlaneGeometry(85, 160), groundMat);
 groundMesh.rotation.x = -Math.PI / 2;
 groundMesh.receiveShadow = true;
 scene.add(groundMesh);
 
-const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: physicsMaterial });
+const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: pitchPhysMat });
 groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
 world.addBody(groundBody);
 
-const chalkTexture = createChalkMarkingsTexture();
-const chalkMat = new THREE.MeshBasicMaterial({
-    map: chalkTexture,
-    transparent: true,
-    opacity: 0.98,
-    depthWrite: false
-});
+const chalkMat = new THREE.MeshBasicMaterial({ map: generateChalkDecal(), transparent: true, opacity: 0.98, depthWrite: false });
+const chalkMesh = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), chalkMat);
+chalkMesh.rotation.x = -Math.PI / 2;
+chalkMesh.position.set(0, 0.015, -10);
+scene.add(chalkMesh);
 
-const linesMesh = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), chalkMat);
-linesMesh.rotation.x = -Math.PI / 2;
-linesMesh.position.set(0, 0.015, -10);
-scene.add(linesMesh);
+// --- 4-Sided 3D Stadium Architecture ---
+const stadium = new THREE.Group();
 
-// Goal Frame (AAA Quality FORZA Goal)
-const goalGroup = new THREE.Group();
-const postMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, metalness: 0.1 });
-const postRadius = 0.06, postHeight = 3.0, goalWidth = 7.2, goalDepth = 2.0, topDepth = 0.8;
+function generateCrowdTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024; canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 1024, 512);
 
-// Left Post, Right Post, Crossbar
-const postGeo = new THREE.CylinderGeometry(postRadius, postRadius, postHeight, 32);
-const leftPost = new THREE.Mesh(postGeo, postMaterial); leftPost.position.set(-goalWidth/2, postHeight/2, 0); leftPost.castShadow = true; goalGroup.add(leftPost);
-const rightPost = new THREE.Mesh(postGeo, postMaterial); rightPost.position.set(goalWidth/2, postHeight/2, 0); rightPost.castShadow = true; goalGroup.add(rightPost);
-const crossbarGeo = new THREE.CylinderGeometry(postRadius, postRadius, goalWidth + postRadius*2, 32);
-const crossbar = new THREE.Mesh(crossbarGeo, postMaterial); crossbar.rotation.z = Math.PI/2; crossbar.position.set(0, postHeight, 0); crossbar.castShadow = true; goalGroup.add(crossbar);
-
-// Tension Brackets & Back Bars
-const bracketGeo = new THREE.CylinderGeometry(0.025, 0.025, topDepth, 16);
-const leftBracket = new THREE.Mesh(bracketGeo, postMaterial); leftBracket.rotation.x = Math.PI/2; leftBracket.position.set(-goalWidth/2, postHeight, -topDepth/2); goalGroup.add(leftBracket);
-const rightBracket = new THREE.Mesh(bracketGeo, postMaterial); rightBracket.rotation.x = Math.PI/2; rightBracket.position.set(goalWidth/2, postHeight, -topDepth/2); goalGroup.add(rightBracket);
-const topBackBar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, goalWidth, 16), postMaterial); topBackBar.rotation.z = Math.PI/2; topBackBar.position.set(0, postHeight, -topDepth); goalGroup.add(topBackBar);
-const groundSideBarGeo = new THREE.CylinderGeometry(0.025, 0.025, goalDepth, 16);
-const leftGroundBar = new THREE.Mesh(groundSideBarGeo, postMaterial); leftGroundBar.rotation.x = Math.PI/2; leftGroundBar.position.set(-goalWidth/2, 0.025, -goalDepth/2); goalGroup.add(leftGroundBar);
-const rightGroundBar = new THREE.Mesh(groundSideBarGeo, postMaterial); rightGroundBar.rotation.x = Math.PI/2; rightGroundBar.position.set(goalWidth/2, 0.025, -goalDepth/2); goalGroup.add(rightGroundBar);
-const backGroundBar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, goalWidth, 16), postMaterial); backGroundBar.rotation.z = Math.PI/2; backGroundBar.position.set(0, 0.025, -goalDepth); goalGroup.add(backGroundBar);
-
-// AAA Procedural Diamond Mesh Net
-const netCanvas = document.createElement('canvas'); netCanvas.width = 128; netCanvas.height = 128; const nctx = netCanvas.getContext('2d');
-nctx.clearRect(0, 0, 128, 128); nctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'; nctx.lineWidth = 6;
-nctx.beginPath(); nctx.moveTo(64, 0); nctx.lineTo(128, 64); nctx.lineTo(64, 128); nctx.lineTo(0, 64); nctx.closePath(); nctx.stroke();
-const netTexture = new THREE.CanvasTexture(netCanvas); netTexture.wrapS = THREE.RepeatWrapping; netTexture.wrapT = THREE.RepeatWrapping; netTexture.anisotropy = 4;
-const netMaterial = new THREE.MeshStandardMaterial({ map: netTexture, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide, depthWrite: false, roughness: 0.8 });
-function createNet(geometry, wRep, hRep) {
-    const mat = netMaterial.clone(); mat.map = netTexture.clone(); mat.map.repeat.set(wRep * 4, hRep * 4); mat.map.needsUpdate = true;
-    return new THREE.Mesh(geometry, mat);
+    const fanColors = ['#e11d48', '#38bdf8', '#fbbf24', '#ffffff', '#22c55e', '#64748b', '#cbd5e1', '#0284c7'];
+    for (let row = 0; row < 512; row += 8) {
+        ctx.fillStyle = '#0b0f19';
+        ctx.fillRect(0, row, 1024, 2);
+        for (let col = 0; col < 1024; col += 6) {
+            if (Math.random() > 0.15) {
+                ctx.fillStyle = fanColors[Math.floor(Math.random() * fanColors.length)];
+                ctx.fillRect(col + (Math.random() * 2), row + 2, 4, 5);
+                ctx.fillStyle = '#f8fafc';
+                ctx.fillRect(col + 1, row + 1, 2, 2); // Supporter face/head
+            }
+        }
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(4, 2);
+    return tex;
 }
 
-const topNet = createNet(new THREE.PlaneGeometry(goalWidth, topDepth), goalWidth, topDepth); topNet.rotation.x = -Math.PI/2; topNet.position.set(0, postHeight, -topDepth/2); goalGroup.add(topNet);
-const backNetHeight = Math.sqrt(Math.pow(postHeight, 2) + Math.pow(goalDepth - topDepth, 2));
-const backNetAngle = Math.atan2(goalDepth - topDepth, postHeight);
-const backNet = createNet(new THREE.PlaneGeometry(goalWidth, backNetHeight), goalWidth, backNetHeight); backNet.rotation.x = backNetAngle; backNet.position.set(0, postHeight/2, -(topDepth + goalDepth)/2); goalGroup.add(backNet);
+const crowdTex = generateCrowdTexture();
+const seatTiersMat = new THREE.MeshStandardMaterial({ 
+    map: crowdTex, 
+    roughness: 0.85, 
+    metalness: 0.1 
+});
 
-// Fixed Side Net (Mathematically correct vertices mapped nicely)
-const sideNetPos = new Float32Array([ 0, postHeight, 0,  0, postHeight, -topDepth,  0, 0, -goalDepth,  0, 0, 0 ]);
-const sideNetIndices = [ 0, 1, 2,  0, 2, 3 ];
-const sideNetUV = new Float32Array([ 0, 1,  0.25, 1,  1, 0,  0, 0 ]); // Valid 0-1 range to avoid ugly stretching!
-const sideGeo = new THREE.BufferGeometry(); sideGeo.setAttribute('position', new THREE.BufferAttribute(sideNetPos, 3)); sideGeo.setAttribute('uv', new THREE.BufferAttribute(sideNetUV, 2)); sideGeo.setIndex(sideNetIndices); sideGeo.computeVertexNormals();
-const leftSideNet = createNet(sideGeo, goalDepth, postHeight); leftSideNet.position.x = -goalWidth/2; goalGroup.add(leftSideNet);
-const rightSideNet = createNet(sideGeo, goalDepth, postHeight); rightSideNet.position.x = goalWidth/2; goalGroup.add(rightSideNet);
+for (let t = 0; t < 12; t++) {
+    const w = 70 + t * 3;
+    const tier = new THREE.Mesh(new THREE.BoxGeometry(w, 1.4, 2.8), seatTiersMat);
+    tier.position.set(0, 1.2 + t * 1.5, -30 - t * 2.6);
+    stadium.add(tier);
+}
+for (let t = 0; t < 8; t++) {
+    const w = 70 + t * 3;
+    const tier = new THREE.Mesh(new THREE.BoxGeometry(w, 1.4, 2.8), seatTiersMat);
+    tier.position.set(0, 1.2 + t * 1.5, 20 + t * 2.6);
+    stadium.add(tier);
+}
+for (let t = 0; t < 10; t++) {
+    const len = 95 + t * 2;
+    const leftTier = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.4, len), seatTiersMat);
+    leftTier.position.set(-36 - t * 2.5, 1.2 + t * 1.5, -8);
+    stadium.add(leftTier);
+    const rightTier = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.4, len), seatTiersMat);
+    rightTier.position.set(36 + t * 2.5, 1.2 + t * 1.5, -8);
+    stadium.add(rightTier);
+}
 
+// Perimeter LED Boards
+const adTexCanvas = document.createElement('canvas');
+adTexCanvas.width = 1024; adTexCanvas.height = 64;
+const actx = adTexCanvas.getContext('2d');
+actx.fillStyle = '#0f172a'; actx.fillRect(0,0,1024,64);
+actx.fillStyle = '#f59e0b'; actx.font = 'bold 28px sans-serif';
+actx.fillText('FOOTBALL STRIKE 3D • WORLD PENALTY CHAMPIONSHIP • MASTER THE SWERVE', 20, 44);
+const adTex = new THREE.CanvasTexture(adTexCanvas);
+adTex.wrapS = THREE.RepeatWrapping; adTex.repeat.set(4, 1);
+const adMat = new THREE.MeshBasicMaterial({ map: adTex });
+
+const northAd = new THREE.Mesh(new THREE.BoxGeometry(72, 1.0, 0.3), adMat);
+northAd.position.set(0, 0.5, -27);
+stadium.add(northAd);
+const leftAd = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.0, 80), adMat);
+leftAd.position.set(-34, 0.5, -8);
+stadium.add(leftAd);
+const rightAd = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.0, 80), adMat);
+rightAd.position.set(34, 0.5, -8);
+stadium.add(rightAd);
+scene.add(stadium);
+
+// --- Regulation Goal Frame & Net ---
+const goalGroup = new THREE.Group();
+const postMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.35 });
+const postRadius = 0.06, postHeight = 2.44, goalWidth = 7.32, goalDepth = 2.0;
+
+const leftPost = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, postHeight, 32), postMat);
+leftPost.position.set(-goalWidth / 2, postHeight / 2, 0); leftPost.castShadow = true; goalGroup.add(leftPost);
+
+const rightPost = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, postHeight, 32), postMat);
+rightPost.position.set(goalWidth / 2, postHeight / 2, 0); rightPost.castShadow = true; goalGroup.add(rightPost);
+
+const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, goalWidth + postRadius * 2, 32), postMat);
+crossbar.rotation.z = Math.PI / 2; crossbar.position.set(0, postHeight, 0); crossbar.castShadow = true; goalGroup.add(crossbar);
+
+// Goal Net Texture
+const netCanvas = document.createElement('canvas'); netCanvas.width = 128; netCanvas.height = 128;
+const nctx = netCanvas.getContext('2d'); nctx.clearRect(0, 0, 128, 128);
+nctx.strokeStyle = 'rgba(255, 255, 255, 0.94)'; nctx.lineWidth = 5;
+nctx.beginPath(); nctx.moveTo(64, 0); nctx.lineTo(128, 64); nctx.lineTo(64, 128); nctx.lineTo(0, 64); nctx.closePath(); nctx.stroke();
+const netTex = new THREE.CanvasTexture(netCanvas); netTex.wrapS = THREE.RepeatWrapping; netTex.wrapT = THREE.RepeatWrapping; netTex.repeat.set(24, 12);
+const netMat = new THREE.MeshStandardMaterial({ map: netTex, transparent: true, alphaTest: 0.25, side: THREE.DoubleSide, roughness: 0.75 });
+
+const backNet = new THREE.Mesh(new THREE.PlaneGeometry(goalWidth, 3.16), netMat);
+backNet.rotation.x = 0.68; backNet.position.set(0, 1.22, -1.0); goalGroup.add(backNet);
 goalGroup.position.set(0, 0, -20);
 scene.add(goalGroup);
 
-// Goal Physics (Dampened so ball stays in!)
-const netPhysicsMat = new CANNON.Material("net");
-const netContactMat = new CANNON.ContactMaterial(physicsMaterial, netPhysicsMat, { friction: 0.5, restitution: 0.05 });
-world.addContactMaterial(netContactMat);
-
-const createCylinderBody = (x, y, z, radius, height, eulerZ, mat) => {
-    const body = new CANNON.Body({ mass: 0, material: mat });
-    body.addShape(new CANNON.Cylinder(radius, radius, height, 16));
-    body.position.set(x, y, z);
-    if (eulerZ) body.quaternion.setFromAxisAngle(new CANNON.Vec3(0,0,1), eulerZ);
-    world.addBody(body);
+// Cannon Goal Colliders
+const addCylinderCollider = (x, y, z, r, h, rotZ) => {
+    const b = new CANNON.Body({ mass: 0, material: postPhysMat });
+    b.addShape(new CANNON.Cylinder(r, r, h, 16));
+    b.position.set(x, y, z);
+    if (rotZ) b.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), rotZ);
+    world.addBody(b);
 };
-createCylinderBody(-3.6, 1.5, -20, 0.1, 3, 0, physicsMaterial); // Left post
-createCylinderBody(3.6, 1.5, -20, 0.1, 3, 0, physicsMaterial); // Right post
-createCylinderBody(0, 3, -20, 0.1, 7.2, Math.PI/2, physicsMaterial); // Crossbar
+addCylinderCollider(-goalWidth / 2, postHeight / 2, -20, postRadius, postHeight);
+addCylinderCollider(goalWidth / 2, postHeight / 2, -20, postRadius, postHeight);
+addCylinderCollider(0, postHeight, -20, postRadius, goalWidth, Math.PI / 2);
 
-// Net physics bodies
-const backNetBody = new CANNON.Body({ mass: 0, material: netPhysicsMat });
-// Slanted back net physics
-const backNetShape = new CANNON.Box(new CANNON.Vec3(3.6, backNetHeight/2, 0.05));
-backNetBody.addShape(backNetShape);
-backNetBody.position.set(0, postHeight/2, -20 - (topDepth + goalDepth)/2);
-backNetBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0), backNetAngle);
+const backNetBody = new CANNON.Body({ mass: 0, material: netPhysMat });
+backNetBody.addShape(new CANNON.Box(new CANNON.Vec3(goalWidth / 2, 1.5, 0.05)));
+backNetBody.position.set(0, 1.22, -21.0);
 world.addBody(backNetBody);
 
-const sideNetShape = new CANNON.Box(new CANNON.Vec3(0.05, 1.5, goalDepth/2));
-const leftNetBody = new CANNON.Body({ mass: 0, material: netPhysicsMat });
-leftNetBody.addShape(sideNetShape); leftNetBody.position.set(-3.6, 1.5, -21); world.addBody(leftNetBody);
-const rightNetBody = new CANNON.Body({ mass: 0, material: netPhysicsMat });
-rightNetBody.addShape(sideNetShape); rightNetBody.position.set(3.6, 1.5, -21); world.addBody(rightNetBody);
-const topNetBody = new CANNON.Body({ mass: 0, material: netPhysicsMat });
-topNetBody.addShape(new CANNON.Box(new CANNON.Vec3(3.6, 0.05, topDepth/2)));
-topNetBody.position.set(0, 3.0, -20.4); world.addBody(topNetBody);
-
-// High Quality Telstar Ball (Loaded Texture)
+// --- High-Poly 3D Football ---
 const ballRadius = 0.22;
 const ballGeo = new THREE.SphereGeometry(ballRadius, 32, 32);
-const ballTex = textureLoader.load('assets/ball_texture.jpg');
-const ballMat = new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.6, metalness: 0.1 });
+const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.15 });
+
+const bCanvas = document.createElement('canvas'); bCanvas.width = 512; bCanvas.height = 256;
+const bctx = bCanvas.getContext('2d'); bctx.fillStyle = '#f8f8f8'; bctx.fillRect(0,0,512,256);
+bctx.fillStyle = '#161616';
+for(let p=0; p<6; p++) {
+    bctx.beginPath(); bctx.arc(85 * p + 45, 64 + (p%2)*128, 28, 0, Math.PI*2); bctx.fill();
+}
+ballMat.map = new THREE.CanvasTexture(bCanvas);
 const ballMesh = new THREE.Mesh(ballGeo, ballMat);
-ballMesh.castShadow = true; 
+ballMesh.castShadow = true;
 scene.add(ballMesh);
 
-const ballBody = new CANNON.Body({ mass: 0.43, shape: new CANNON.Sphere(ballRadius), material: physicsMaterial, linearDamping: 0.1, angularDamping: 0.1 });
+const ballBody = new CANNON.Body({
+    mass: 0.43,
+    shape: new CANNON.Sphere(ballRadius),
+    material: ballPhysMat,
+    linearDamping: 0.05,
+    angularDamping: 0.1
+});
 world.addBody(ballBody);
 
-// --- Massive 3D Stadium (InstancedMesh) ---
-const stadiumGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-const stadiumMat = new THREE.MeshStandardMaterial({ color: 0xaa0000, roughness: 0.8 });
-const instancedSeats = new THREE.InstancedMesh(stadiumGeo, stadiumMat, 20000);
-let seatIdx = 0;
-const dummy = new THREE.Object3D();
-for(let r=0; r<40; r++) { 
-    let radiusX = 30 + r * 1.5;
-    let radiusZ = 40 + r * 1.5;
-    let y = r * 1.0;
-    let numSeats = Math.floor(Math.PI * 2 * Math.sqrt((radiusX*radiusX + radiusZ*radiusZ)/2) / 0.6);
-    if (seatIdx + numSeats > 20000) break;
-    for(let i=0; i<numSeats; i++) {
-        let angle = (i / numSeats) * Math.PI * 2;
-        let x = Math.cos(angle) * radiusX;
-        let z = Math.sin(angle) * radiusZ;
-        dummy.position.set(x, y, z);
-        dummy.lookAt(0, y, 0);
-        dummy.updateMatrix();
-        instancedSeats.setMatrixAt(seatIdx, dummy.matrix);
-        instancedSeats.setColorAt(seatIdx, new THREE.Color().setHSL(Math.random()*0.1 + 0.9, 0.8, 0.5));
-        seatIdx++;
-    }
-}
-instancedSeats.count = seatIdx;
-instancedSeats.instanceColor.needsUpdate = true;
-scene.add(instancedSeats);
+// 3D Motion Ribbon Trail
+const trailGeo = new THREE.BufferGeometry();
+const trailMaxPoints = 50;
+const trailPositions = new Float32Array(trailMaxPoints * 3);
+trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+const trailMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.7, linewidth: 3 });
+const trailLine = new THREE.Line(trailGeo, trailMat);
+scene.add(trailLine);
 
-// Stadium Lights
-const addFloodlight = (x, y, z) => {
-    const fl = new THREE.SpotLight(0xffffff, 2, 200, Math.PI/6, 0.5, 1);
-    fl.position.set(x, y, z);
-    fl.target.position.set(0,0,0);
-    fl.castShadow = true;
-    scene.add(fl);
-    scene.add(fl.target);
-    const poleGeo = new THREE.CylinderGeometry(0.5, 0.5, y, 8);
-    const pole = new THREE.Mesh(poleGeo, new THREE.MeshStandardMaterial({color: 0x333333}));
-    pole.position.set(x, y/2, z);
-    scene.add(pole);
-};
-addFloodlight(40, 30, -50); addFloodlight(-40, 30, -50);
-addFloodlight(40, 30, 50); addFloodlight(-40, 30, 50);
-
-scene.background = new THREE.Color(0x000511); // Dark night sky
-scene.fog = new THREE.FogExp2(0x000511, 0.015);
-
-// --- 3D Animated Goalkeeper (GLTF) ---
-let mixer;
-let gkModel;
+// --- Goalkeeper Rig & AI (Athletic 3D Mesh) ---
 const gkGroup = new THREE.Group();
-gkGroup.position.set(0, 0, -19.5);
+gkGroup.position.set(0, 0, -19.6);
 scene.add(gkGroup);
 
-const loader = new THREE.GLTFLoader();
-loader.load('assets/goalkeeper.glb', (gltf) => {
-    gkModel = gltf.scene;
-    gkModel.scale.set(1.8, 1.8, 1.8); 
-    gkModel.rotation.y = Math.PI; 
-    gkModel.position.set(0, 0, 0);
-    gkModel.traverse((child) => {
-        if(child.isMesh) {
-            child.material = new THREE.MeshStandardMaterial({ color: 0x00ff00, roughness: 0.5, metalness: 0.1 });
-            child.castShadow = true;
-        }
+// Materials
+const gkJerseyMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.35, metalness: 0.1 }); // Volt Emerald Jersey
+const gkShortsMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6 }); // Navy Shorts
+const gkSkinMat = new THREE.MeshStandardMaterial({ color: 0xe29d72, roughness: 0.6 }); // Skin
+const gkGloveMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.25, metalness: 0.2 }); // Neon Gold Latex Gloves
+const gkSockMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.5 }); // Matching Socks
+const bootMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4 }); // Boots
+
+// Torso
+const gkTorso = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.75, 0.36), gkJerseyMat);
+gkTorso.position.y = 1.35; gkTorso.castShadow = true; gkGroup.add(gkTorso);
+
+// Head & Hair
+const gkHead = new THREE.Mesh(new THREE.SphereGeometry(0.19, 20, 20), gkSkinMat);
+gkHead.position.y = 1.95; gkHead.castShadow = true; gkGroup.add(gkHead);
+const gkHair = new THREE.Mesh(new THREE.SphereGeometry(0.20, 16, 16), new THREE.MeshStandardMaterial({ color: 0x1e1e1e, roughness: 0.9 }));
+gkHair.position.set(0, 1.99, -0.02); gkGroup.add(gkHair);
+
+// Arms (Ready Stance)
+const gkLeftUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.42, 12), gkJerseyMat);
+gkLeftUpperArm.position.set(-0.48, 1.45, 0.05); gkLeftUpperArm.rotation.z = 0.4; gkLeftUpperArm.rotation.x = -0.3; gkGroup.add(gkLeftUpperArm);
+
+const gkLeftForeArm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.40, 12), gkSkinMat);
+gkLeftForeArm.position.set(-0.64, 1.16, 0.22); gkLeftForeArm.rotation.x = -0.8; gkLeftForeArm.rotation.z = 0.2; gkGroup.add(gkLeftForeArm);
+
+const gkLeftGlove = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.12), gkGloveMat);
+gkLeftGlove.position.set(-0.68, 0.98, 0.36); gkLeftGlove.castShadow = true; gkGroup.add(gkLeftGlove);
+
+const gkRightUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.42, 12), gkJerseyMat);
+gkRightUpperArm.position.set(0.48, 1.45, 0.05); gkRightUpperArm.rotation.z = -0.4; gkRightUpperArm.rotation.x = -0.3; gkGroup.add(gkRightUpperArm);
+
+const gkRightForeArm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.40, 12), gkSkinMat);
+gkRightForeArm.position.set(0.64, 1.16, 0.22); gkRightForeArm.rotation.x = -0.8; gkRightForeArm.rotation.z = -0.2; gkGroup.add(gkRightForeArm);
+
+const gkRightGlove = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.12), gkGloveMat);
+gkRightGlove.position.set(0.68, 0.98, 0.36); gkRightGlove.castShadow = true; gkGroup.add(gkRightGlove);
+
+// Shorts & Legs
+const gkPelvis = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.32, 0.34), gkShortsMat);
+gkPelvis.position.y = 0.88; gkGroup.add(gkPelvis);
+
+const gkLeftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.72, 12), gkSockMat);
+gkLeftLeg.position.set(-0.22, 0.45, 0); gkLeftLeg.castShadow = true; gkGroup.add(gkLeftLeg);
+const gkLeftBoot = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.32), bootMat);
+gkLeftBoot.position.set(-0.22, 0.08, 0.06); gkGroup.add(gkLeftBoot);
+
+const gkRightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.72, 12), gkSockMat);
+gkRightLeg.position.set(0.22, 0.45, 0); gkRightLeg.castShadow = true; gkGroup.add(gkRightLeg);
+const gkRightBoot = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.32), bootMat);
+gkRightBoot.position.set(0.22, 0.08, 0.06); gkGroup.add(gkRightBoot);
+
+// Cannon Physics Collider for Keeper
+const gkBodyCollider = new CANNON.Body({
+    mass: 0,
+    type: CANNON.Body.KINEMATIC,
+    shape: new CANNON.Box(new CANNON.Vec3(0.65, 1.05, 0.35)),
+    position: new CANNON.Vec3(0, 1.05, -19.6),
+    material: postPhysMat
+});
+world.addBody(gkBodyCollider);
+
+// --- Professional Training Mannequin Wall (Free Kick Mode) ---
+const wallGroup = new THREE.Group();
+wallGroup.position.set(0, 0, -13.5); // 6m in front of penalty spot
+const wallBodies = [];
+
+const bibMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 }); // Neon Orange Training Bib
+const steelMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8, roughness: 0.3 }); // Steel Stand
+const mannequinMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.5 }); // Blue Kit
+
+for (let w = -1; w <= 1; w++) {
+    const dummy = new THREE.Group();
+    const xOffset = w * 0.85;
+
+    // Steel Base Plate & Twin Rods
+    const basePlate = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.28, 0.06, 16), steelMat);
+    basePlate.position.y = 0.03; dummy.add(basePlate);
+
+    const rodL = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.75, 8), steelMat);
+    rodL.position.set(-0.14, 0.40, 0); dummy.add(rodL);
+    const rodR = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.75, 8), steelMat);
+    rodR.position.set(0.14, 0.40, 0); dummy.add(rodR);
+
+    // Torso with Athletic Bib
+    const dummyTorso = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.76, 0.28), bibMat);
+    dummyTorso.position.y = 1.15; dummyTorso.castShadow = true; dummy.add(dummyTorso);
+
+    // Folded Defensive Arms
+    const dummyArms = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.22, 0.34), mannequinMat);
+    dummyArms.position.set(0, 1.05, 0.08); dummyArms.castShadow = true; dummy.add(dummyArms);
+
+    // Head
+    const dummyHead = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 16), mannequinMat);
+    dummyHead.position.y = 1.68; dummyHead.castShadow = true; dummy.add(dummyHead);
+
+    dummy.position.set(xOffset, 0, 0);
+    wallGroup.add(dummy);
+
+    // Cannon Physics Collider for Wall Dummy
+    const dummyBody = new CANNON.Body({
+        mass: 0,
+        type: CANNON.Body.KINEMATIC,
+        shape: new CANNON.Box(new CANNON.Vec3(0.35, 0.95, 0.2)),
+        position: new CANNON.Vec3(xOffset, 0.95, -13.5),
+        material: postPhysMat
     });
-    gkGroup.add(gkModel);
-    if(gltf.animations && gltf.animations.length > 0) {
-        mixer = new THREE.AnimationMixer(gkModel);
-        mixer.clipAction(gltf.animations[0]).play();
+    world.addBody(dummyBody);
+    wallBodies.push(dummyBody);
+}
+scene.add(wallGroup);
+wallGroup.visible = false;
+wallBodies.forEach(b => { b.collisionResponse = 0; });
+
+// --- Targets System (Shattering Glass & Bullseyes) ---
+function spawnTargets() {
+    activeTargets.forEach(t => { scene.remove(t.mesh); world.removeBody(t.body); });
+    activeTargets = [];
+
+    if (currentGameMode === 'targets') {
+        wallGroup.visible = false;
+        gkGroup.visible = false;
+
+        // 1. Top-Left & Top-Right Corner Shattering Glass Targets
+        const corners = [
+            { x: -3.0, y: 2.05, type: 'glass', pts: 500, label: 'TOP CORNER!' },
+            { x: 3.0, y: 2.05, type: 'glass', pts: 500, label: 'TOP CORNER!' },
+            { x: 0, y: 1.2, type: 'bullseye', pts: 250, label: 'BULLSEYE!' }
+        ];
+
+        corners.forEach(c => {
+            const size = 0.5;
+            let mesh;
+            if (c.type === 'glass') {
+                mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.85, 0.85, 0.05),
+                    new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.8, roughness: 0.1, metalness: 0.9 })
+                );
+            } else {
+                // Bullseye
+                const tCanvas = document.createElement('canvas'); tCanvas.width = 256; tCanvas.height = 256;
+                const tctx = tCanvas.getContext('2d');
+                tctx.fillStyle = '#ef4444'; tctx.beginPath(); tctx.arc(128,128,128,0,Math.PI*2); tctx.fill();
+                tctx.fillStyle = '#ffffff'; tctx.beginPath(); tctx.arc(128,128,85,0,Math.PI*2); tctx.fill();
+                tctx.fillStyle = '#ef4444'; tctx.beginPath(); tctx.arc(128,128,42,0,Math.PI*2); tctx.fill();
+                mesh = new THREE.Mesh(
+                    new THREE.CylinderGeometry(size, size, 0.05, 32),
+                    new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(tCanvas), roughness: 0.3 })
+                );
+                mesh.rotation.x = Math.PI / 2;
+            }
+            mesh.position.set(c.x, c.y, -20.1);
+            mesh.castShadow = true;
+            scene.add(mesh);
+
+            const body = new CANNON.Body({ isTrigger: true, shape: new CANNON.Box(new CANNON.Vec3(size, size, 0.1)), position: new CANNON.Vec3(c.x, c.y, -20.1) });
+            world.addBody(body);
+
+            activeTargets.push({ mesh, body, active: true, pts: c.pts, label: c.label, type: c.type, originX: c.x, isMoving: c.type === 'bullseye' });
+        });
+    } else {
+        // Duel Mode (Goalkeeper + Defensive Wall)
+        const wallSide = Math.random() > 0.5 ? 1 : -1;
+        const wallX = wallSide * 1.35;
+        wallGroup.position.set(wallX, 0, -13.5);
+        wallGroup.visible = true;
+        wallBodies.forEach((b, idx) => {
+            const offset = (idx - 1) * 0.85;
+            b.position.set(wallX + offset, 0.95, -13.5);
+            b.collisionResponse = 1;
+        });
+
+        // Goalkeeper starts covering opposite post angle
+        const gkStartX = -wallSide * 0.9;
+        gkGroup.position.set(gkStartX, 0, -19.6);
+        gkGroup.rotation.set(0, 0, 0);
+        gkGroup.visible = true;
+        gkBodyCollider.position.set(gkStartX, 1.05, -19.6);
+        gkBodyCollider.collisionResponse = 1;
     }
-});
+}
 
-const gkBodyPhysics = new CANNON.Body({
-    mass: 0, type: CANNON.Body.KINEMATIC,
-    shape: new CANNON.Cylinder(0.5, 0.5, 2, 16),
-    position: new CANNON.Vec3(0, 1.0, -19.5)
-});
-world.addBody(gkBodyPhysics);
+// Dynamic Animation State
+let gkDiving = false;
+let gkTargetX = 0;
+let gkTargetY = 1.05;
+let gkTargetRotZ = 0;
+let wallJumping = false;
+let wallJumpTimer = 0;
 
-// --- Moving Targets ---
-let targets = [];
-window.spawnTargets = function() {
-    targets.forEach(t => { scene.remove(t.mesh); world.removeBody(t.body); });
-    targets = [];
-    
-    // Spawn 3 dynamic targets with varying sizes and movement
-    for(let i=0; i<3; i++) {
-        let size = Math.random() * 0.3 + 0.4; // 0.4m to 0.7m radius
-        let isMoving = Math.random() > 0.3; // 70% chance to move
-        
-        // Procedural Target Texture (Concentric circles)
-        const tc = document.createElement('canvas'); tc.width = 256; tc.height = 256;
-        const tctx = tc.getContext('2d');
-        tctx.fillStyle = '#ff0000'; tctx.beginPath(); tctx.arc(128,128,128,0,Math.PI*2); tctx.fill();
-        tctx.fillStyle = '#ffffff'; tctx.beginPath(); tctx.arc(128,128,85,0,Math.PI*2); tctx.fill();
-        tctx.fillStyle = '#ff0000'; tctx.beginPath(); tctx.arc(128,128,42,0,Math.PI*2); tctx.fill();
-        
-        let tMesh = new THREE.Mesh(
-            new THREE.CylinderGeometry(size, size, 0.1, 32), 
-            new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(tc), roughness: 0.3 })
-        );
-        tMesh.rotation.x = Math.PI / 2;
-        let x = (Math.random() - 0.5) * 6.0;
-        let y = Math.random() * 1.5 + 0.8;
-        tMesh.position.set(x, y, -20.2); // Just inside the net
-        tMesh.castShadow = true;
-        scene.add(tMesh);
-        
-        let tBody = new CANNON.Body({ isTrigger: true, shape: new CANNON.Cylinder(size, size, 0.1, 16), position: new CANNON.Vec3(x, y, -20.2) });
-        let q = new CANNON.Quaternion(); q.setFromAxisAngle(new CANNON.Vec3(1,0,0), Math.PI/2);
-        tBody.quaternion.copy(q);
-        world.addBody(tBody);
-        
-        targets.push({ mesh: tMesh, body: tBody, active: true, isMoving: isMoving, originX: x, originY: y, speed: Math.random()*2+1.0, offset: Math.random()*Math.PI*2, points: Math.round(1/size * 100), size: size });
+// --- Particle FX (Glass Shatters & Goal Sparks) ---
+function createShatterFX(x, y, z, color = 0x38bdf8) {
+    const geo = new THREE.BoxGeometry(0.08, 0.08, 0.08);
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.2 });
+    for (let i = 0; i < 40; i++) {
+        const p = new THREE.Mesh(geo, mat);
+        p.position.set(x, y, z);
+        scene.add(p);
+        particles.push({
+            mesh: p,
+            vx: (Math.random() - 0.5) * 12,
+            vy: Math.random() * 10 + 2,
+            vz: (Math.random() - 0.5) * 12,
+            life: 1.0
+        });
     }
-};
+}
 
-// --- Particles ---
-const particles = [];
-const createExplosion = (x, y, z, colorStr) => {
-    const pGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-    const pMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(colorStr) });
-    for(let i=0; i<30; i++) {
-        const p = new THREE.Mesh(pGeo, pMat); p.position.set(x, y, z); scene.add(p);
-        particles.push({ mesh: p, vx: (Math.random() - 0.5) * 15, vy: Math.random() * 15, vz: (Math.random() - 0.5) * 15, life: 1.0 });
-    }
-};
-
-// --- Game Logic ---
-let isAiming = false;
-let swipeStart = { x: 0, y: 0, time: 0 };
-let swipeEnd = { x: 0, y: 0, time: 0 };
-let curveAmount = 0;
+// --- Magnus Flight & Swipe Recognition ---
+let spinVector = new THREE.Vector3(); // Angular velocity (rad/s)
+let shotTelemetry = { speed: 0, spin: 0, style: 'Direct' };
+let swipeSamples = [];
+let ballInFlight = false;
+let slowMo = false;
 
 window.resetBall = function() {
-    ballBody.position.set(0, ballRadius, -9); // Real penalty spot 11m from goal line
-    ballBody.velocity.set(0, 0, 0); 
+    ballBody.position.set(0, ballRadius, -9);
+    ballBody.velocity.set(0, 0, 0);
     ballBody.angularVelocity.set(0, 0, 0);
-    ballMesh.position.copy(ballBody.position); 
+    ballMesh.position.copy(ballBody.position);
     ballMesh.quaternion.copy(ballBody.quaternion);
-    ballBody.scored = false; curveAmount = 0;
-    
-    camera.position.set(0, 1.5, -4); // Place camera directly behind the penalty spot
-    camera.lookAt(0, 1, -20);
-    if(targets.filter(t => t.active).length === 0) spawnTargets();
-    document.getElementById('msg').style.display = 'none';
+
+    spinVector.set(0, 0, 0);
+    ballInFlight = false;
+    slowMo = false;
+    ballBody.scored = false;
+    ballBody.saved = false;
+
+    // Reset Goalkeeper & Wall
+    gkDiving = false;
+    wallJumping = false;
+    wallJumpTimer = 0;
+    wallGroup.position.y = 0;
+    wallBodies.forEach(b => { b.position.y = 0.95; });
+
+    if (currentGameMode === 'duel') {
+        const wallSide = Math.random() > 0.5 ? 1 : -1;
+        const wallX = wallSide * 1.35;
+        wallGroup.position.set(wallX, 0, -13.5);
+        wallBodies.forEach((b, idx) => {
+            const offset = (idx - 1) * 0.85;
+            b.position.set(wallX + offset, 0.95, -13.5);
+        });
+        const gkStartX = -wallSide * 0.9;
+        gkGroup.position.set(gkStartX, 0, -19.6);
+        gkGroup.rotation.set(0, 0, 0);
+        gkBodyCollider.position.set(gkStartX, 1.05, -19.6);
+    }
+
+    // Reset Camera
+    camera.position.set(0, 1.4, -4.8);
+    camera.lookAt(0, 0.8, -20);
+
+    trailPoints = [];
+    updateTrail();
+
+    document.getElementById('next-shot-btn').style.display = 'none';
+    document.getElementById('banner').classList.remove('show');
+    document.getElementById('telemetry').classList.remove('visible');
+
     isAiming = true;
+    sfx.playWhistle();
 };
 
-window.nextShot = function() {
-    document.getElementById('next-btn').style.display = 'none';
+// Mode Selection Handlers
+window.selectMode = function(mode) {
+    sfx.init();
+    currentGameMode = mode;
+    document.getElementById('menu').style.display = 'none';
+    document.getElementById('hud').style.display = 'block';
+    isPlaying = true;
+    score = 0;
+    streak = 0;
+    updateHUD();
+    spawnTargets();
     resetBall();
 };
 
+window.resetToMenu = function() {
+    isPlaying = false;
+    document.getElementById('menu').style.display = 'flex';
+    document.getElementById('hud').style.display = 'none';
+};
+
+window.triggerNextShot = function() {
+    resetBall();
+};
+
+function updateHUD() {
+    document.getElementById('score-display').innerText = score;
+    document.getElementById('streak-badge').innerText = Math.max(1, streak) + 'X STREAK';
+}
+
+function showBanner(main, sub, color = '#38bdf8') {
+    const banner = document.getElementById('banner');
+    document.getElementById('banner-main').innerText = main;
+    document.getElementById('banner-main').style.color = color;
+    document.getElementById('banner-sub').innerText = sub;
+    banner.classList.add('show');
+}
+
+// Swipe Gesture Parser with Multi-Point Curve Sampling
 window.addEventListener('pointerdown', (e) => {
-    if(!gameActive || !isAiming || e.target.tagName === 'BUTTON' || e.target.closest('.char-card')) return;
-    swipeStart.x = e.clientX; swipeStart.y = e.clientY; swipeStart.time = Date.now();
+    if (!isPlaying || !isAiming || e.target.closest('button')) return;
+    sfx.init();
+    swipeSamples = [{ x: e.clientX, y: e.clientY, time: performance.now() }];
+});
+
+window.addEventListener('pointermove', (e) => {
+    if (!isPlaying || !isAiming || swipeSamples.length === 0) return;
+    swipeSamples.push({ x: e.clientX, y: e.clientY, time: performance.now() });
 });
 
 window.addEventListener('pointerup', (e) => {
-    if(!gameActive || !isAiming || e.target.tagName === 'BUTTON' || e.target.closest('.char-card')) return;
-    swipeEnd.x = e.clientX; swipeEnd.y = e.clientY; swipeEnd.time = Date.now();
-    
-    const dx = swipeEnd.x - swipeStart.x; const dy = swipeEnd.y - swipeStart.y; const dt = (swipeEnd.time - swipeStart.time) / 1000;
-    
-    if (dt > 0 && dy < -10) {
+    if (!isPlaying || !isAiming || swipeSamples.length < 2) return;
+    swipeSamples.push({ x: e.clientX, y: e.clientY, time: performance.now() });
+
+    const first = swipeSamples[0];
+    const last = swipeSamples[swipeSamples.length - 1];
+    const dt = (last.time - first.time) / 1000;
+    const dy = last.y - first.y;
+    const dx = last.x - first.x;
+
+    // Must be an upward stroke
+    if (dy < -20 && dt > 0.05 && dt < 0.8) {
         isAiming = false;
-        // Fine-tuned AAA swipe mechanics
-        let vz = Math.max(dy * 0.1, -40); 
-        let vy = Math.min(-dy * 0.03, 10);
-        let vx = dx * 0.02;
+        ballInFlight = true;
+
+        // Calculate Curvature Deflection (midpoint deviation from straight chord)
+        let maxDeflection = 0;
+        const midIdx = Math.floor(swipeSamples.length / 2);
+        const mid = swipeSamples[midIdx];
+        const chordX = first.x + (last.x - first.x) * 0.5;
+        maxDeflection = mid.x - chordX;
+
+        // Launch Velocities
+        const strokeSpeed = Math.hypot(dx, dy) / dt; // px/sec
+        const powerNorm = Math.min(1.0, Math.max(0.4, strokeSpeed / 1800));
+
+        const vz = -18 - powerNorm * 18; // -18 to -36 m/s (~65 to 130 km/h)
+        const vy = Math.min(14, Math.max(3.5, (-dy / window.innerHeight) * 22));
+        const vx = (dx / window.innerWidth) * 20;
+
         ballBody.velocity.set(vx, vy, vz);
-        curveAmount = dx * 0.02;
-        setTimeout(() => { document.getElementById('next-btn').style.display = 'block'; }, 3000);
+
+        // Angular Spin Vector (Magnus Effect)
+        // Deflection to left (< 0) -> clockwise spin -> swerves left
+        // Deflection to right (> 0) -> counter-clockwise spin -> swerves right
+        const spinRPM = (maxDeflection / 40) * 800; // up to 1200 RPM
+        const omegaY = (spinRPM * Math.PI * 2) / 60;
+        spinVector.set(0, omegaY, 0);
+
+        // Knuckleball Detection (High speed + Zero spin)
+        const isKnuckle = Math.abs(spinRPM) < 90 && Math.abs(vz) > 26;
+        let style = 'Direct Strike';
+        if (isKnuckle) style = 'Laser Knuckleball';
+        else if (spinRPM > 200) style = 'Curling Inswing';
+        else if (spinRPM < -200) style = 'Curling Outswing';
+
+        // Telemetry Update
+        const speedKmh = Math.round(Math.abs(vz) * 3.6);
+        document.getElementById('stat-speed').innerText = speedKmh + ' KM/H';
+        document.getElementById('stat-spin').innerText = Math.round(Math.abs(spinRPM)) + ' RPM';
+        document.getElementById('stat-style').innerText = style;
+        document.getElementById('telemetry').classList.add('visible');
+
+        sfx.playKick(powerNorm);
+
+        // Trigger AI Goalkeeper Dive & Wall Jump
+        if (currentGameMode === 'duel') {
+            wallJumping = true;
+            wallJumpTimer = 0;
+            gkDiving = true;
+            const predX = vx * 0.72 + (spinVector.y * -0.045);
+            gkTargetX = Math.max(-3.3, Math.min(3.3, predX));
+            const predY = Math.max(0.65, Math.min(2.1, vy * 0.22));
+            gkTargetY = predY;
+            gkTargetRotZ = (gkTargetX > gkGroup.position.x ? -1 : 1) * Math.min(1.2, Math.abs(gkTargetX - gkGroup.position.x) * 0.45);
+        }
+
+        setTimeout(() => {
+            document.getElementById('next-shot-btn').style.display = 'block';
+        }, 2200);
     }
+    swipeSamples = [];
 });
 
-const clock = new THREE.Clock();
-const update = () => {
-    requestAnimationFrame(update);
-    if(!gameActive) return; // Pause rendering/physics if menu is open
-    
-    const dt = clock.getDelta();
-    const time = Date.now() * 0.002;
-    world.step(1/60, dt, 3);
-    
-    // Magnus curve logic
-    if (!isAiming && ballBody.position.y > ballRadius + 0.1) {
-        ballBody.force.x += curveAmount * 2.0;
-        ballBody.angularVelocity.set(0, curveAmount, -ballBody.velocity.z * 0.5);
+function updateTrail() {
+    const pos = trailGeo.attributes.position.array;
+    for (let i = 0; i < trailMaxPoints; i++) {
+        const pt = trailPoints[i] || (trailPoints.length > 0 ? trailPoints[trailPoints.length - 1] : ballMesh.position);
+        pos[i * 3] = pt.x;
+        pos[i * 3 + 1] = pt.y;
+        pos[i * 3 + 2] = pt.z;
     }
-    
-    ballMesh.position.copy(ballBody.position); ballMesh.quaternion.copy(ballBody.quaternion);
-    
-    // Dynamic Camera Tracking (follows ball dynamically)
-    if (!isAiming) {
-        camera.position.z += ((ballMesh.position.z + 4) - camera.position.z) * 0.1;
-        camera.position.x += ((ballMesh.position.x * 0.3) - camera.position.x) * 0.1;
-        camera.lookAt(ballMesh.position);
-    }
-    
-    // GK AI Patrol
-    let targetX = Math.sin(time) * 2.0; 
-    if (!isAiming && ballBody.position.z > -20 && ballBody.position.z < -10) {
-        targetX = Math.max(-3.5, Math.min(3.5, ballBody.position.x)); // Dive
-    }
-    gkGroup.position.x += (targetX - gkGroup.position.x) * 0.1;
-    gkBodyPhysics.position.x = gkGroup.position.x;
-    if(mixer) mixer.update(dt);
+    trailGeo.attributes.position.needsUpdate = true;
+}
 
-    
-    // Process Targets
-    targets.forEach(t => {
-        if(t.active) {
-            if(t.isMoving) {
-                t.mesh.position.x = t.originX + Math.sin(time * t.speed + t.offset) * 1.5;
-                t.mesh.position.x = Math.max(-3.2, Math.min(3.2, t.mesh.position.x)); // Clamp inside net
-                t.body.position.copy(t.mesh.position);
-            }
-            if(ballBody.position.distanceTo(t.body.position) < t.size + ballRadius) {
-                t.active = false; scene.remove(t.mesh); world.removeBody(t.body);
-                score += t.points; document.getElementById('score').innerText = score;
-                const msg = document.getElementById('msg');
-                msg.innerText = "BULLSEYE! +" + t.points;
-                msg.style.color = '#ffaa00';
-                msg.style.display = 'block';
-                createExplosion(t.body.position.x, t.body.position.y, t.body.position.z, '#ff0000');
+// --- Main Render & Physics Loop ---
+const clock = new THREE.Clock();
+function animate() {
+    requestAnimationFrame(animate);
+    if (!isPlaying) return;
+
+    let dt = clock.getDelta();
+    if (slowMo) dt *= 0.35; // Cinematic slow motion near goal
+
+    world.step(1 / 60, dt, 3);
+
+    // Goalkeeper and Wall Animations in Duel Mode
+    if (currentGameMode === 'duel') {
+        if (wallJumping) {
+            wallJumpTimer += dt * 4.8;
+            const jumpOffset = Math.max(0, Math.sin(Math.min(Math.PI, wallJumpTimer)) * 0.52);
+            wallGroup.position.y = jumpOffset;
+            wallBodies.forEach(b => { b.position.y = 0.95 + jumpOffset; });
+            if (wallJumpTimer >= Math.PI) {
+                wallJumping = false;
+                wallGroup.position.y = 0;
+                wallBodies.forEach(b => { b.position.y = 0.95; });
             }
         }
-    });
-    
-    // Process Goal Net
-    if(!isAiming && ballBody.position.z < -20 && ballBody.position.x > -3.6 && ballBody.position.x < 3.6 && ballBody.position.y < 3 && !ballBody.scored) {
-        ballBody.scored = true; score += 10; document.getElementById('score').innerText = score;
-        const msg = document.getElementById('msg'); 
-        if(!msg.innerText.includes("BULLSEYE")) {
-            msg.innerText = "GOAL!"; msg.style.color = "#00ff00"; msg.style.display = 'block';
+        if (gkDiving) {
+            gkGroup.position.x += (gkTargetX - gkGroup.position.x) * 0.12;
+            gkGroup.position.y += (gkTargetY - gkGroup.position.y) * 0.10;
+            gkGroup.rotation.z += (gkTargetRotZ - gkGroup.rotation.z) * 0.10;
+            gkBodyCollider.position.x = gkGroup.position.x;
+            gkBodyCollider.position.y = gkGroup.position.y;
+        }
+
+        // Check Goalkeeper Save
+        if (ballInFlight && !ballBody.scored && !ballBody.saved) {
+            const distGk = ballMesh.position.distanceTo(gkGroup.position);
+            if (distGk < 1.15 && Math.abs(ballMesh.position.z - (-19.6)) < 0.6) {
+                ballBody.saved = true;
+                streak = 0;
+                updateHUD();
+                sfx.playPost();
+                showBanner('SAVED!', 'DENIED BY THE KEEPER', '#f59e0b');
+                ballBody.velocity.x *= -0.4;
+                ballBody.velocity.z *= -0.3;
+                ballBody.velocity.y += 2.5;
+            }
         }
     }
-    
-    for(let i=particles.length-1; i>=0; i--) {
-        const p = particles[i]; p.life -= dt;
-        if(p.life <= 0) { scene.remove(p.mesh); particles.splice(i, 1); } 
-        else { p.mesh.position.x += p.vx * dt; p.mesh.position.y += p.vy * dt; p.mesh.position.z += p.vz * dt; p.vy -= 15 * dt; }
+
+    // Continuous 3D Magnus Aerodynamic Forces
+    if (ballInFlight && ballBody.position.z > -22) {
+        // F_magnus = S * (omega x v)
+        const v = ballBody.velocity;
+        const magnusCoeff = 0.0035;
+        const fx = -spinVector.y * v.z * magnusCoeff;
+        const fz = spinVector.y * v.x * magnusCoeff;
+
+        ballBody.force.x += fx;
+        ballBody.force.z += fz;
+
+        // Ball visual spin rotation
+        ballMesh.rotation.y += spinVector.y * dt;
+        ballMesh.rotation.x += v.z * dt * 2.0;
+
+        // Record flight trail
+        if (trailPoints.length === 0 || ballMesh.position.distanceTo(trailPoints[trailPoints.length - 1]) > 0.4) {
+            trailPoints.push(ballMesh.position.clone());
+            if (trailPoints.length > trailMaxPoints) trailPoints.shift();
+            updateTrail();
+        }
+
+        // Camera Smooth Tracking
+        camera.position.z += ((ballMesh.position.z + 4.2) - camera.position.z) * 0.12;
+        camera.position.x += ((ballMesh.position.x * 0.4) - camera.position.x) * 0.12;
+        camera.lookAt(ballMesh.position.x, ballMesh.position.y + 0.3, ballMesh.position.z - 3);
+
+        // Check Target Collisions (Target Race Mode)
+        activeTargets.forEach(t => {
+            if (t.active && ballMesh.position.distanceTo(t.mesh.position) < 0.65) {
+                t.active = false;
+                scene.remove(t.mesh);
+                world.removeBody(t.body);
+
+                streak++;
+                const awarded = t.pts * streak;
+                score += awarded;
+                updateHUD();
+
+                if (t.type === 'glass') sfx.playShatter();
+                else sfx.playNet();
+                sfx.playCheer();
+
+                createShatterFX(t.mesh.position.x, t.mesh.position.y, t.mesh.position.z, t.type === 'glass' ? 0x38bdf8 : 0xef4444);
+                showBanner(t.label, `+${awarded} PTS (${streak}X STREAK)`, '#38bdf8');
+            }
+        });
+
+        // Check Goal Post Collisions
+        if (Math.abs(ballBody.position.z - (-20)) < 0.3 && Math.abs(ballBody.position.x) < 3.8 && ballBody.position.y < 2.6) {
+            if (Math.abs(Math.abs(ballBody.position.x) - 3.66) < 0.2 || Math.abs(ballBody.position.y - 2.44) < 0.2) {
+                sfx.playPost();
+            }
+        }
+
+        // Check Goal Net Entry
+        if (ballBody.position.z < -20.0 && ballBody.position.z > -22.5 && Math.abs(ballBody.position.x) < 3.6 && ballBody.position.y < 2.44 && !ballBody.scored && !ballBody.saved) {
+            ballBody.scored = true;
+            streak++;
+            const pts = 200 * streak;
+            score += pts;
+            updateHUD();
+            sfx.playNet();
+            sfx.playCheer();
+            showBanner('GOAL!', `+${pts} PTS!`, '#22c55e');
+            slowMo = true;
+            setTimeout(() => { slowMo = false; }, 800);
+        }
     }
+
+    ballMesh.position.copy(ballBody.position);
+    if (!ballInFlight) ballMesh.quaternion.copy(ballBody.quaternion);
+
+    // Particle FX
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= dt * 1.5;
+        if (p.life <= 0) {
+            scene.remove(p.mesh);
+            particles.splice(i, 1);
+        } else {
+            p.mesh.position.x += p.vx * dt;
+            p.mesh.position.y += p.vy * dt;
+            p.mesh.position.z += p.vz * dt;
+            p.vy -= 16 * dt;
+        }
+    }
+
     renderer.render(scene, camera);
-};
-update();
+}
+animate();
 
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
