@@ -1,0 +1,9 @@
+node_modules/
+*.log
+__pycache__/
+test_pw.py
+test_browser.py
+test_ball.js
+test_ball2.js
+get_kenney*.py
+*.png
