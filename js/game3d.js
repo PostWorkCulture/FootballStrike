@@ -948,207 +948,30 @@ function createSoftShadowTex() {
 }
 const softShadowTex = createSoftShadowTex();
 
-// FIFA Anatomical 12-Bone Kinematic Rig Generator
-function createArticulatedPlayerRig(baseMesh, customMat = null) {
-    const geom = baseMesh.geometry.clone();
-    const pos = geom.attributes.position;
-    const count = pos.count;
-
-    // Build Anatomical Skeleton Hierarchy
-    const bones = [];
-
-    // Bone 0: Pelvis / Hips (Root Center of Mass)
-    const rootBone = new THREE.Bone();
-    rootBone.position.set(0, 0.78, 0);
-    bones.push(rootBone);
-
-    // Bone 1: Lumbar Spine
-    const spineBone = new THREE.Bone();
-    spineBone.position.set(0, 0.18, 0);
-    rootBone.add(spineBone);
-    bones.push(spineBone);
-
-    // Bone 2: Thoracic Spine & Chest
-    const chestBone = new THREE.Bone();
-    chestBone.position.set(0, 0.22, 0);
-    spineBone.add(chestBone);
-    bones.push(chestBone);
-
-    // Bone 3: Cervical Neck & Head (IK Ball-Tracking Target)
-    const headBone = new THREE.Bone();
-    headBone.position.set(0, 0.16, 0);
-    chestBone.add(headBone);
-    bones.push(headBone);
-
-    // Bone 4: Left Shoulder & Upper Arm
-    const lShoulder = new THREE.Bone();
-    lShoulder.position.set(-0.24, 0.02, 0);
-    chestBone.add(lShoulder);
-    bones.push(lShoulder);
-
-    // Bone 5: Left Forearm & Glove
-    const lElbow = new THREE.Bone();
-    lElbow.position.set(-0.06, -0.28, 0);
-    lShoulder.add(lElbow);
-    bones.push(lElbow);
-
-    // Bone 6: Right Shoulder & Upper Arm
-    const rShoulder = new THREE.Bone();
-    rShoulder.position.set(0.24, 0.02, 0);
-    chestBone.add(rShoulder);
-    bones.push(rShoulder);
-
-    // Bone 7: Right Forearm & Glove
-    const rElbow = new THREE.Bone();
-    rElbow.position.set(0.06, -0.28, 0);
-    rShoulder.add(rElbow);
-    bones.push(rElbow);
-
-    // Bone 8: Left Thigh (Hip Joint)
-    const lThigh = new THREE.Bone();
-    lThigh.position.set(-0.11, -0.06, 0);
-    rootBone.add(lThigh);
-    bones.push(lThigh);
-
-    // Bone 9: Left Shin & Boot (Knee Joint)
-    const lKnee = new THREE.Bone();
-    lKnee.position.set(0, -0.34, 0);
-    lThigh.add(lKnee);
-    bones.push(lKnee);
-
-    // Bone 10: Right Thigh (Hip Joint)
-    const rThigh = new THREE.Bone();
-    rThigh.position.set(0.11, -0.06, 0);
-    rootBone.add(rThigh);
-    bones.push(rThigh);
-
-    // Bone 11: Right Shin & Boot (Knee Joint)
-    const rKnee = new THREE.Bone();
-    rKnee.position.set(0, -0.34, 0);
-    rThigh.add(rKnee);
-    bones.push(rKnee);
-
-    // Compute Anatomical Bone Weights & Influences
-    const skinIndices = [];
-    const skinWeights = [];
-
-    for (let i = 0; i < count; i++) {
-        const x = pos.getX(i);
-        const y = pos.getY(i);
-        let b0 = 0, w0 = 1.0, b1 = 0, w1 = 0.0;
-
-        if (y > 1.32) {
-            b0 = 3; // Head
-        } else if (Math.abs(x) > 0.18 && y >= 0.55) {
-            if (x < 0) {
-                // Left arm
-                if (y > 0.92) {
-                    const t = Math.min(1.0, Math.max(0, (y - 0.92) / 0.25));
-                    b0 = 4; w0 = t; b1 = 5; w1 = 1.0 - t;
-                } else {
-                    b0 = 5;
-                }
-            } else {
-                // Right arm
-                if (y > 0.92) {
-                    const t = Math.min(1.0, Math.max(0, (y - 0.92) / 0.25));
-                    b0 = 6; w0 = t; b1 = 7; w1 = 1.0 - t;
-                } else {
-                    b0 = 7;
-                }
-            }
-        } else if (y >= 0.78) {
-            // Torso
-            if (y > 1.15) {
-                const t = Math.min(1.0, Math.max(0, (y - 1.15) / 0.17));
-                b0 = 2; w0 = t; b1 = 1; w1 = 1.0 - t;
-            } else if (y > 0.92) {
-                const t = Math.min(1.0, Math.max(0, (y - 0.92) / 0.23));
-                b0 = 1; w0 = t; b1 = 0; w1 = 1.0 - t;
-            } else {
-                b0 = 0;
-            }
-        } else {
-            // Legs
-            if (x < 0) {
-                if (y >= 0.40) {
-                    const t = Math.min(1.0, Math.max(0, (y - 0.40) / 0.35));
-                    b0 = 8; w0 = t; b1 = 9; w1 = 1.0 - t;
-                } else {
-                    b0 = 9;
-                }
-            } else {
-                if (y >= 0.40) {
-                    const t = Math.min(1.0, Math.max(0, (y - 0.40) / 0.35));
-                    b0 = 10; w0 = t; b1 = 11; w1 = 1.0 - t;
-                } else {
-                    b0 = 11;
-                }
-            }
-        }
-
-        skinIndices.push(b0, b1, 0, 0);
-        skinWeights.push(w0, w1, 0, 0);
-    }
-
-    geom.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndices, 4));
-    geom.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeights, 4));
-
-    const mat = (customMat || baseMesh.material).clone();
-    mat.skinning = true;
-
-    const skeleton = new THREE.Skeleton(bones);
-    const skinnedMesh = new THREE.SkinnedMesh(geom, mat);
-    skinnedMesh.castShadow = true;
-    skinnedMesh.receiveShadow = true;
-    skinnedMesh.add(rootBone);
-    skinnedMesh.bind(skeleton);
-
-    return {
-        mesh: skinnedMesh,
-        skeleton: skeleton,
-        bones: {
-            root: rootBone,
-            spine: spineBone,
-            chest: chestBone,
-            head: headBone,
-            leftShoulder: lShoulder,
-            leftElbow: lElbow,
-            rightShoulder: rShoulder,
-            rightElbow: rElbow,
-            leftThigh: lThigh,
-            leftKnee: lKnee,
-            rightThigh: rThigh,
-            rightKnee: rKnee
-        }
-    };
-}
-
-// 1. Goalkeeper Articulated Rig
+// Instantiation: Goalkeeper Rig (High-Fidelity 3D Polygonal Mesh)
 const gkGroup = new THREE.Group();
 const gkSpine = new THREE.Group();
 gkGroup.add(gkSpine);
+
 const gkMesh = new THREE.Group();
 gkSpine.add(gkMesh);
-let gkBones = null;
 
 charGltfLoader.load('assets/goalkeeper_pro_3d.glb', (gltf) => {
-    let base = null;
-    gltf.scene.traverse(node => {
-        if (node.isMesh && !base) base = node;
+    const model = gltf.scene;
+    model.scale.set(1.30, 1.30, 1.30);
+    model.traverse(node => {
+        if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+            if (node.material) {
+                node.material.roughness = 0.35;
+                node.material.metalness = 0.03;
+                node.material.emissive = new THREE.Color(0x333333);
+                node.material.emissiveIntensity = 0.35;
+            }
+        }
     });
-    if (base) {
-        base.material.roughness = 0.35;
-        base.material.metalness = 0.03;
-        base.material.emissive = new THREE.Color(0x333333);
-        base.material.emissiveIntensity = 0.35;
-
-        const gkRig = createArticulatedPlayerRig(base);
-        gkRig.mesh.scale.set(1.30, 1.30, 1.30);
-        gkMesh.add(gkRig.mesh);
-        gkBones = gkRig.bones;
-        window.gkBones = gkBones;
-    }
+    gkMesh.add(model);
 });
 
 // Ground Contact Shadow under Goalkeeper (Decoupled to Ground Plane)
@@ -1173,12 +996,11 @@ const gkBodyCollider = new CANNON.Body({
 gkBodyCollider.collisionResponse = 0;
 world.addBody(gkBodyCollider);
 
-// 2. Defensive Wall Articulated Rigs
+// Instantiation: Defensive Wall (Decoupled Individual Jumper Mechanics)
 const wallGroup = new THREE.Group();
 wallGroup.position.set(0, 0, -13.5);
 const wallDefenders = [];
 const wallShadows = [];
-const wallDefenderBones = [];
 
 const wallDefenderConfigs = [
     { id: 0, xOffset: -0.85, scale: 1.22, delay: 0.055, maxH: 0.50, duration: 0.65, lean: -0.14, inwardYaw: 0.09 },
@@ -1187,53 +1009,33 @@ const wallDefenderConfigs = [
 ];
 
 charGltfLoader.load('assets/wall_defender_pro_3d.glb', (gltf) => {
-    let base = null;
-    gltf.scene.traverse(node => {
-        if (node.isMesh && !base) base = node;
-    });
-    if (base) {
-        base.material.roughness = 0.40;
-        base.material.metalness = 0.04;
-        base.material.emissive = new THREE.Color(0x222222);
-        base.material.emissiveIntensity = 0.22;
+    const baseModel = gltf.scene;
 
-        wallDefenderConfigs.forEach((cfg) => {
-            const defRig = createArticulatedPlayerRig(base);
-            defRig.mesh.scale.set(cfg.scale, cfg.scale, cfg.scale);
-            defRig.mesh.position.set(cfg.xOffset, 0, 0);
-            defRig.mesh.rotation.y = cfg.inwardYaw * 0.2;
-
-            wallGroup.add(defRig.mesh);
-            wallDefenders.push(defRig.mesh);
-            wallDefenderBones.push(defRig.bones);
+    wallDefenderConfigs.forEach((cfg) => {
+        const defender = baseModel.clone(true);
+        defender.scale.set(cfg.scale, cfg.scale, cfg.scale);
+        defender.position.set(cfg.xOffset, 0, 0);
+        defender.rotation.y = cfg.inwardYaw * 0.2;
+        defender.traverse(node => {
+            if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
+                if (node.material) {
+                    node.material.roughness = 0.40;
+                    node.material.metalness = 0.04;
+                    node.material.emissive = new THREE.Color(0x222222);
+                    node.material.emissiveIntensity = 0.22;
+                }
+            }
         });
-
-        // 3. Striker / Kicker Articulated Rig (Stationed at Spot)
-        const kickerRig = createArticulatedPlayerRig(base);
-        kickerRig.mesh.scale.set(1.05, 1.05, 1.05);
-        kickerGroup.add(kickerRig.mesh);
-        kickerBones = kickerRig.bones;
-        window.kickerBones = kickerBones;
-    }
+        wallGroup.add(defender);
+        wallDefenders.push(defender);
+    });
 });
 
 // Ground Contact Shadows for each individual defender
 const defShadowGeo = new THREE.PlaneGeometry(1.05, 0.78);
 defShadowGeo.rotateX(-Math.PI / 2);
-
-// 3. 3D Striker / Kicker Setup
-const kickerGroup = new THREE.Group();
-kickerGroup.position.set(0, 0, -7.7);
-scene.add(kickerGroup);
-let kickerBones = null;
-let kickerKicking = false;
-let kickerKickTimer = 0;
-let kickerCelebrating = false;
-let kickerDisbelief = false;
-
-const kickerShadow = new THREE.Mesh(defShadowGeo, new THREE.MeshBasicMaterial({ map: softShadowTex, transparent: true, opacity: 0.75, depthWrite: false }));
-kickerShadow.position.set(0, 0.015, -7.7);
-scene.add(kickerShadow);
 
 wallDefenderConfigs.forEach((cfg) => {
     const shadowMat = new THREE.MeshBasicMaterial({
@@ -1460,9 +1262,6 @@ function finishShot(outcome, bannerMain, bannerSub, bannerColor) {
     if (outcome === 'goal') {
         bloomPass.strength = 1.0;
         setTimeout(() => { bloomPass.strength = 0.30; }, 800);
-        kickerCelebrating = true;
-    } else {
-        kickerDisbelief = true;
     }
 
     if (currentGameMode === 'duel') {
@@ -1687,32 +1486,6 @@ window.resetBall = function() {
         s.material.opacity = 0.75;
     });
 
-    // Position & Reset 3D Striker / Kicker behind the ball facing the goal
-    const kickerX = spotX - 1.15;
-    const kickerZ = spotZ + 0.95;
-    kickerGroup.position.set(kickerX, 0, kickerZ);
-    kickerGroup.rotation.set(0, Math.PI - 0.35, 0);
-    kickerShadow.position.set(kickerX, 0.015, kickerZ);
-    kickerGroup.visible = (currentGameMode !== 'targets');
-    kickerShadow.visible = (currentGameMode !== 'targets');
-    kickerKicking = false;
-    kickerKickTimer = 0;
-    kickerCelebrating = false;
-    kickerDisbelief = false;
-    if (kickerBones) {
-        kickerBones.root.position.set(0, 0.78, 0);
-        kickerBones.rightThigh.rotation.set(0, 0, 0);
-        kickerBones.rightKnee.rotation.set(0.12, 0, 0);
-        kickerBones.leftThigh.rotation.set(0, 0, 0);
-        kickerBones.leftKnee.rotation.set(0.12, 0, 0);
-        kickerBones.leftShoulder.rotation.set(0.15, 0, 0.25);
-        kickerBones.rightShoulder.rotation.set(0.15, 0, -0.25);
-        kickerBones.leftElbow.rotation.set(0.40, 0, 0);
-        kickerBones.rightElbow.rotation.set(0.40, 0, 0);
-        kickerBones.head.rotation.set(0.08, 0, 0);
-        kickerBones.spine.rotation.set(0, 0, 0);
-        kickerBones.chest.rotation.set(0, 0, 0);
-    }
 
     const allowWall = (currentGameMode === 'duel' && !isPenalty) || 
                       (currentGameMode === 'practice' && practiceSettings.wall && !isPenalty);
@@ -1748,15 +1521,6 @@ window.resetBall = function() {
         gkGroup.rotation.set(0, 0, 0);
         gkSpine.rotation.set(0, 0, 0);
         gkMesh.rotation.set(0, 0, 0);
-        if (gkBones) {
-            gkBones.root.position.set(0, 0.78, 0);
-            gkBones.leftShoulder.rotation.set(0.40, 0, 0.30);
-            gkBones.rightShoulder.rotation.set(0.40, 0, -0.30);
-            gkBones.leftElbow.rotation.set(0.95, 0, 0);
-            gkBones.rightElbow.rotation.set(0.95, 0, 0);
-            gkBones.leftKnee.rotation.x = 0.22;
-            gkBones.rightKnee.rotation.x = 0.22;
-        }
         gkBodyCollider.position.set(gkStartX, 1.15, -19.6);
         if (gkShadow) {
             gkShadow.position.set(gkStartX, 0.015, -19.6);
@@ -2024,8 +1788,6 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     document.getElementById('telemetry').classList.add('visible');
 
     sfx.playKick(powerNorm);
-    kickerKickTimer = 0.35;
-    kickerKicking = true;
 
     // Camera screen shake on powerful shots (FIFA-style impact)
     if (powerNorm > 0.75) {
@@ -2265,69 +2027,6 @@ function updateSimulation(dt) {
         const allowGk = (currentGameMode === 'duel') || 
                         (currentGameMode === 'practice' && practiceSettings.keeper);
 
-        // 1. Striker / Kicker FIFA Kinematics Update
-        if (kickerBones && kickerGroup.visible) {
-            if (kickerCelebrating) {
-                // Goal celebration: sprint & double fist-pump
-                const celTime = time * 4.5;
-                kickerGroup.position.z = spotZ + 1.25 + Math.sin(celTime * 0.4) * 0.9;
-                kickerGroup.position.y = Math.max(0, Math.sin(celTime) * 0.38);
-                kickerBones.leftShoulder.rotation.set(0, 0, 1.45);
-                kickerBones.rightShoulder.rotation.set(0, 0, -1.45);
-                kickerBones.leftElbow.rotation.set(0.12, 0, 0);
-                kickerBones.rightElbow.rotation.set(0.12, 0, 0);
-                kickerBones.head.rotation.set(-0.25, 0, 0);
-            } else if (kickerDisbelief) {
-                // Missed or Saved: Hands to head in disbelief
-                kickerBones.leftShoulder.rotation.set(1.20, 0, 0.45);
-                kickerBones.rightShoulder.rotation.set(1.20, 0, -0.45);
-                kickerBones.leftElbow.rotation.set(1.45, 0, 0);
-                kickerBones.rightElbow.rotation.set(1.45, 0, 0);
-                kickerBones.head.rotation.set(-0.35, 0, 0);
-                kickerBones.spine.rotation.set(0.15, 0, 0);
-            } else if (kickerKickTimer > 0) {
-                // Ball strike impact & follow-through step
-                kickerKickTimer -= dt;
-                const kp = Math.max(0, kickerKickTimer / 0.35);
-                kickerGroup.position.set(spotX - 0.28, 0, spotZ + 0.15);
-                kickerGroup.rotation.set(0, Math.PI - 0.08, 0);
-                kickerBones.rightThigh.rotation.x = (1.0 - kp) * 0.88;
-                kickerBones.rightKnee.rotation.x = kp * 0.55;
-                kickerBones.leftShoulder.rotation.set(0.20, 0, 0.55);
-                kickerBones.rightShoulder.rotation.set(0.20, 0, -0.55);
-            } else if (isAiming) {
-                // Approach stride & wind-up during swipe drag
-                kickerGroup.position.set(spotX - 0.65, 0, spotZ + 0.55);
-                kickerGroup.rotation.set(0, Math.PI - 0.22, 0);
-                kickerBones.rightThigh.rotation.x = -0.75;
-                kickerBones.rightKnee.rotation.x = 1.10;
-                kickerBones.leftShoulder.rotation.set(0.30, 0, 0.65);
-                kickerBones.rightShoulder.rotation.set(0.30, 0, -0.65);
-                kickerBones.spine.rotation.x = -0.15;
-            } else if (ballInFlight) {
-                // Follow-through completed: step cleanly to left flank so ball flight corridor is clear
-                kickerGroup.position.set(spotX - 1.25, 0, spotZ + 0.45);
-                kickerGroup.rotation.set(0, Math.PI - 0.40, 0);
-                kickerBones.rightThigh.rotation.x = 0.15;
-                kickerBones.rightKnee.rotation.x = 0.15;
-                kickerBones.head.rotation.set(0.12, 0, 0);
-            } else {
-                // Focused free-kick ready stance (angled 35-degree run-up)
-                kickerGroup.position.set(spotX - 1.15, 0, spotZ + 0.95);
-                kickerGroup.rotation.set(0, Math.PI - 0.35, 0);
-                const kickIdle = Math.sin(time * 2.2) * 0.018;
-                kickerBones.root.position.y = 0.78 + kickIdle;
-                kickerBones.rightThigh.rotation.x = 0;
-                kickerBones.rightKnee.rotation.x = 0.12;
-                kickerBones.leftThigh.rotation.x = 0;
-                kickerBones.leftKnee.rotation.x = 0.12;
-                kickerBones.leftShoulder.rotation.set(0.15, 0, 0.25);
-                kickerBones.rightShoulder.rotation.set(0.15, 0, -0.25);
-                kickerBones.leftElbow.rotation.set(0.40, 0, 0);
-                kickerBones.rightElbow.rotation.set(0.40, 0, 0);
-                kickerBones.head.rotation.set(0.08, 0, 0);
-            }
-        }
 
         // 2. Defensive Wall FIFA Kinematics Update
         if (allowWall) {
@@ -2340,7 +2039,6 @@ function updateSimulation(dt) {
                     const def = wallDefenders[idx];
                     const shadow = wallShadows[idx];
                     const body = wallBodies[idx];
-                    const bones = wallDefenderBones[idx];
                     const relTime = wallJumpTimer - cfg.delay;
 
                     let currentH = 0;
@@ -2353,44 +2051,16 @@ function updateSimulation(dt) {
                         currentH = Math.sin(progress * Math.PI) * cfg.maxH;
                         currentLean = Math.sin(progress * Math.PI) * cfg.lean;
                         currentYaw = cfg.inwardYaw * (1.0 - progress * 0.5);
-
-                        // Mid-air knee tuck & leg compression
-                        if (bones) {
-                            bones.root.position.y = 0.78 + currentH;
-                            bones.leftKnee.rotation.x = 0.05 + Math.sin(progress * Math.PI) * 0.35;
-                            bones.rightKnee.rotation.x = 0.05 + Math.sin(progress * Math.PI) * 0.35;
-                            bones.leftThigh.rotation.x = Math.sin(progress * Math.PI) * 0.30;
-                            bones.rightThigh.rotation.x = Math.sin(progress * Math.PI) * 0.30;
-
-                            // Ball proximity flinch reaction
-                            if (ballInFlight && def) {
-                                const distToBall = ballMesh.position.distanceTo(def.position);
-                                if (distToBall < 2.0) {
-                                    bones.head.rotation.y = (ballMesh.position.x > def.position.x) ? -0.40 : 0.40;
-                                    bones.spine.rotation.x = -0.22;
-                                }
-                            }
-                        }
                     } else if (relTime >= cfg.duration && relTime < cfg.duration + 0.12) {
                         allFinished = false;
                         const landProgress = (relTime - cfg.duration) / 0.12;
                         currentH = -Math.sin(landProgress * Math.PI) * 0.045;
                         currentLean = Math.sin(landProgress * Math.PI) * 0.05;
-
-                        // Deep knee flexion landing shock absorption
-                        if (bones) {
-                            bones.root.position.y = 0.74;
-                            bones.leftKnee.rotation.x = 0.75 * Math.sin(landProgress * Math.PI);
-                            bones.rightKnee.rotation.x = 0.75 * Math.sin(landProgress * Math.PI);
-                        }
                     } else if (relTime < 0) {
                         allFinished = false;
-                        // Pre-jump anticipation squat
-                        if (bones) {
-                            bones.root.position.y = 0.72;
-                            bones.leftKnee.rotation.x = 0.50;
-                            bones.rightKnee.rotation.x = 0.50;
-                        }
+                        const squatProgress = Math.max(0, 1.0 + relTime / (cfg.delay || 0.05));
+                        currentH = -squatProgress * 0.035;
+                        currentLean = squatProgress * 0.05;
                     }
 
                     if (def) {
@@ -2414,19 +2084,9 @@ function updateSimulation(dt) {
                         const def = wallDefenders[idx];
                         const shadow = wallShadows[idx];
                         const body = wallBodies[idx];
-                        const bones = wallDefenderBones[idx];
                         if (def) { def.position.y = 0; def.rotation.set(0, cfg.inwardYaw * 0.2, 0); }
                         if (shadow) { shadow.scale.set(1, 1, 1); shadow.material.opacity = 0.75; }
                         if (body) { body.position.y = 0.95; }
-                        if (bones) {
-                            bones.root.position.set(0, 0.78, 0);
-                            bones.leftKnee.rotation.x = 0.18;
-                            bones.rightKnee.rotation.x = 0.18;
-                            bones.leftThigh.rotation.x = 0;
-                            bones.rightThigh.rotation.x = 0;
-                            bones.head.rotation.set(0, 0, 0);
-                            bones.spine.rotation.set(0, 0, 0);
-                        }
                     });
                 }
             } else {
@@ -2435,7 +2095,6 @@ function updateSimulation(dt) {
                     const def = wallDefenders[idx];
                     const shadow = wallShadows[idx];
                     const body = wallBodies[idx];
-                    const bones = wallDefenderBones[idx];
                     const phase = time * (2.1 + idx * 0.35) + idx * 2.3;
 
                     if (def) {
@@ -2443,16 +2102,6 @@ function updateSimulation(dt) {
                         def.rotation.y = cfg.inwardYaw * 0.2 + Math.sin(phase * 0.6) * 0.035;
                         def.rotation.z = Math.cos(phase * 0.4) * 0.016;
                         def.rotation.x = 0.04 + Math.sin(phase * 0.8) * 0.018;
-                    }
-                    // Wall protection posture: arms folded tightly across groin/chest
-                    if (bones) {
-                        bones.root.position.y = 0.78 + Math.sin(phase) * 0.012;
-                        bones.leftShoulder.rotation.set(0.25, 0, 0.45);
-                        bones.rightShoulder.rotation.set(0.25, 0, -0.45);
-                        bones.leftElbow.rotation.set(1.35, 0, 0);
-                        bones.rightElbow.rotation.set(1.35, 0, 0);
-                        bones.leftKnee.rotation.x = 0.18 + Math.sin(phase) * 0.04;
-                        bones.rightKnee.rotation.x = 0.18 + Math.sin(phase) * 0.04;
                     }
                     if (shadow) {
                         shadow.scale.set(1, 1, 1);
@@ -2469,16 +2118,10 @@ function updateSimulation(dt) {
         if (allowGk) {
             const diveDir = (gkTargetX >= gkStartX) ? 1 : -1;
 
-            // Real-Time Inverse Kinematics Gaze Tracking: Head tracks ball flight trajectory
-            if (gkBones && ballMesh) {
-                const headWorldPos = new THREE.Vector3();
-                gkBones.head.getWorldPosition(headWorldPos);
-                const dx = ballMesh.position.x - headWorldPos.x;
-                const dy = ballMesh.position.y - headWorldPos.y;
-                const dz = ballMesh.position.z - headWorldPos.z;
-                const distXZ = Math.hypot(dx, dz);
-                gkBones.head.rotation.y = Math.max(-0.65, Math.min(0.65, Math.atan2(-dx, -dz) * 0.70));
-                gkBones.head.rotation.x = Math.max(-0.40, Math.min(0.40, Math.atan2(dy, distXZ) * 0.60));
+            // Real-Time Gaze Tracking: Torso subtly tracks ball trajectory
+            if (ballInFlight && ballMesh) {
+                const dx = ballMesh.position.x - gkGroup.position.x;
+                gkMesh.rotation.y = Math.max(-0.40, Math.min(0.40, dx * 0.15));
             }
 
             if (gkDiving) {
@@ -2492,18 +2135,8 @@ function updateSimulation(dt) {
                     gkSpine.rotation.z = -diveDir * p0 * 0.08;
                     gkSpine.rotation.x = 0.16 + p0 * 0.06;
                     gkMesh.rotation.y = diveDir * p0 * 0.12;
-
-                    if (gkBones) {
-                        gkBones.root.position.y = 0.74 - p0 * 0.12;
-                        gkBones.leftKnee.rotation.x = 0.22 + p0 * 0.45;
-                        gkBones.rightKnee.rotation.x = 0.22 + p0 * 0.45;
-                        gkBones.leftShoulder.rotation.set(0.40 - p0 * 0.35, 0, 0.20);
-                        gkBones.rightShoulder.rotation.set(0.40 - p0 * 0.35, 0, -0.20);
-                        gkBones.leftElbow.rotation.set(0.60, 0, 0);
-                        gkBones.rightElbow.rotation.set(0.60, 0, 0);
-                    }
                 } else {
-                    // Phase 1: Explosive Ballistic Airborne Dive with Full Skeletal Extension
+                    // Phase 1: Explosive Ballistic Airborne Dive with Full Extension
                     const tau = Math.min(1.0, (gkDiveTimer - gkReactionTime) / gkDiveDuration);
                     const hProgress = 1.0 - Math.pow(1.0 - tau, 2.2);
                     gkGroup.position.x = gkStartX + (gkTargetX - gkStartX) * hProgress;
@@ -2522,38 +2155,6 @@ function updateSimulation(dt) {
                     gkSpine.rotation.z = gkTargetRotZ * rotProgress;
                     gkSpine.rotation.x = 0.22 * (1.0 - tau * 0.4);
                     gkMesh.rotation.y = diveDir * 0.30 * Math.sin(tau * Math.PI);
-
-                    // FIFA Full-Span Skeletal Arm & Leg Extension
-                    if (gkBones) {
-                        const leadArmElev = (gkDiveType === 'top_corner_flight') ? 1.45 : (gkDiveType === 'low_sweep' ? 0.35 : 1.05);
-                        if (diveDir > 0) {
-                            // Diving Right: Right side reaches, left side scissors
-                            gkBones.rightShoulder.rotation.set(0.25, 0, -leadArmElev * Math.sin(tau * Math.PI * 0.5));
-                            gkBones.rightElbow.rotation.set(0.05, 0, 0); // Straight arm reach, white glove extends!
-                            gkBones.leftShoulder.rotation.set(0.15, 0, -0.45 * Math.sin(tau * Math.PI * 0.5));
-                            gkBones.leftElbow.rotation.set(0.45, 0, 0);
-                            gkBones.rightKnee.rotation.x = 0.05; // Lead leg push
-                            gkBones.rightThigh.rotation.z = -0.25;
-                            gkBones.leftKnee.rotation.x = 0.55; // Trail leg scissor
-                            gkBones.leftThigh.rotation.x = 0.35;
-                            gkBones.spine.rotation.z = -0.45 * Math.sin(tau * Math.PI * 0.5);
-                            gkBones.chest.rotation.z = -0.35 * Math.sin(tau * Math.PI * 0.5);
-                            gkBones.chest.rotation.y = 0.30 * Math.sin(tau * Math.PI);
-                        } else {
-                            // Diving Left: Left side reaches, right side scissors
-                            gkBones.leftShoulder.rotation.set(0.25, 0, leadArmElev * Math.sin(tau * Math.PI * 0.5));
-                            gkBones.leftElbow.rotation.set(0.05, 0, 0); // Straight arm reach, white glove extends!
-                            gkBones.rightShoulder.rotation.set(0.15, 0, 0.45 * Math.sin(tau * Math.PI * 0.5));
-                            gkBones.rightElbow.rotation.set(0.45, 0, 0);
-                            gkBones.leftKnee.rotation.x = 0.05; // Lead leg push
-                            gkBones.leftThigh.rotation.z = 0.25;
-                            gkBones.rightKnee.rotation.x = 0.55; // Trail leg scissor
-                            gkBones.rightThigh.rotation.x = 0.35;
-                            gkBones.spine.rotation.z = 0.45 * Math.sin(tau * Math.PI * 0.5);
-                            gkBones.chest.rotation.z = 0.35 * Math.sin(tau * Math.PI * 0.5);
-                            gkBones.chest.rotation.y = -0.30 * Math.sin(tau * Math.PI);
-                        }
-                    }
                 }
 
                 if (gkShadow) {
@@ -2579,20 +2180,8 @@ function updateSimulation(dt) {
                 gkSpine.position.x = idleSway;
                 gkSpine.rotation.z = -idleSway * 0.15;
                 gkSpine.rotation.x = 0.12 + idleBounce * 0.6;
-                gkMesh.rotation.y = idleSway * 0.12;
-
-                if (gkBones) {
-                    gkBones.root.position.y = 0.76 + idleBounce * 0.4;
-                    gkBones.leftKnee.rotation.x = 0.22 + idleBounce * 0.3;
-                    gkBones.rightKnee.rotation.x = 0.22 + idleBounce * 0.3;
-                    gkBones.leftThigh.rotation.x = -0.12;
-                    gkBones.rightThigh.rotation.x = -0.12;
-                    gkBones.leftShoulder.rotation.set(0.40, 0, 0.30);
-                    gkBones.rightShoulder.rotation.set(0.40, 0, -0.30);
-                    gkBones.leftElbow.rotation.set(0.95, 0, 0); // Forearms up with white gloves visible
-                    gkBones.rightElbow.rotation.set(0.95, 0, 0);
-                    gkBones.spine.rotation.set(0.08, 0, 0);
-                    gkBones.chest.rotation.set(0.05, 0, 0);
+                if (!ballInFlight) {
+                    gkMesh.rotation.y = idleSway * 0.12;
                 }
 
                 if (gkShadow) {
