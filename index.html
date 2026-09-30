@@ -16,66 +16,160 @@
         #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; display: none; }
         .hud-glass { background: rgba(10, 16, 30, 0.82); backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 16px; pointer-events: auto; }
         
-        .header-bar { position: absolute; top: 18px; left: 18px; right: 18px; display: flex; justify-content: space-between; align-items: center; }
-        .score-box { padding: 10px 20px; display: flex; align-items: center; gap: 16px; }
-        .score-val { font-size: 28px; font-weight: 800; color: #38bdf8; text-shadow: 0 0 16px rgba(56, 189, 248, 0.5); }
-        .streak-pill { background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+        .header-bar { position: absolute; top: 18px; left: 18px; right: 18px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 15; pointer-events: none; }
+        
+        /* Modern Solid Black HUD Units */
+        .hud-score-card {
+            background: #000000;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 14px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+            pointer-events: auto;
+        }
+        .score-val { font-size: 26px; font-weight: 800; color: #38bdf8; text-shadow: 0 0 16px rgba(56, 189, 248, 0.5); }
+        
+        .hud-tracker-card {
+            background: #000000;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 14px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+            pointer-events: auto;
+        }
 
-        /* Telemetry Radar (Speed & Curl) */
-        .telemetry-card { position: absolute; top: 88px; right: 18px; padding: 12px 18px; width: 170px; opacity: 0; transform: translateY(-10px); transition: all 0.3s cubic-bezier(0.4,0,0.2,1); }
-        .telemetry-card.visible { opacity: 1; transform: translateY(0); }
-        .stat-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-        .stat-lbl { font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600; }
-        .stat-num { font-size: 16px; font-weight: 800; color: #f8fafc; }
+        /* Combined Top-Right Menu & Telemetry Unit (Solid Black Background) */
+        .top-right-unit {
+            background: #000000;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 14px;
+            padding: 12px 16px;
+            width: 220px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.95);
+            pointer-events: auto;
+        }
+        .unit-actions-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .btn-unit-exit {
+            flex: 1;
+            background: #18181b;
+            color: #d4d4d8;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: center;
+        }
+        .btn-unit-exit:hover {
+            background: #27272a;
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+        .btn-unit-next {
+            flex: 1.3;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 60%, #d97706 100%);
+            color: #0b0f19;
+            border: 1px solid #fef08a;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: center;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            box-shadow: 0 0 16px rgba(245, 158, 11, 0.6);
+        }
+        .btn-unit-next:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 24px rgba(250, 204, 21, 0.85);
+        }
+        .unit-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.12);
+            width: 100%;
+        }
+        .unit-telemetry {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .unit-stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+        .unit-stat-lbl {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #94a3b8;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .unit-stat-num {
+            font-size: 14px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+        }
 
-        /* Goal & Target Impact Banner */
-        #banner { position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%) scale(0.8); font-size: 64px; font-weight: 900; text-align: center; text-transform: uppercase; letter-spacing: 2px; opacity: 0; pointer-events: none; transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-shadow: 0 4px 20px rgba(0,0,0,0.8); }
-        #banner.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        #banner-sub { font-size: 22px; font-weight: 700; color: #facc15; display: block; margin-top: 4px; }
+        /* Goal & Target Impact Banner (Projected Directly Above Goal) */
+        #banner {
+            position: absolute;
+            top: 24%;
+            left: 50%;
+            transform: translate(-50%, -100%) scale(0.85);
+            font-size: 58px;
+            font-weight: 900;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-shadow: 0 4px 20px rgba(0,0,0,0.9), 0 0 35px rgba(34, 197, 94, 0.6);
+            z-index: 40;
+        }
+        #banner.show {
+            opacity: 1;
+            transform: translate(-50%, -100%) scale(1);
+        }
+        #banner-main {
+            display: block;
+        }
+        #banner-sub {
+            display: none; /* Completely removed gimmick points */
+        }
 
         /* Swipe Instruction & Controls */
-        #hint-bar { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); padding: 10px 24px; font-size: 14px; font-weight: 600; color: #e2e8f0; text-align: center; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); pointer-events: none !important; }
+        #hint-bar { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 10px 24px; font-size: 14px; font-weight: 600; color: #e2e8f0; text-align: center; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); pointer-events: none !important; z-index: 20; }
         #swipe-trail { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
         /* Action Buttons */
         .btn-action { background: #2563eb; color: #fff; border: 1px solid #60a5fa; border-radius: 12px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.15s; pointer-events: auto; }
         .btn-action:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 0 16px rgba(37, 99, 235, 0.6); }
         .btn-action:active { transform: translateY(1px); }
-
-        /* Tournament Next Round Pulsing Action Button */
-        .btn-next-action {
-            position: absolute;
-            bottom: 60px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            gap: 14px;
-            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
-            color: #0b0f19;
-            border: 2px solid #fef08a;
-            border-radius: 9999px;
-            padding: 16px 42px;
-            font-size: 16px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            cursor: pointer;
-            pointer-events: auto !important;
-            z-index: 100;
-            box-shadow: 0 0 35px rgba(245, 158, 11, 0.7), 0 12px 30px rgba(0, 0, 0, 0.8);
-            transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-            user-select: none;
-        }
-        .btn-next-action:hover {
-            transform: translateX(-50%) scale(1.04);
-            background: linear-gradient(135deg, #fef08a 0%, #fbbf24 50%, #ea580c 100%);
-            box-shadow: 0 0 50px rgba(250, 204, 21, 0.95), 0 16px 40px rgba(0, 0, 0, 0.9);
-        }
-        .btn-next-action:active {
-            transform: translateX(-50%) scale(0.96);
-        }
 
         /* Mode Selection Menu */
         #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, rgba(15, 23, 42, 0.75) 0%, rgba(3, 7, 18, 0.95) 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; }
@@ -152,24 +246,45 @@
     <!-- Gameplay HUD -->
     <div id="hud">
         <div class="header-bar">
-            <div class="hud-glass score-box">
+            <!-- Left: Goals / Score Card (Solid Black) -->
+            <div id="score-box" class="hud-score-card">
                 <div>
-                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Score</span>
+                    <span id="score-label" style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 700; display: block; letter-spacing: 0.5px;">GOALS</span>
                     <span id="score-display" class="score-val">0</span>
                 </div>
-                <div class="streak-pill" id="streak-badge">1X STREAK</div>
             </div>
 
-            <!-- Central Round Indicator (Duel Shots / Target Timer / Practice) -->
-            <div id="round-tracker" class="hud-glass" style="padding: 10px 20px; display: flex; align-items: center; gap: 12px;">
-                <span id="tracker-label" style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">ROUND</span>
+            <!-- Central Round Indicator (Solid Black) -->
+            <div id="round-tracker" class="hud-tracker-card">
+                <span id="tracker-label" style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">ROUND</span>
                 <div id="shot-pills" style="display: flex; gap: 6px;"></div>
                 <span id="timer-display" style="font-size: 18px; font-weight: 800; color: #38bdf8; display: none;">45s</span>
             </div>
 
-            <div class="flex items-center gap-3">
-                <button class="btn-action hud-glass" onclick="resetToMenu()">Exit Menu</button>
-                <button id="next-shot-btn" class="btn-action" style="display:none;" onclick="triggerNextShot()">Next Shot ➔</button>
+            <!-- Combined Top-Right Menu & Telemetry Unit (Solid Black Background) -->
+            <div id="top-right-hud" class="top-right-unit">
+                <div class="unit-actions-row">
+                    <button id="exit-btn" class="btn-unit-exit" onclick="resetToMenu()">EXIT MENU</button>
+                    <button id="next-shot-btn" class="btn-unit-next" onclick="triggerNextShot()">
+                        <span>NEXT SHOT</span>
+                        <span style="font-size: 14px;">➔</span>
+                    </button>
+                </div>
+                <div class="unit-divider"></div>
+                <div id="telemetry" class="unit-telemetry">
+                    <div class="unit-stat-row">
+                        <span class="unit-stat-lbl">SHOT SPEED</span>
+                        <span class="unit-stat-num" style="color: #38bdf8;" id="stat-speed">0 KM/H</span>
+                    </div>
+                    <div class="unit-stat-row">
+                        <span class="unit-stat-lbl">BALL SPIN</span>
+                        <span class="unit-stat-num" style="color: #fbbf24;" id="stat-spin">0 RPM</span>
+                    </div>
+                    <div class="unit-stat-row">
+                        <span class="unit-stat-lbl">TRAJECTORY</span>
+                        <span class="unit-stat-num" style="color: #34d399;" id="stat-style">Direct</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -182,34 +297,11 @@
             <button id="reset-ball-btn" class="practice-toggle-btn" style="background: rgba(239, 68, 68, 0.2); border-color: #ef4444;" onclick="resetBall()">🔄 Reset Ball</button>
         </div>
 
-        <!-- Telemetry Radar -->
-        <div class="hud-glass telemetry-card" id="telemetry">
-            <div class="stat-row">
-                <span class="stat-lbl">Shot Speed</span>
-                <span class="stat-num text-cyan-400" id="stat-speed">0 KM/H</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-lbl">Ball Spin</span>
-                <span class="stat-num text-amber-400" id="stat-spin">0 RPM</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-lbl">Trajectory</span>
-                <span class="stat-num text-emerald-400" id="stat-style">Direct</span>
-            </div>
-        </div>
-
-        <!-- Dynamic Impact Banner -->
+        <!-- Dynamic Impact Banner (Positioned Directly Above Goal Crossbar) -->
         <div id="banner">
-            <span id="banner-main">GOAL!</span>
-            <span id="banner-sub">+100 PTS</span>
+            <span id="banner-main">GOAL</span>
+            <span id="banner-sub"></span>
         </div>
-
-        <!-- Tournament Next Shot Action Button -->
-        <button id="next-round-btn" class="btn-next-action" style="display: none;" onclick="triggerNextShot()">
-            <span>NEXT SHOT</span>
-            <span style="font-size: 18px; font-weight: 900;">➔</span>
-        </button>
-        <div id="tap-prompt" style="display: none;"></div>
 
         <!-- Swipe Guide Hint -->
         <div class="hud-glass" id="hint-bar">
@@ -220,15 +312,15 @@
     <!-- Match Results Summary Modal -->
     <div id="results-modal" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, rgba(15, 23, 42, 0.85) 0%, rgba(3, 7, 18, 0.98) 100%); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 30;">
         <div class="hud-glass" style="padding: 36px 44px; border-radius: 24px; max-width: 480px; width: 90%; text-align: center; border-color: rgba(56, 189, 248, 0.3); box-shadow: 0 20px 50px rgba(0,0,0,0.7);">
-            <div style="font-size: 13px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">Tournament Match Result</div>
-            <h2 id="modal-title" style="font-size: 38px; font-weight: 900; margin: 0 0 16px 0; color: #f8fafc; letter-spacing: 0.5px;">CHAMPION!</h2>
+            <div style="font-size: 13px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">Shootout Match Result</div>
+            <h2 id="modal-title" style="font-size: 38px; font-weight: 900; margin: 0 0 16px 0; color: #f8fafc; letter-spacing: 0.5px;">MATCH FINISHED</h2>
             
-            <div style="font-size: 44px; font-weight: 900; color: #facc15; margin-bottom: 24px; text-shadow: 0 0 25px rgba(250, 204, 21, 0.4);" id="modal-final-score">1,850 PTS</div>
+            <div style="font-size: 40px; font-weight: 900; color: #facc15; margin-bottom: 24px; text-shadow: 0 0 25px rgba(250, 204, 21, 0.4);" id="modal-final-score">3 / 5 GOALS</div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 30px; text-align: left;">
                 <div style="background: rgba(255,255,255,0.04); padding: 12px 16px; border-radius: 12px;">
-                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; display: block;">Accuracy</span>
-                    <span id="stat-modal-accuracy" style="font-size: 18px; font-weight: 800; color: #f8fafc;">4 / 5</span>
+                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; display: block;">Conversion</span>
+                    <span id="stat-modal-accuracy" style="font-size: 18px; font-weight: 800; color: #f8fafc;">60%</span>
                 </div>
                 <div style="background: rgba(255,255,255,0.04); padding: 12px 16px; border-radius: 12px;">
                     <span style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; display: block;">Top Speed</span>
@@ -239,8 +331,8 @@
                     <span id="stat-modal-spin" style="font-size: 18px; font-weight: 800; color: #fbbf24;">480 RPM</span>
                 </div>
                 <div style="background: rgba(255,255,255,0.04); padding: 12px 16px; border-radius: 12px;">
-                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; display: block;">Highest Streak</span>
-                    <span id="stat-modal-streak" style="font-size: 18px; font-weight: 800; color: #10b981;">3X STREAK</span>
+                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; display: block;">Result Status</span>
+                    <span id="stat-modal-streak" style="font-size: 18px; font-weight: 800; color: #10b981;">Complete</span>
                 </div>
             </div>
 
@@ -252,6 +344,6 @@
     </div>
 
     <!-- Core 3D Game Script -->
-    <script src="js/game3d.js?v=5.0.0"></script>
+    <script src="js/game3d.js?v=5.1.0"></script>
 </body>
 </html>

@@ -1,4 +1,12 @@
 {
+  "name": "football-strike",
+  "version": "1.0.0",
+  "description": "3D WebGL Football Game with Three.js",
+  "scripts": {
+    "test": "node test_ball.js",
+    "verify": "python verify_full_game.py",
+    "start": "npx serve -l 8080 ."
+  },
   "dependencies": {
     "puppeteer": "^25.12.0"
   }

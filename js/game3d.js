@@ -15,6 +15,7 @@ let highestStreak = 0;
 let maxSpeedRecord = 0;
 let maxSpinRecord = 0;
 let targetsShattered = 0;
+let goalsScored = 0;
 
 // Duel Mode Configuration (5 Free Kick Rounds against GK + Wall)
 let currentRound = 1;
@@ -837,7 +838,7 @@ const addCylinderCollider = (x, y, z, r, h, rotZ) => {
             sfx.playGasp();
             setTimeout(() => {
                 if (ballInFlight && !ballBody.scored && !ballBody.saved && !ballBody.blocked) {
-                    finishShot('miss', 'OFF THE POST!', 'DENIED BY WOODWORK', '#ef4444');
+                    finishShot('miss', 'WOODWORK', '', '#ef4444');
                 }
             }, 600);
         }
@@ -977,34 +978,34 @@ function createWallJerseyTexture(numberStr) {
     return new THREE.CanvasTexture(canvas);
 }
 
-// Articulated Pro Latex Gloves Function (Negative-Cut with 5 articulated fingers)
+// Articulated Pro White Latex Gloves Function (Negative-Cut with 5 articulated fingers)
 function createProGloveGroup() {
     const glove = new THREE.Group();
 
-    // 1. Neoprene Wrist Strap & Embossed Fastener
-    const strapMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7 });
+    // 1. Pro White Neoprene Wrist Strap & Embossed Fastener
+    const strapMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55 });
     const strap = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.08, 0.09, 16), strapMat);
     glove.add(strap);
 
-    const pullTab = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.045, 0.015), new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.3 }));
+    const pullTab = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.045, 0.015), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.3 }));
     pullTab.position.set(0, -0.035, 0.08);
     glove.add(pullTab);
 
-    // 2. Thick 4mm German Contact Latex Palm
-    const palmMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.25, metalness: 0.15 });
+    // 2. Thick 4mm Pure White German Contact Latex Palm
+    const palmMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.22, metalness: 0.04 });
     const palm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.065), palmMat);
     palm.position.set(0, 0.11, 0);
     glove.add(palm);
 
-    // 3. Backhand Punch-Zone (3D Embossed Silicone Grip Ribs)
-    const ribMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.3 });
+    // 3. Backhand Punch-Zone (3D Embossed White Silicone Grip Ribs)
+    const ribMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.25 });
     for (let r = 0; r < 3; r++) {
         const rib = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.025, 0.025), ribMat);
         rib.position.set(0, 0.07 + r * 0.045, -0.04);
         glove.add(rib);
     }
 
-    // 4. 5 Individually Sculpted Negative-Cut Fingers + Thumb
+    // 4. 5 Individually Sculpted Negative-Cut Fingers + Thumb (Pure White Latex)
     const fingerMat = palmMat;
     const fingerHeights = [0.08, 0.098, 0.105, 0.088]; // Index, Middle, Ring, Pinky
     for (let f = 0; f < 4; f++) {
@@ -1014,7 +1015,7 @@ function createProGloveGroup() {
         glove.add(finger);
     }
 
-    // Wrap-around thumb
+    // Wrap-around thumb (Pure White Latex)
     const thumb = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.016, 0.078, 10), fingerMat);
     thumb.position.set(-0.08, 0.11, 0.02);
     thumb.rotation.z = 0.55;
@@ -1360,37 +1361,9 @@ function createSculptedProPlayer(options) {
 }
 
 // ============================================================================
-// 8. FIFA-GRADE PHOTOREALISTIC ATHLETIC CHARACTERS (PBR TEXTURE RIGS)
+// 8. FIFA-GRADE VOLUMETRIC 3D ATHLETIC CHARACTERS (100% 3D POLYGONAL GLTF MESHES)
 // ============================================================================
-const characterTexLoader = new THREE.TextureLoader();
-const gkTexture = characterTexLoader.load('assets/goalkeeper_clean.png');
-const wallTexture = characterTexLoader.load('assets/wall_defenders.png');
-
-// Instantiation: Goalkeeper Rig (Photorealistic Thibaut Courtois #1 Athletic Rig)
-const gkGroup = new THREE.Group();
-const gkSpine = new THREE.Group();
-gkGroup.add(gkSpine);
-
-const gkGeo = new THREE.PlaneGeometry(1.95, 2.05, 12, 12);
-const gkPos = gkGeo.attributes.position;
-for (let i = 0; i < gkPos.count; i++) {
-    const u = (gkPos.getX(i) / 1.95) * Math.PI;
-    gkPos.setZ(i, -Math.cos(u) * 0.10 + 0.10);
-}
-gkGeo.computeVertexNormals();
-
-const gkMat = new THREE.MeshStandardMaterial({
-    map: gkTexture,
-    transparent: true,
-    alphaTest: 0.12,
-    roughness: 0.35,
-    metalness: 0.08,
-    side: THREE.DoubleSide
-});
-const gkMesh = new THREE.Mesh(gkGeo, gkMat);
-gkMesh.position.set(0, 1.025, 0);
-gkMesh.castShadow = true;
-gkSpine.add(gkMesh);
+const charGltfLoader = new THREE.GLTFLoader();
 
 function createSoftShadowTex() {
     const canvas = document.createElement('canvas');
@@ -1407,13 +1380,38 @@ function createSoftShadowTex() {
 }
 const softShadowTex = createSoftShadowTex();
 
-// Ground Contact Shadow under Goalkeeper
+// Instantiation: Goalkeeper Rig (Volumetric 3D Polygonal Mesh)
+const gkGroup = new THREE.Group();
+const gkSpine = new THREE.Group();
+gkGroup.add(gkSpine);
+
+const gkMesh = new THREE.Group();
+gkSpine.add(gkMesh);
+
+charGltfLoader.load('assets/goalkeeper_pro_3d.glb', (gltf) => {
+    const model = gltf.scene;
+    // Scale 1.50m base mesh to regulation ~1.95m tall goalkeeper
+    model.scale.set(1.30, 1.30, 1.30);
+    model.traverse(node => {
+        if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+            if (node.material) {
+                node.material.roughness = 0.52;
+                node.material.metalness = 0.08;
+            }
+        }
+    });
+    gkMesh.add(model);
+});
+
+// Ground Contact Shadow under Goalkeeper (Decoupled to Ground Plane)
 const gkShadowGeo = new THREE.PlaneGeometry(1.85, 1.10);
 gkShadowGeo.rotateX(-Math.PI / 2);
 const gkShadowMat = new THREE.MeshBasicMaterial({ map: softShadowTex, transparent: true, opacity: 0.75, depthWrite: false });
 const gkShadow = new THREE.Mesh(gkShadowGeo, gkShadowMat);
-gkShadow.position.set(0, 0.015, 0);
-gkGroup.add(gkShadow);
+gkShadow.position.set(0, 0.015, -19.6);
+scene.add(gkShadow); // Anchored to scene ground, not child of airborne gkGroup
 
 // Dummy arm groups to maintain backwards compatibility
 const gkLeftArmGroup = new THREE.Group();
@@ -1435,48 +1433,66 @@ const gkBodyCollider = new CANNON.Body({
 gkBodyCollider.collisionResponse = 0;
 world.addBody(gkBodyCollider);
 
-// Instantiation: Defensive Wall (Photorealistic 3-Man Wall: Davies #15, Kowalski #23, Moretti #19)
+// Instantiation: Defensive Wall (Decoupled Individual Jumper Mechanics)
 const wallGroup = new THREE.Group();
 wallGroup.position.set(0, 0, -13.5);
+const wallDefenders = [];
+const wallShadows = [];
 
-const wallGeo = new THREE.PlaneGeometry(2.70, 2.05, 16, 12);
-const wPos = wallGeo.attributes.position;
-for (let i = 0; i < wPos.count; i++) {
-    const u = (wPos.getX(i) / 2.70) * Math.PI;
-    wPos.setZ(i, -Math.cos(u) * 0.12 + 0.12);
-}
-wallGeo.computeVertexNormals();
+// Wall Defender individual physical & kinematic configurations
+const wallDefenderConfigs = [
+    { id: 0, xOffset: -0.85, scale: 1.22, delay: 0.055, maxH: 0.50, duration: 0.65, lean: -0.14, inwardYaw: 0.09 },
+    { id: 1, xOffset: 0.00,  scale: 1.26, delay: 0.000, maxH: 0.64, duration: 0.72, lean: -0.18, inwardYaw: 0.00 },
+    { id: 2, xOffset: 0.85,  scale: 1.24, delay: 0.080, maxH: 0.54, duration: 0.68, lean: -0.15, inwardYaw: -0.09 }
+];
 
-const wallMat = new THREE.MeshStandardMaterial({
-    map: wallTexture,
-    transparent: true,
-    alphaTest: 0.12,
-    roughness: 0.38,
-    metalness: 0.08,
-    side: THREE.DoubleSide
+charGltfLoader.load('assets/wall_defender_pro_3d.glb', (gltf) => {
+    const baseModel = gltf.scene;
+    
+    // Spawn 3 discrete 3D player models standing shoulder-to-shoulder with individual scale & offset
+    wallDefenderConfigs.forEach((cfg) => {
+        const defender = baseModel.clone(true);
+        defender.scale.set(cfg.scale, cfg.scale, cfg.scale);
+        defender.position.set(cfg.xOffset, 0, 0);
+        defender.rotation.y = cfg.inwardYaw * 0.2;
+        defender.traverse(node => {
+            if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
+                if (node.material) {
+                    node.material.roughness = 0.55;
+                    node.material.metalness = 0.08;
+                }
+            }
+        });
+        wallGroup.add(defender);
+        wallDefenders.push(defender);
+    });
 });
-const wallMesh = new THREE.Mesh(wallGeo, wallMat);
-wallMesh.position.set(0, 1.025, 0);
-wallMesh.castShadow = true;
-wallGroup.add(wallMesh);
 
-// Ground Contact Shadow under Defensive Wall (Soft feathered radial stadium shadow)
-const wallShadowGeo = new THREE.PlaneGeometry(3.10, 1.15);
-wallShadowGeo.rotateX(-Math.PI / 2);
-const wallShadowMat = new THREE.MeshBasicMaterial({ map: softShadowTex, transparent: true, opacity: 0.78, depthWrite: false });
-const wallShadow = new THREE.Mesh(wallShadowGeo, wallShadowMat);
-wallShadow.position.set(0, 0.015, 0);
-wallGroup.add(wallShadow);
+// Ground Contact Shadows for each individual defender (Soft feathered radial shadows)
+const defShadowGeo = new THREE.PlaneGeometry(1.05, 0.78);
+defShadowGeo.rotateX(-Math.PI / 2);
+wallDefenderConfigs.forEach((cfg) => {
+    const shadowMat = new THREE.MeshBasicMaterial({
+        map: softShadowTex,
+        transparent: true,
+        opacity: 0.75,
+        depthWrite: false
+    });
+    const defShadow = new THREE.Mesh(defShadowGeo, shadowMat);
+    defShadow.position.set(cfg.xOffset, 0.015, 0);
+    wallGroup.add(defShadow);
+    wallShadows.push(defShadow);
+});
 
 const wallBodies = [];
 for (let i = 0; i < 3; i++) {
-    const w = i - 1; // -1, 0, 1
-    const xOffset = w * 0.85;
-
+    const cfg = wallDefenderConfigs[i];
     const dummyBody = new CANNON.Body({
         mass: 0,
         shape: new CANNON.Box(new CANNON.Vec3(0.38, 0.95, 0.24)),
-        position: new CANNON.Vec3(xOffset, 0.95, -13.5),
+        position: new CANNON.Vec3(cfg.xOffset, 0.95, -13.5),
         material: postPhysMat
     });
     dummyBody.addEventListener('collide', () => {
@@ -1492,13 +1508,25 @@ for (let i = 0; i < 3; i++) {
             updateHUD();
             sfx.playPost();
             sfx.playGasp();
-            finishShot('miss', 'BLOCKED!', 'HIT THE DEFENSIVE WALL', '#ef4444');
+            finishShot('miss', 'BLOCKED', '', '#ef4444');
         }
     });
     world.addBody(dummyBody);
     wallBodies.push(dummyBody);
 }
 scene.add(wallGroup);
+
+// Window telemetry & test accessors
+window.wallGroup = wallGroup;
+window.wallDefenders = wallDefenders;
+window.wallShadows = wallShadows;
+window.wallBodies = wallBodies;
+window.wallDefenderConfigs = wallDefenderConfigs;
+window.gkGroup = gkGroup;
+window.gkShadow = gkShadow;
+window.gkSpine = gkSpine;
+window.gkMesh = gkMesh;
+window.gkBodyCollider = gkBodyCollider;
 // ============================================================================
 // 9. TARGET RACE TARGETS & SHATTER EFFECTS
 // ============================================================================
@@ -1623,8 +1651,8 @@ window.togglePracticeOption = function(type) {
         wallGroup.visible = allowWall;
         if (allowWall) {
             wallBodies.forEach((b, idx) => {
-                const offset = (idx - 1) * 0.85;
-                b.position.set(wallGroup.position.x + offset, 0.95, wallGroup.position.z);
+                const cfg = wallDefenderConfigs[idx];
+                b.position.set(wallGroup.position.x + cfg.xOffset, 0.95, wallGroup.position.z);
                 b.collisionResponse = 1;
             });
         } else {
@@ -1635,11 +1663,14 @@ window.togglePracticeOption = function(type) {
         }
     } else if (type === 'keeper') {
         gkGroup.visible = practiceSettings.keeper;
+        if (gkShadow) gkShadow.visible = practiceSettings.keeper;
         if (practiceSettings.keeper) {
             gkBodyCollider.position.copy(gkGroup.position);
             gkBodyCollider.position.y += 1.15;
+            if (gkShadow) gkShadow.position.set(gkGroup.position.x, 0.015, gkGroup.position.z);
         } else {
             gkBodyCollider.position.set(0, -999, 0);
+            if (gkShadow) gkShadow.position.set(0, -999, 0);
         }
     }
 };
@@ -1667,6 +1698,7 @@ function finishShot(outcome, bannerMain, bannerSub, bannerColor) {
     if (currentGameMode === 'duel') {
         duelResults[currentRound - 1] = outcome;
         updateDuelPills();
+        updateHUD();
     }
 
     if (currentGameMode === 'practice') {
@@ -1678,20 +1710,18 @@ function finishShot(outcome, bannerMain, bannerSub, bannerColor) {
         return;
     }
 
-    // Display Prominent Bottom Next Shot Button
-    const nextRoundBtn = document.getElementById('next-round-btn');
-    if (nextRoundBtn && currentGameMode === 'duel') {
-        if (currentRound >= maxDuelShots) {
-            nextRoundBtn.innerHTML = `<span>VIEW RESULTS</span><span style="font-size: 18px; font-weight: 900;">➔</span>`;
-        } else {
-            nextRoundBtn.innerHTML = `<span>NEXT SHOT</span><span style="font-size: 18px; font-weight: 900;">➔</span>`;
-        }
-        nextRoundBtn.style.display = 'flex';
-    }
+    // Display Next Shot Button in Unified Top-Right Unit
     const topNextBtn = document.getElementById('next-shot-btn');
-    if (topNextBtn && currentGameMode === 'duel') topNextBtn.style.display = 'block';
+    if (topNextBtn && currentGameMode === 'duel') {
+        if (currentRound >= maxDuelShots) {
+            topNextBtn.innerHTML = `<span>RESULTS</span><span style="font-size: 14px;">➔</span>`;
+        } else {
+            topNextBtn.innerHTML = `<span>NEXT SHOT</span><span style="font-size: 14px;">➔</span>`;
+        }
+        topNextBtn.style.display = 'inline-flex';
+    }
 
-    // Ample time for user to review score and press NEXT SHOT
+    // Ample time for user to review shot and press NEXT SHOT
     shotOutcomeTimer = setTimeout(() => {
         if (shotComplete && isPlaying) {
             triggerNextShot();
@@ -1772,18 +1802,21 @@ window.showMatchResults = function(title) {
     sfx.playCheer();
     
     document.getElementById('modal-title').innerText = title;
-    document.getElementById('modal-final-score').innerText = score.toLocaleString() + ' PTS';
-    
     if (currentGameMode === 'duel') {
         const goalsCount = duelResults.filter(r => r === 'goal').length;
-        document.getElementById('stat-modal-accuracy').innerText = `${goalsCount} / ${maxDuelShots} Goals`;
+        document.getElementById('modal-final-score').innerText = `${goalsCount} / ${maxDuelShots} GOALS`;
+        document.getElementById('stat-modal-accuracy').innerText = `${Math.round((goalsCount / maxDuelShots) * 100)}%`;
+        const streakEl = document.getElementById('stat-modal-streak');
+        if (streakEl) streakEl.innerText = `${goalsCount} Scored`;
     } else {
-        document.getElementById('stat-modal-accuracy').innerText = `${targetsShattered} Targets Hit`;
+        document.getElementById('modal-final-score').innerText = `${targetsShattered} TARGETS HIT`;
+        document.getElementById('stat-modal-accuracy').innerText = `${targetsShattered} Hits`;
+        const streakEl = document.getElementById('stat-modal-streak');
+        if (streakEl) streakEl.innerText = 'Completed';
     }
     
     document.getElementById('stat-modal-speed').innerText = `${maxSpeedRecord || 85} KM/H`;
     document.getElementById('stat-modal-spin').innerText = `${maxSpinRecord || 0} RPM`;
-    document.getElementById('stat-modal-streak').innerText = `${Math.max(1, highestStreak)}X STREAK`;
     
     document.getElementById('results-modal').style.display = 'flex';
 };
@@ -1795,11 +1828,21 @@ window.restartCurrentMode = function() {
 
 // Dynamic Goalkeeper & Wall Motion State
 let gkDiving = false;
+let gkDiveTimer = 0;
+let gkDiveType = 'mid_parry';
 let gkTargetX = 0;
 let gkTargetY = 1.15;
 let gkTargetRotZ = 0;
 let wallJumping = false;
 let wallJumpTimer = 0;
+
+Object.defineProperty(window, 'gkDiving', { get: () => gkDiving, set: (v) => { gkDiving = v; } });
+Object.defineProperty(window, 'gkDiveType', { get: () => gkDiveType, set: (v) => { gkDiveType = v; } });
+Object.defineProperty(window, 'wallJumping', { get: () => wallJumping, set: (v) => { wallJumping = v; } });
+Object.defineProperty(window, 'wallJumpTimer', { get: () => wallJumpTimer, set: (v) => { wallJumpTimer = v; } });
+Object.defineProperty(window, 'currentRound', { get: () => currentRound, set: (v) => { currentRound = v; } });
+Object.defineProperty(window, 'ballBody', { get: () => ballBody });
+Object.defineProperty(window, 'shotComplete', { get: () => shotComplete });
 
 // Magnus Aerodynamic Spin & Ball Physics
 let spinVector = new THREE.Vector3();
@@ -1845,9 +1888,26 @@ window.resetBall = function() {
 
     // Reset Goalkeeper & Wall Postures
     gkDiving = false;
+    gkDiveTimer = 0;
+    gkDiveType = 'mid_parry';
+    gkGroup.position.set(0, 0, -19.6);
+    gkSpine.position.set(0, 0, 0);
+    gkSpine.rotation.set(0, 0, 0);
+    gkMesh.rotation.set(0, 0, 0);
+
     wallJumping = false;
     wallJumpTimer = 0;
     wallGroup.position.y = 0;
+
+    wallDefenders.forEach((def, idx) => {
+        const cfg = wallDefenderConfigs[idx];
+        def.position.set(cfg.xOffset, 0, 0);
+        def.rotation.set(0, cfg.inwardYaw * 0.2, 0);
+    });
+    wallShadows.forEach(s => {
+        s.scale.set(1, 1, 1);
+        s.material.opacity = 0.75;
+    });
 
     const allowWall = (currentGameMode === 'duel' && !isPenalty) || 
                       (currentGameMode === 'practice' && practiceSettings.wall && !isPenalty);
@@ -1862,8 +1922,8 @@ window.resetBall = function() {
         const wallZ = Math.min(-11.0, spotZ - 5.5);
         wallGroup.position.set(wallX, 0, wallZ);
         wallBodies.forEach((b, idx) => {
-            const offset = (idx - 1) * 0.85;
-            b.position.set(wallX + offset, 0.95, wallZ);
+            const cfg = wallDefenderConfigs[idx];
+            b.position.set(wallX + cfg.xOffset, 0.95, wallZ);
             b.collisionResponse = 1;
         });
     } else {
@@ -1875,26 +1935,32 @@ window.resetBall = function() {
     }
 
     gkGroup.visible = allowGk;
+    if (gkShadow) gkShadow.visible = allowGk;
     if (allowGk) {
         const wallSide = (-spotX >= 0) ? 1 : -1;
         const gkStartX = allowWall ? (-wallSide * 0.95) : 0;
         gkGroup.position.set(gkStartX, 0, -19.6);
         gkGroup.rotation.set(0, 0, 0);
         gkSpine.rotation.set(0, 0, 0);
+        gkMesh.rotation.set(0, 0, 0);
         gkLeftArmGroup.rotation.set(0, 0, 0);
         gkRightArmGroup.rotation.set(0, 0, 0);
         gkBodyCollider.position.set(gkStartX, 1.15, -19.6);
+        if (gkShadow) {
+            gkShadow.position.set(gkStartX, 0.015, -19.6);
+            gkShadow.scale.set(1, 1, 1);
+            gkShadow.material.opacity = 0.75;
+        }
     } else {
         gkGroup.position.set(0, -999, 0);
         gkBodyCollider.position.set(0, -999, 0);
+        if (gkShadow) gkShadow.position.set(0, -999, 0);
     }
 
     // Dynamic Camera Framing (Hero Sports Broadcast Angle - Close, Crisp, Commanding)
     camera.position.set(spotX * 0.70, 0.95, spotZ + 2.50);
     camera.lookAt(0, 1.10, -20.0);
 
-    const nextRoundBtn = document.getElementById('next-round-btn');
-    if (nextRoundBtn) nextRoundBtn.style.display = 'none';
     const topNextBtn = document.getElementById('next-shot-btn');
     if (topNextBtn) topNextBtn.style.display = 'none';
 
@@ -1902,7 +1968,6 @@ window.resetBall = function() {
     if (banner) {
         banner.classList.remove('show');
     }
-    document.getElementById('telemetry').classList.remove('visible');
 
     isAiming = true;
     sfx.playWhistle();
@@ -1917,6 +1982,7 @@ window.selectMode = function(mode) {
     document.getElementById('hud').style.display = 'block';
     isPlaying = true;
     score = 0;
+    goalsScored = 0;
     streak = 0;
     maxSpeedRecord = 0;
     maxSpinRecord = 0;
@@ -1999,15 +2065,50 @@ window.triggerNextShot = function() {
 };
 
 function updateHUD() {
-    document.getElementById('score-display').innerText = score;
-    document.getElementById('streak-badge').innerText = Math.max(1, streak) + 'X STREAK';
+    const scoreLbl = document.getElementById('score-label');
+    const scoreDisp = document.getElementById('score-display');
+    const streakBadge = document.getElementById('streak-badge');
+    if (streakBadge) streakBadge.style.display = 'none';
+
+    if (currentGameMode === 'duel') {
+        const goalsCount = duelResults.filter(r => r === 'goal').length;
+        if (scoreLbl) scoreLbl.innerText = 'GOALS';
+        if (scoreDisp) scoreDisp.innerText = `${goalsCount}`;
+    } else if (currentGameMode === 'practice') {
+        if (scoreLbl) scoreLbl.innerText = 'GOALS';
+        if (scoreDisp) scoreDisp.innerText = `${goalsScored}`;
+    } else {
+        if (scoreLbl) scoreLbl.innerText = 'TARGETS';
+        if (scoreDisp) scoreDisp.innerText = `${targetsShattered}`;
+    }
 }
 
-function showBanner(main, sub, color = '#38bdf8') {
+function showBanner(main, sub = '', color = '#22c55e') {
     const banner = document.getElementById('banner');
-    document.getElementById('banner-main').innerText = main;
-    document.getElementById('banner-main').style.color = color;
-    document.getElementById('banner-sub').innerText = sub;
+    const mainEl = document.getElementById('banner-main');
+    const subEl = document.getElementById('banner-sub');
+    if (!banner || !mainEl) return;
+
+    mainEl.innerText = main;
+    mainEl.style.color = color;
+    
+    if (subEl) {
+        if (sub && sub.trim().length > 0 && !sub.includes('PTS')) {
+            subEl.innerText = sub;
+            subEl.style.display = 'block';
+        } else {
+            subEl.innerText = '';
+            subEl.style.display = 'none';
+        }
+    }
+
+    // Position dynamically directly above the goal crossbar
+    const goalTopVec = new THREE.Vector3(0, 3.25, -20.0).project(camera);
+    const screenX = (goalTopVec.x * 0.5 + 0.5) * window.innerWidth;
+    const screenY = (-goalTopVec.y * 0.5 + 0.5) * window.innerHeight;
+
+    banner.style.left = `${screenX}px`;
+    banner.style.top = `${Math.max(65, Math.min(window.innerHeight * 0.38, screenY))}px`;
     banner.classList.add('show');
 }
 
@@ -2015,7 +2116,7 @@ function showBanner(main, sub, color = '#38bdf8') {
 // ============================================================================
 // 11. INTUITIVE DIRECTIONAL SHOOTING ENGINE & SCREEN BOUNDS PROJECTION
 // ============================================================================
-function getGoalScreenProjected() {
+window.getGoalScreenProjected = function getGoalScreenProjected() {
     const pCenter = new THREE.Vector3(0, 1.22, -20.0).project(camera);
     const pTopLeft = new THREE.Vector3(-3.66, 2.44, -20.0).project(camera);
     const pTopRight = new THREE.Vector3(3.66, 2.44, -20.0).project(camera);
@@ -2109,11 +2210,28 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     }
     if (allowGk) {
         gkDiving = true;
+        gkDiveTimer = 0;
         const speedRatio = Math.min(1.0, actualSpeedKmh / 115);
-        const keeperSkill = 0.78 - speedRatio * 0.20;
+        const keeperSkill = 0.82 - speedRatio * 0.18;
         gkTargetX = Math.max(-3.3, Math.min(3.3, targetWorldX * keeperSkill));
-        gkTargetY = Math.max(0.65, Math.min(2.2, targetWorldY * 0.90));
-        gkTargetRotZ = (gkTargetX > gkGroup.position.x ? -1 : 1) * Math.min(1.15, Math.abs(gkTargetX - gkGroup.position.x) * 0.42);
+        const diveDir = (gkTargetX >= gkGroup.position.x) ? 1 : -1;
+
+        if (targetWorldY < 0.95 && Math.abs(gkTargetX) > 1.2) {
+            // Low sweeping ground save
+            gkDiveType = 'low_sweep';
+            gkTargetY = 0.28;
+            gkTargetRotZ = diveDir > 0 ? -1.42 : 1.42;
+        } else if (targetWorldY > 1.65 && Math.abs(gkTargetX) > 1.1) {
+            // Top corner flying save
+            gkDiveType = 'top_corner_flight';
+            gkTargetY = Math.min(2.35, targetWorldY * 0.96);
+            gkTargetRotZ = diveDir > 0 ? -0.92 : 0.92;
+        } else {
+            // Mid-height parry
+            gkDiveType = 'mid_parry';
+            gkTargetY = Math.max(0.85, Math.min(1.85, targetWorldY * 0.90));
+            gkTargetRotZ = diveDir > 0 ? -0.65 : 0.65;
+        }
     }
 
     // Safety timeout for round resolution
@@ -2121,7 +2239,7 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     shotSafetyTimer = setTimeout(() => {
         if (ballInFlight && !shotComplete && isPlaying) {
             if (currentGameMode === 'duel' || currentGameMode === 'practice') {
-                finishShot(ballBody.scored ? 'goal' : 'miss', ballBody.scored ? 'GOAL!' : 'OFF TARGET', '', ballBody.scored ? '#22c55e' : '#ef4444');
+                finishShot(ballBody.scored ? 'goal' : 'miss', ballBody.scored ? 'GOAL' : 'OFF TARGET', '', ballBody.scored ? '#22c55e' : '#ef4444');
             } else {
                 finishShot('complete');
                 setTimeout(() => { if (currentGameMode === 'targets' && isPlaying) resetBall(); }, 600);
@@ -2269,49 +2387,144 @@ function updateSimulation(dt) {
         const allowGk = (currentGameMode === 'duel') || 
                         (currentGameMode === 'practice' && practiceSettings.keeper);
 
-        if (allowWall && wallJumping) {
-            wallJumpTimer += dt;
-            const jumpH = Math.sin(Math.min(1.0, wallJumpTimer * 3.0) * Math.PI) * 0.55;
-            wallGroup.position.y = jumpH;
-            wallBodies.forEach(b => { b.position.y = 0.95 + jumpH; });
-            if (wallShadow) wallShadow.material.opacity = 0.70 * Math.max(0.2, 1.0 - jumpH * 1.4);
-            if (wallJumpTimer > 1.0) {
-                wallJumping = false;
-                if (wallShadow) wallShadow.material.opacity = 0.70;
+        if (allowWall) {
+            if (wallJumping) {
+                wallJumpTimer += dt;
+                wallGroup.position.y = 0; // Strictly anchored to ground pitch
+
+                let allFinished = true;
+                wallDefenderConfigs.forEach((cfg, idx) => {
+                    const def = wallDefenders[idx];
+                    const shadow = wallShadows[idx];
+                    const body = wallBodies[idx];
+                    const relTime = wallJumpTimer - cfg.delay;
+
+                    let currentH = 0;
+                    let currentLean = 0;
+                    let currentYaw = cfg.inwardYaw * 0.2;
+
+                    if (relTime > 0 && relTime < cfg.duration) {
+                        allFinished = false;
+                        const progress = relTime / cfg.duration;
+                        currentH = Math.sin(progress * Math.PI) * cfg.maxH;
+                        currentLean = Math.sin(progress * Math.PI) * cfg.lean;
+                        currentYaw = cfg.inwardYaw * (1.0 - progress * 0.5);
+                    } else if (relTime >= cfg.duration && relTime < cfg.duration + 0.12) {
+                        allFinished = false;
+                        const landProgress = (relTime - cfg.duration) / 0.12;
+                        currentH = -Math.sin(landProgress * Math.PI) * 0.045; // Knee compression on turf impact
+                        currentLean = Math.sin(landProgress * Math.PI) * 0.05;
+                    } else if (relTime < 0) {
+                        allFinished = false; // Still waiting for individual staggered liftoff
+                    }
+
+                    if (def) {
+                        def.position.y = currentH;
+                        def.rotation.x = currentLean;
+                        def.rotation.y = currentYaw;
+                    }
+                    if (shadow) {
+                        const s = Math.max(0.60, 1.0 - Math.max(0, currentH) * 0.45);
+                        shadow.scale.set(s, s, s);
+                        shadow.material.opacity = Math.max(0.12, 0.75 * (1.0 - Math.max(0, currentH) * 1.35));
+                    }
+                    if (body) {
+                        body.position.y = 0.95 + currentH;
+                    }
+                });
+
+                if (allFinished && wallJumpTimer > 1.0) {
+                    wallJumping = false;
+                    wallDefenderConfigs.forEach((cfg, idx) => {
+                        const def = wallDefenders[idx];
+                        const shadow = wallShadows[idx];
+                        const body = wallBodies[idx];
+                        if (def) { def.position.y = 0; def.rotation.set(0, cfg.inwardYaw * 0.2, 0); }
+                        if (shadow) { shadow.scale.set(1, 1, 1); shadow.material.opacity = 0.75; }
+                        if (body) { body.position.y = 0.95; }
+                    });
+                }
+            } else {
+                // Organic asynchronous idle fidget & ready breathing for each defender
+                wallDefenderConfigs.forEach((cfg, idx) => {
+                    const def = wallDefenders[idx];
+                    const shadow = wallShadows[idx];
+                    const body = wallBodies[idx];
+                    if (def) {
+                        const phase = time * (2.1 + idx * 0.35) + idx * 2.3;
+                        def.position.y = Math.sin(phase) * 0.012;
+                        def.rotation.y = cfg.inwardYaw * 0.2 + Math.sin(phase * 0.6) * 0.035;
+                        def.rotation.z = Math.cos(phase * 0.4) * 0.016;
+                        def.rotation.x = 0.04 + Math.sin(phase * 0.8) * 0.018; // Attentive stance
+                    }
+                    if (shadow) {
+                        shadow.scale.set(1, 1, 1);
+                        shadow.material.opacity = 0.75;
+                    }
+                    if (body) {
+                        body.position.y = 0.95;
+                    }
+                });
             }
         }
 
         if (allowGk) {
             if (gkDiving) {
-                const diveSpeed = 7.5;
-                gkGroup.position.x += (gkTargetX - gkGroup.position.x) * diveSpeed * dt;
-                gkGroup.position.y += (gkTargetY - gkGroup.position.y) * diveSpeed * dt;
-                gkSpine.rotation.z += (gkTargetRotZ - gkSpine.rotation.z) * diveSpeed * dt;
+                gkDiveTimer += dt;
+                const diveRate = Math.min(1.0, dt * 9.5);
+                gkGroup.position.x += (gkTargetX - gkGroup.position.x) * diveRate;
+                gkGroup.position.y += (gkTargetY - gkGroup.position.y) * diveRate;
+                gkSpine.rotation.z += (gkTargetRotZ - gkSpine.rotation.z) * (dt * 8.5);
 
                 const diveDir = gkTargetX >= gkGroup.position.x ? 1 : -1;
-                gkMesh.scale.x = diveDir > 0 ? 1 : -1;
+                // Athletic 3D pitch and yaw: face ball and extend chest forward into dive
+                gkMesh.rotation.y = diveDir > 0 ? 0.35 : -0.35;
+                gkSpine.rotation.x = 0.20; // Lean forward into trajectory
 
-                gkBodyCollider.position.copy(gkGroup.position);
-                gkBodyCollider.position.y += 1.15;
+                // Dynamic decoupled shadow update on turf
+                if (gkShadow) {
+                    gkShadow.position.set(gkGroup.position.x, 0.015, gkGroup.position.z);
+                    const elev = Math.max(0, gkGroup.position.y);
+                    const shadowScale = Math.max(0.55, 1.0 - elev * 0.32);
+                    gkShadow.scale.set(shadowScale, shadowScale, shadowScale);
+                    gkShadow.material.opacity = Math.max(0.12, 0.75 * (1.0 - elev * 0.42));
+                }
+
+                gkBodyCollider.position.set(gkGroup.position.x, Math.max(0.70, gkGroup.position.y + 0.85), gkGroup.position.z);
             } else {
-                const bounce = Math.sin(time * 3.8) * 0.035;
-                gkSpine.position.y = bounce;
-                gkMesh.scale.x = 1;
+                // Professional goalkeeper ready-bounce & lateral weight shift
+                const readyHop = Math.abs(Math.sin(time * 5.2)) * 0.04;
+                const lateralShift = Math.sin(time * 2.5) * 0.055;
+                gkSpine.position.y = readyHop;
+                gkSpine.position.x = lateralShift;
+                gkSpine.rotation.z = -lateralShift * 0.25; // Athletic dynamic counterbalance
+                gkSpine.rotation.x = 0.14; // Forward alert crouch
+                gkMesh.rotation.y = 0;
+
+                if (gkShadow) {
+                    gkShadow.position.set(gkGroup.position.x, 0.015, gkGroup.position.z);
+                    gkShadow.scale.set(1.0, 1.0, 1.0);
+                    gkShadow.material.opacity = 0.75;
+                }
             }
 
             // Check Goalkeeper Save Block
             if (ballInFlight && !ballBody.scored && !ballBody.saved) {
                 const distGk = ballMesh.position.distanceTo(gkBodyCollider.position);
-                if (distGk < 0.95 && Math.abs(ballMesh.position.z - (-19.6)) < 0.70) {
+                if (distGk < 1.05 && Math.abs(ballMesh.position.z - (-19.6)) < 0.75) {
                     ballBody.saved = true;
                     streak = 0;
                     updateHUD();
                     sfx.playKeeperSave();
                     sfx.playGasp();
-                    ballBody.velocity.x *= -0.45;
-                    ballBody.velocity.z *= -0.25;
-                    ballBody.velocity.y = Math.max(1.8, ballBody.velocity.y + 2.5);
-                    finishShot('miss', 'SAVED!', 'DENIED BY THE KEEPER', '#f59e0b');
+
+                    const diveDir = gkTargetX >= gkGroup.position.x ? 1 : -1;
+                    ballBody.velocity.x = diveDir * (Math.abs(ballBody.velocity.x) + 4.2);
+                    ballBody.velocity.y = Math.max(3.2, ballBody.velocity.y * -0.4 + 2.8);
+                    ballBody.velocity.z = Math.abs(ballBody.velocity.z) * 0.18;
+                    ballBody.angularVelocity.set(diveDir * 10, 5, 2);
+
+                    finishShot('miss', 'SAVED', '', '#f59e0b');
                 }
             }
         }
@@ -2350,21 +2563,17 @@ function updateSimulation(dt) {
                 t.active = false;
                 targetsShattered++;
                 const ringAccuracy = dist / (t.config.radius + ballRadius);
-                let pts = 40;
-                let bannerTxt = 'NICE HIT!';
-                if (ringAccuracy < 0.40) { pts = 150; bannerTxt = 'BULLSEYE!!'; }
-                else if (ringAccuracy < 0.70) { pts = 90; bannerTxt = 'GREAT SHOT!'; }
+                let bannerTxt = 'TARGET HIT';
+                if (ringAccuracy < 0.40) { bannerTxt = 'BULLSEYE'; }
+                else if (ringAccuracy < 0.70) { bannerTxt = 'GREAT SHOT'; }
 
-                streak++;
-                highestStreak = Math.max(highestStreak, streak);
-                const totalPts = pts * Math.min(5, streak);
-                score += totalPts;
+                targetsShattered++;
                 updateHUD();
 
                 sfx.playShatter();
                 sfx.playCheer();
                 createShatterFX(t.mesh.position.x, t.mesh.position.y, t.mesh.position.z);
-                showBanner(bannerTxt, `+${totalPts} PTS`, '#38bdf8');
+                showBanner(bannerTxt, '', '#38bdf8');
 
                 scene.remove(t.mesh);
                 world.removeBody(t.body);
@@ -2377,7 +2586,7 @@ function updateSimulation(dt) {
                     setTimeout(() => { if (currentGameMode === 'targets' && isPlaying) resetBall(); }, 750);
                 } else if (currentGameMode === 'practice') {
                     ballBody.scored = true;
-                finishShot('goal', bannerTxt, `+${totalPts} PTS`, '#38bdf8');
+                    finishShot('goal', bannerTxt, '', '#38bdf8');
                 }
                 break;
             }
@@ -2405,17 +2614,14 @@ function updateSimulation(dt) {
 
         if (!ballBody.scored && !ballBody.saved) {
             ballBody.scored = true;
-            streak++;
-            highestStreak = Math.max(highestStreak, streak);
-            const pts = 200 * streak;
-            score += pts;
+            goalsScored++;
             updateHUD();
             sfx.playNet();
             sfx.playCheer();
             slowMo = true;
             setTimeout(() => { slowMo = false; }, 600);
             triggerNetBillow(ballBody.position.x, ballBody.position.y);
-            finishShot('goal', 'GOAL!', `+${pts} PTS!`, '#22c55e');
+            finishShot('goal', 'GOAL', '', '#22c55e');
         }
 
         // Heavy Viscous Net Cord Damping (Instant forward and lateral arrest)
@@ -2458,7 +2664,7 @@ function updateSimulation(dt) {
             streak = 0;
             updateHUD();
             sfx.playGasp();
-            finishShot('miss', 'OFF TARGET!', 'MISSED THE GOAL', '#ef4444');
+            finishShot('miss', 'OFF TARGET', '', '#ef4444');
         }
     }
 
@@ -2479,7 +2685,7 @@ function updateSimulation(dt) {
             if (ballInFlight) {
                 ballInFlight = false;
                 if (!shotComplete && (currentGameMode === 'duel' || currentGameMode === 'practice')) {
-                    finishShot(ballBody.scored ? 'goal' : 'miss', ballBody.scored ? 'GOAL!' : 'OFF TARGET', '', ballBody.scored ? '#22c55e' : '#ef4444');
+                    finishShot(ballBody.scored ? 'goal' : 'miss', ballBody.scored ? 'GOAL' : 'OFF TARGET', '', ballBody.scored ? '#22c55e' : '#ef4444');
                 } else if (currentGameMode === 'targets') {
                     setTimeout(() => {
                         if (currentGameMode === 'targets' && isPlaying) resetBall();
