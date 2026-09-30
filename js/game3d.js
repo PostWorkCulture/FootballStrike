@@ -868,11 +868,11 @@ ballMesh.castShadow = true;
 scene.add(ballMesh);
 
 const ballBody = new CANNON.Body({
-    mass: 0.43,
+    mass: 0.38,
     shape: new CANNON.Sphere(ballRadius),
     material: ballPhysMat,
-    linearDamping: 0.05,
-    angularDamping: 0.15
+    linearDamping: 0.008,
+    angularDamping: 0.04
 });
 world.addBody(ballBody);
 window.ballBody = ballBody;
@@ -1846,6 +1846,7 @@ Object.defineProperty(window, 'shotComplete', { get: () => shotComplete });
 
 // Magnus Aerodynamic Spin & Ball Physics
 let spinVector = new THREE.Vector3();
+let currentShotMagnusAx = 0;
 let swipeSamples = [];
 let ballInFlight = false;
 let slowMo = false;
@@ -1878,6 +1879,7 @@ window.resetBall = function() {
     ballMesh.quaternion.copy(ballBody.quaternion);
 
     spinVector.set(0, 0, 0);
+    currentShotMagnusAx = 0;
     ballInFlight = false;
     slowMo = false;
     ballBody.scored = false;
@@ -2146,7 +2148,7 @@ window.getGoalScreenProjected = function getGoalScreenProjected() {
     };
 }
 
-window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinRPM = 0, powerNorm = 0.7) {
+window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinRPM = 0, powerNorm = 0.7, curlBendMeters = 0) {
     if (!isPlaying || !isAiming) return;
     isAiming = false;
     ballInFlight = true;
@@ -2161,13 +2163,31 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     const targetWorldX = normX * 3.66;
     const targetWorldY = Math.max(0.25, normY * 2.44);
 
-    // Forward velocity: -21 to -34 m/s (~75 to 122 km/h)
-    const vz = -Math.max(20, speedKmh / 3.6);
+    // Forward velocity: -24 to -36 m/s (~88 to 130 km/h)
+    const vz = -Math.max(24, speedKmh / 3.6);
     const distZ = Math.abs(goalPlaneZ - ballBody.position.z);
     const flightTime = distZ / Math.abs(vz);
 
-    // Exact kinematic launch velocity with gravity compensation
-    const vx = (targetWorldX - ballBody.position.x) / flightTime;
+    // If curlBendMeters was not passed directly, infer from spinRPM
+    if (curlBendMeters === 0 && Math.abs(spinRPM) > 30) {
+        curlBendMeters = (spinRPM / 380);
+    }
+
+    // Scale curl bend with distance to goal: ~1.2m at penalty spot, up to ~2.2m at 25m free kicks
+    const maxCurlForDist = Math.max(1.0, Math.min(2.3, distZ * 0.09));
+    if (Math.abs(curlBendMeters) > maxCurlForDist) {
+        curlBendMeters = Math.sign(curlBendMeters) * maxCurlForDist;
+    }
+
+    // Dynamic lateral Magnus acceleration required to achieve curlBendMeters over flightTime:
+    // displacement = 0.5 * a_x * flightTime^2 = curlBendMeters => a_x = 2 * curlBendMeters / (flightTime^2)
+    const ax = flightTime > 0.05 ? (2.0 * curlBendMeters) / (flightTime * flightTime) : 0;
+    currentShotMagnusAx = ax;
+
+    // Kinematic launch velocity with lateral curl offset so ball starts wide and curves precisely into targetWorldX:
+    const vx = (targetWorldX - ballBody.position.x - curlBendMeters) / flightTime;
+
+    // Exact gravity compensation for realistic buoyant lift (no drooping)
     const gravityComp = 0.5 * 9.81 * flightTime * flightTime;
     const vy = (targetWorldY - ballBody.position.y + gravityComp) / flightTime;
 
@@ -2181,8 +2201,8 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     const isKnuckle = Math.abs(spinRPM) < 80 && Math.abs(vz) > 28;
     let style = 'Direct Strike';
     if (isKnuckle) style = 'Laser Knuckleball';
-    else if (spinRPM > 180) style = 'Curling Inswing';
-    else if (spinRPM < -180) style = 'Curling Outswing';
+    else if (spinRPM > 120) style = 'Curling Inswing';
+    else if (spinRPM < -120) style = 'Curling Outswing';
 
     // Telemetry Update
     const actualSpeedKmh = Math.round(Math.abs(vz) * 3.6);
@@ -2305,9 +2325,25 @@ window.addEventListener('pointerup', (e) => {
             }
         }
 
-        const powerNorm = Math.min(1.0, Math.max(0.4, strokeSpeed / 1400));
-        const speedKmh = Math.round(75 + powerNorm * 45); // 75 to 120 km/h
-        const spinRPM = Math.round((maxDeflection / 35) * 850);
+        // Snappy, buoyant power response (lighter ball feel)
+        const powerNorm = Math.min(1.0, Math.max(0.48, strokeSpeed / 950));
+        const speedKmh = Math.round(88 + powerNorm * 40); // 88 to 128 km/h
+
+        // Intuitive Curl Calculation:
+        // Bowing left (negative deflection) curves right (+X bend, Inswing)
+        // Bowing right (positive deflection) curves left (-X bend, Outswing)
+        let curlBendMeters = 0;
+        let spinRPM = 0;
+        const clampedDefl = Math.max(-120, Math.min(120, maxDeflection));
+
+        if (Math.abs(clampedDefl) > 10) {
+            const sign = clampedDefl > 0 ? 1 : -1;
+            const normDefl = (Math.abs(clampedDefl) - 10) / 70.0;
+            const bendMag = Math.min(2.6, normDefl * 1.75 + Math.pow(normDefl, 1.4) * 0.45);
+            // Reverse sign so the ball curves in the direction of the swipe arc
+            curlBendMeters = -sign * bendMag;
+            spinRPM = Math.round(curlBendMeters * 380); // -950 to +950 RPM
+        }
 
         const bounds = getGoalScreenProjected();
         let targetScreenX, targetScreenY;
@@ -2317,14 +2353,14 @@ window.addEventListener('pointerup', (e) => {
             targetScreenX = last.x;
             targetScreenY = last.y;
         } else {
-            // Quick upward flick: project ray to goal height
-            const elevationNorm = Math.min(1.15, Math.max(0.20, strokeSpeed / 1300));
+            // Quick upward flick: project ray to goal height with buoyant lift
+            const elevationNorm = Math.min(1.18, Math.max(0.26, strokeSpeed / 900));
             targetScreenY = bounds.groundY - elevationNorm * bounds.goalHeightPx;
             const t = (targetScreenY - first.y) / totalDy;
             targetScreenX = first.x + t * totalDx;
         }
 
-        window.executeShot(targetScreenX, targetScreenY, speedKmh, spinRPM, powerNorm);
+        window.executeShot(targetScreenX, targetScreenY, speedKmh, spinRPM, powerNorm, curlBendMeters);
     }
     swipeSamples = [];
 });
@@ -2545,11 +2581,12 @@ function updateSimulation(dt) {
     updateNetDeformation(dt);
 
     // Continuous 3D Magnus Aerodynamic Forces
-    if (ballInFlight && ballBody.position.z > -19.9) {
-        const v = ballBody.velocity;
-        const magnusCoeff = 0.0035;
-        const fx = -spinVector.y * v.z * magnusCoeff;
-        ballBody.velocity.x += fx * dt;
+    if (ballInFlight && ballBody.position.z > -20.0 && !ballBody.inNet && !ballBody.saved) {
+        ballBody.velocity.x += currentShotMagnusAx * dt;
+        
+        // High-speed visual aerodynamic ball spin (pentagons & hexagons whirl with spin)
+        ballMesh.rotation.y += spinVector.y * dt;
+        ballMesh.rotation.x += (ballBody.velocity.z / ballRadius) * dt * 0.45;
     }
 
     // Target Race & Practice: Bullseye Collision Detection
