@@ -12,22 +12,22 @@ def bake_clean_pbr_characters():
     TEX_SIZE = 2048
 
     # =========================================================================
-    # 1. BAKE GOALKEEPER (Thibaut Courtois #1 Real Madrid Volt Emerald Kit)
+    # 1. BAKE GOALKEEPER (Thibaut Courtois #1 High-Vis Fluorescent Volt Kit)
     # =========================================================================
-    img_gk = Image.new('RGB', (TEX_SIZE, TEX_SIZE), color=(16, 185, 129))
+    img_gk = Image.new('RGB', (TEX_SIZE, TEX_SIZE), color=(228, 255, 26))
     draw_gk = ImageDraw.Draw(img_gk)
 
-    gk_skin = (212, 163, 128)
-    gk_hair = (32, 24, 20)
-    gk_stubble = (150, 115, 90)
-    gk_jersey = (16, 185, 129) # Volt emerald green
-    gk_jersey_dark = (6, 95, 70) # Side athletic panels
-    gk_jersey_accent = (52, 211, 153)
-    gk_shorts = (5, 150, 105)
+    gk_skin = (238, 192, 162) # Bright natural skin tone
+    gk_hair = (45, 32, 24)
+    gk_stubble = (175, 138, 112)
+    gk_jersey = (228, 255, 26) # Radiant High-Vis Volt Neon Yellow
+    gk_jersey_dark = (24, 24, 27) # Sleek athletic side panels
+    gk_jersey_accent = (245, 255, 120) # Luminous volt highlight
+    gk_shorts = (24, 24, 27) # Professional obsidian athletic shorts
     gk_glove_back = (255, 255, 255) # Always white gloves backhand
     gk_glove_palm = (250, 250, 252) # Always white German contact latex foam palm
-    gk_socks = (16, 185, 129)
-    gk_boots = (24, 24, 27)
+    gk_socks = (228, 255, 26) # High-vis volt socks
+    gk_boots = (245, 158, 11)
 
     for i, face in enumerate(faces):
         cx, cy, cz = face_centroids[i]

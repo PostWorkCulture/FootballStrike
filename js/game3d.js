@@ -343,17 +343,27 @@ world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, pitchPhysMat, {
 world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, postPhysMat, { friction: 0.2, restitution: 0.75 }));
 world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, netPhysMat, { friction: 0.98, restitution: 0.0 }));
 
-// Atmospheric Matchday Floodlighting (Calibrated contrast)
-const ambientLight = new THREE.AmbientLight(0x334155, 0.32);
+// Matchday Broadcast Stadium Floodlighting & Character Illumination
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x475569, 0.90);
+scene.add(hemiLight);
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.50);
 scene.add(ambientLight);
 
-const mainSun = new THREE.DirectionalLight(0xfff8ee, 0.50);
+const mainSun = new THREE.DirectionalLight(0xfffdf5, 0.85);
 mainSun.position.set(18, 36, 12);
 mainSun.castShadow = true;
 scene.add(mainSun);
 
+// Dedicated High-Intensity Goalmouth Key Light (Brightens Goalkeeper Face, Kit & Gloves)
+const goalKeyLight = new THREE.DirectionalLight(0xffffff, 1.35);
+goalKeyLight.position.set(0, 16, -4);
+goalKeyLight.target.position.set(0, 1.2, -20);
+scene.add(goalKeyLight);
+scene.add(goalKeyLight.target);
+
 const createFloodlight = (x, y, z, tx, ty, tz) => {
-    const spot = new THREE.SpotLight(0xf8fafc, 1.45, 110, Math.PI / 3.4, 0.45, 1.2);
+    const spot = new THREE.SpotLight(0xf8fafc, 1.65, 120, Math.PI / 3.2, 0.40, 1.1);
     spot.position.set(x, y, z);
     spot.target.position.set(tx, ty, tz);
     spot.castShadow = true;
@@ -364,6 +374,8 @@ const createFloodlight = (x, y, z, tx, ty, tz) => {
 };
 createFloodlight(38, 32, -42, 0, 1.2, -20);
 createFloodlight(-38, 32, -42, 0, 1.2, -20);
+createFloodlight(26, 22, -6, 0, 1.2, -19.6);
+createFloodlight(-26, 22, -6, 0, 1.2, -19.6);
 createFloodlight(38, 32, 22, 0, 1.2, -15);
 createFloodlight(-38, 32, 22, 0, 1.2, -15);
 
@@ -1397,8 +1409,11 @@ charGltfLoader.load('assets/goalkeeper_pro_3d.glb', (gltf) => {
             node.castShadow = true;
             node.receiveShadow = true;
             if (node.material) {
-                node.material.roughness = 0.52;
-                node.material.metalness = 0.08;
+                node.material.roughness = 0.35;
+                node.material.metalness = 0.03;
+                // High-visibility luminous ambient fill so kit, white gloves, and face are vivid
+                node.material.emissive = new THREE.Color(0x333333);
+                node.material.emissiveIntensity = 0.35;
             }
         }
     });
@@ -1460,8 +1475,10 @@ charGltfLoader.load('assets/wall_defender_pro_3d.glb', (gltf) => {
                 node.castShadow = true;
                 node.receiveShadow = true;
                 if (node.material) {
-                    node.material.roughness = 0.55;
-                    node.material.metalness = 0.08;
+                    node.material.roughness = 0.40;
+                    node.material.metalness = 0.04;
+                    node.material.emissive = new THREE.Color(0x222222);
+                    node.material.emissiveIntensity = 0.22;
                 }
             }
         });
@@ -1833,6 +1850,10 @@ let gkDiveType = 'mid_parry';
 let gkTargetX = 0;
 let gkTargetY = 1.15;
 let gkTargetRotZ = 0;
+let gkStartX = 0;
+let gkStartY = 0;
+let gkDiveDuration = 0.52;
+let gkReactionTime = 0.08;
 let wallJumping = false;
 let wallJumpTimer = 0;
 
@@ -1892,6 +1913,8 @@ window.resetBall = function() {
     gkDiving = false;
     gkDiveTimer = 0;
     gkDiveType = 'mid_parry';
+    gkStartX = 0;
+    gkStartY = 0;
     gkGroup.position.set(0, 0, -19.6);
     gkSpine.position.set(0, 0, 0);
     gkSpine.rotation.set(0, 0, 0);
@@ -2173,19 +2196,18 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
         curlBendMeters = (spinRPM / 380);
     }
 
-    // Scale curl bend with distance to goal: ~1.2m at penalty spot, up to ~2.2m at 25m free kicks
-    const maxCurlForDist = Math.max(1.0, Math.min(2.3, distZ * 0.09));
+    // Scale curl bend with distance to goal: ~1.2m at penalty spot, up to ~2.6m at 25m free kicks
+    const maxCurlForDist = Math.max(1.2, Math.min(2.8, distZ * 0.11));
     if (Math.abs(curlBendMeters) > maxCurlForDist) {
         curlBendMeters = Math.sign(curlBendMeters) * maxCurlForDist;
     }
 
-    // Dynamic lateral Magnus acceleration required to achieve curlBendMeters over flightTime:
-    // displacement = 0.5 * a_x * flightTime^2 = curlBendMeters => a_x = 2 * curlBendMeters / (flightTime^2)
-    const ax = flightTime > 0.05 ? (2.0 * curlBendMeters) / (flightTime * flightTime) : 0;
+    // Dynamic lateral Magnus acceleration required to achieve organic aerodynamic curl:
+    const ax = flightTime > 0.05 ? (1.5 * curlBendMeters) / (flightTime * flightTime) : 0;
     currentShotMagnusAx = ax;
 
-    // Kinematic launch velocity with lateral curl offset so ball starts wide and curves precisely into targetWorldX:
-    const vx = (targetWorldX - ballBody.position.x - curlBendMeters) / flightTime;
+    // Natural launch velocity with balanced lateral offset: ball leaves boot smoothly and curves visibly into target
+    const vx = (targetWorldX - ballBody.position.x - 0.5 * curlBendMeters) / flightTime;
 
     // Exact gravity compensation for realistic buoyant lift (no drooping)
     const gravityComp = 0.5 * 9.81 * flightTime * flightTime;
@@ -2250,6 +2272,10 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     if (allowGk) {
         gkDiving = true;
         gkDiveTimer = 0;
+        gkStartX = gkGroup.position.x;
+        gkStartY = gkGroup.position.y;
+        gkDiveDuration = Math.min(0.68, Math.max(0.42, flightTime * 0.90));
+        gkReactionTime = 0.08;
         const speedRatio = Math.min(1.0, actualSpeedKmh / 115);
         const keeperSkill = 0.82 - speedRatio * 0.18;
         gkTargetX = Math.max(-3.3, Math.min(3.3, targetWorldX * keeperSkill));
@@ -2348,20 +2374,20 @@ window.addEventListener('pointerup', (e) => {
         const powerNorm = Math.min(1.0, Math.max(0.48, strokeSpeed / 950));
         const speedKmh = Math.round(88 + powerNorm * 40); // 88 to 128 km/h
 
-        // Intuitive Curl Calculation:
-        // Bowing left (negative deflection) curves right (+X bend, Inswing)
-        // Bowing right (positive deflection) curves left (-X bend, Outswing)
+        // Natural Aerodynamic Curl Calculation:
+        // Bowing right (positive deflection) curves right (+X bend, Inswing)
+        // Bowing left (negative deflection) curves left (-X bend, Outswing)
         let curlBendMeters = 0;
         let spinRPM = 0;
         const clampedDefl = Math.max(-120, Math.min(120, maxDeflection));
 
         if (Math.abs(clampedDefl) > 10) {
             const sign = clampedDefl > 0 ? 1 : -1;
-            const normDefl = (Math.abs(clampedDefl) - 10) / 70.0;
-            const bendMag = Math.min(2.6, normDefl * 1.75 + Math.pow(normDefl, 1.4) * 0.45);
-            // Reverse sign so the ball curves in the direction of the swipe arc
-            curlBendMeters = -sign * bendMag;
-            spinRPM = Math.round(curlBendMeters * 380); // -950 to +950 RPM
+            const normDefl = (Math.abs(clampedDefl) - 10) / 65.0;
+            const bendMag = Math.min(2.8, normDefl * 1.85 + Math.pow(normDefl, 1.35) * 0.55);
+            // Sign directly matches swipe arc direction: positive curves right (+X), negative curves left (-X)
+            curlBendMeters = sign * bendMag;
+            spinRPM = Math.round(curlBendMeters * 420); // -1100 to +1100 RPM
         }
 
         const bounds = getGoalScreenProjected();
@@ -2532,56 +2558,89 @@ function updateSimulation(dt) {
         }
 
         if (allowGk) {
+            const diveDir = (gkTargetX >= gkStartX) ? 1 : -1;
             if (gkDiving) {
                 gkDiveTimer += dt;
-                const diveRate = Math.min(1.0, dt * 9.5);
-                gkGroup.position.x += (gkTargetX - gkGroup.position.x) * diveRate;
-                gkGroup.position.y += (gkTargetY - gkGroup.position.y) * diveRate;
-                gkSpine.rotation.z += (gkTargetRotZ - gkSpine.rotation.z) * (dt * 8.5);
+                
+                if (gkDiveTimer < gkReactionTime) {
+                    // Phase 0: Reaction & Plant-Step Load (Knees bend, hips shift into dive direction)
+                    const p0 = gkDiveTimer / gkReactionTime;
+                    gkSpine.position.y = -Math.sin(p0 * Math.PI) * 0.06;
+                    gkSpine.position.x = diveDir * p0 * 0.05;
+                    gkSpine.rotation.z = -diveDir * p0 * 0.08;
+                    gkSpine.rotation.x = 0.16 + p0 * 0.06;
+                    gkMesh.rotation.y = diveDir * p0 * 0.12;
+                } else {
+                    // Phase 1: Explosive Ballistic Airborne Dive
+                    const tau = Math.min(1.0, (gkDiveTimer - gkReactionTime) / gkDiveDuration);
+                    // Smooth cubic ease-out for horizontal travel
+                    const hProgress = 1.0 - Math.pow(1.0 - tau, 2.2);
+                    gkGroup.position.x = gkStartX + (gkTargetX - gkStartX) * hProgress;
 
-                const diveDir = gkTargetX >= gkGroup.position.x ? 1 : -1;
-                // Athletic 3D pitch and yaw: face ball and extend chest forward into dive
-                gkMesh.rotation.y = diveDir > 0 ? 0.35 : -0.35;
-                gkSpine.rotation.x = 0.20; // Lean forward into trajectory
+                    // Parabolic vertical trajectory by dive archetype
+                    if (gkDiveType === 'top_corner_flight') {
+                        const jumpApex = Math.sin(tau * Math.PI * 0.65);
+                        gkGroup.position.y = gkTargetY * jumpApex;
+                    } else if (gkDiveType === 'low_sweep') {
+                        gkGroup.position.y = Math.max(0.12, 0.35 * Math.cos(tau * Math.PI * 0.5));
+                    } else {
+                        const jumpApex = Math.sin(tau * Math.PI * 0.60);
+                        gkGroup.position.y = gkTargetY * jumpApex;
+                    }
+
+                    // Dynamic athletic body tilt, extension & torso twist
+                    const rotProgress = Math.sin(Math.min(1.0, tau * 1.25) * Math.PI * 0.5);
+                    gkSpine.rotation.z = gkTargetRotZ * rotProgress;
+                    gkSpine.rotation.x = 0.22 * (1.0 - tau * 0.4);
+                    gkMesh.rotation.y = diveDir * 0.30 * Math.sin(tau * Math.PI);
+                }
 
                 // Dynamic decoupled shadow update on turf
                 if (gkShadow) {
                     gkShadow.position.set(gkGroup.position.x, 0.015, gkGroup.position.z);
                     const elev = Math.max(0, gkGroup.position.y);
-                    const shadowScale = Math.max(0.55, 1.0 - elev * 0.32);
+                    const shadowScale = Math.max(0.48, 1.0 - elev * 0.38);
                     gkShadow.scale.set(shadowScale, shadowScale, shadowScale);
-                    gkShadow.material.opacity = Math.max(0.12, 0.75 * (1.0 - elev * 0.42));
+                    gkShadow.material.opacity = Math.max(0.12, 0.75 * (1.0 - elev * 0.45));
                 }
 
-                gkBodyCollider.position.set(gkGroup.position.x, Math.max(0.70, gkGroup.position.y + 0.85), gkGroup.position.z);
+                // Fingertip-extended save collider: follows body tilt so glove saves match visual mesh
+                const reachExtensionX = diveDir * Math.sin(Math.abs(gkSpine.rotation.z)) * 0.85;
+                const reachExtensionY = Math.cos(gkSpine.rotation.z) * 0.45;
+                gkBodyCollider.position.set(
+                    gkGroup.position.x + reachExtensionX,
+                    Math.max(0.40, gkGroup.position.y + reachExtensionY + 0.45),
+                    gkGroup.position.z
+                );
             } else {
-                // Professional goalkeeper ready-bounce & lateral weight shift
-                const readyHop = Math.abs(Math.sin(time * 5.2)) * 0.04;
-                const lateralShift = Math.sin(time * 2.5) * 0.055;
-                gkSpine.position.y = readyHop;
-                gkSpine.position.x = lateralShift;
-                gkSpine.rotation.z = -lateralShift * 0.25; // Athletic dynamic counterbalance
-                gkSpine.rotation.x = 0.14; // Forward alert crouch
-                gkMesh.rotation.y = 0;
+                // Natural athletic goalkeeper ready stance: relaxed wide stance & smooth rhythm
+                const idleBounce = (Math.sin(time * 2.8) * 0.5 + 0.5) * 0.025;
+                const idleSway = Math.sin(time * 1.4) * 0.04;
+                gkSpine.position.y = idleBounce;
+                gkSpine.position.x = idleSway;
+                gkSpine.rotation.z = -idleSway * 0.15;
+                gkSpine.rotation.x = 0.12 + idleBounce * 0.6;
+                gkMesh.rotation.y = idleSway * 0.12;
 
                 if (gkShadow) {
                     gkShadow.position.set(gkGroup.position.x, 0.015, gkGroup.position.z);
                     gkShadow.scale.set(1.0, 1.0, 1.0);
                     gkShadow.material.opacity = 0.75;
                 }
+                gkBodyCollider.position.set(gkGroup.position.x, 1.15, gkGroup.position.z);
             }
 
             // Check Goalkeeper Save Block
             if (ballInFlight && !ballBody.scored && !ballBody.saved) {
                 const distGk = ballMesh.position.distanceTo(gkBodyCollider.position);
-                if (distGk < 1.05 && Math.abs(ballMesh.position.z - (-19.6)) < 0.75) {
+                if (distGk < 1.15 && Math.abs(ballMesh.position.z - (-19.6)) < 0.80) {
                     ballBody.saved = true;
                     streak = 0;
                     updateHUD();
                     sfx.playKeeperSave();
                     sfx.playGasp();
 
-                    const diveDir = gkTargetX >= gkGroup.position.x ? 1 : -1;
+                    const diveDir = (gkTargetX >= gkGroup.position.x) ? 1 : -1;
                     ballBody.velocity.x = diveDir * (Math.abs(ballBody.velocity.x) + 4.2);
                     ballBody.velocity.y = Math.max(3.2, ballBody.velocity.y * -0.4 + 2.8);
                     ballBody.velocity.z = Math.abs(ballBody.velocity.z) * 0.18;
@@ -2607,13 +2666,29 @@ function updateSimulation(dt) {
     // Dynamic Net Deform & Spring Relaxation
     updateNetDeformation(dt);
 
-    // Continuous 3D Magnus Aerodynamic Forces
+    // Continuous 3D Magnus Aerodynamic Forces & Visual Vortex Trail
     if (ballInFlight && ballBody.position.z > -20.0 && !ballBody.inNet && !ballBody.saved) {
         ballBody.velocity.x += currentShotMagnusAx * dt;
         
         // High-speed visual aerodynamic ball spin (pentagons & hexagons whirl with spin)
         ballMesh.rotation.y += spinVector.y * dt;
         ballMesh.rotation.x += (ballBody.velocity.z / ballRadius) * dt * 0.45;
+
+        // Subtle curved aerodynamic vapor trail particles highlighting the swerve
+        if (Math.abs(currentShotMagnusAx) > 3.0 && Math.random() < 0.45) {
+            const pGeo = new THREE.SphereGeometry(0.04, 6, 6);
+            const pMat = new THREE.MeshBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.55 });
+            const pMesh = new THREE.Mesh(pGeo, pMat);
+            pMesh.position.copy(ballMesh.position);
+            scene.add(pMesh);
+            particles.push({
+                mesh: pMesh,
+                life: 0.28,
+                vx: -Math.sign(currentShotMagnusAx) * 0.5 + (Math.random() - 0.5) * 0.2,
+                vy: (Math.random() - 0.5) * 0.2,
+                vz: 0.3
+            });
+        }
     }
 
     // Target Race & Practice: Bullseye Collision Detection
