@@ -1921,7 +1921,7 @@ window.resetBall = function() {
         const dxToGoal = -spotX;
         const wallSide = dxToGoal >= 0 ? 1 : -1;
         const wallX = spotX * 0.45 + (wallSide * 0.75);
-        const wallZ = Math.min(-11.0, spotZ - 5.5);
+        const wallZ = Math.min(-11.0, spotZ - 9.15);
         wallGroup.position.set(wallX, 0, wallZ);
         wallBodies.forEach((b, idx) => {
             const cfg = wallDefenderConfigs[idx];
@@ -2216,6 +2216,25 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
 
     sfx.playKick(powerNorm);
 
+    // Camera screen shake on powerful shots (FIFA-style impact)
+    if (powerNorm > 0.75) {
+        const shakeIntensity = (powerNorm - 0.75) * 0.08;
+        const origX = camera.position.x;
+        const origY = camera.position.y;
+        let shakeTime = 0;
+        const shakeInterval = setInterval(() => {
+            shakeTime += 16;
+            if (shakeTime > 200) {
+                camera.position.x = origX;
+                camera.position.y = origY;
+                clearInterval(shakeInterval);
+                return;
+            }
+            camera.position.x = origX + (Math.random() - 0.5) * shakeIntensity;
+            camera.position.y = origY + (Math.random() - 0.5) * shakeIntensity;
+        }, 16);
+    }
+
     // Trigger AI Goalkeeper Dive & Wall Jump
     const isPenalty = (currentGameMode === 'duel' && currentRound === 1) || 
                       (currentGameMode === 'practice' && practiceSpots[practiceSettings.spotIndex] && practiceSpots[practiceSettings.spotIndex].isPenalty);
@@ -2361,6 +2380,14 @@ window.addEventListener('pointerup', (e) => {
         }
 
         window.executeShot(targetScreenX, targetScreenY, speedKmh, spinRPM, powerNorm, curlBendMeters);
+
+        // Fade out swipe hint after first shot
+        const hintBar = document.getElementById('hint-bar');
+        if (hintBar && hintBar.style.opacity !== '0') {
+            hintBar.style.transition = 'opacity 0.8s ease';
+            hintBar.style.opacity = '0';
+            setTimeout(() => { hintBar.style.display = 'none'; }, 800);
+        }
     }
     swipeSamples = [];
 });
@@ -2598,7 +2625,6 @@ function updateSimulation(dt) {
             const dist = ballMesh.position.distanceTo(t.mesh.position);
             if (dist < (t.config.radius + ballRadius * 0.85)) {
                 t.active = false;
-                targetsShattered++;
                 const ringAccuracy = dist / (t.config.radius + ballRadius);
                 let bannerTxt = 'TARGET HIT';
                 if (ringAccuracy < 0.40) { bannerTxt = 'BULLSEYE'; }
@@ -2734,6 +2760,18 @@ function updateSimulation(dt) {
 
     ballMesh.position.copy(ballBody.position);
     if (!ballInFlight) ballMesh.quaternion.copy(ballBody.quaternion);
+
+    // Subtle broadcast camera track: pan gently toward ball during flight
+    if (ballInFlight && !slowMo) {
+        const camLerpRate = dt * 1.2;
+        const targetLookY = 1.10 + (ballMesh.position.y - 1.10) * 0.25;
+        const targetLookX = ballMesh.position.x * 0.15;
+        camera.lookAt(
+            camera.position.x * 0.05 + targetLookX * (1 - 0.05),
+            targetLookY,
+            -20.0
+        );
+    }
 
     // Particle FX Update
     for (let i = particles.length - 1; i >= 0; i--) {
