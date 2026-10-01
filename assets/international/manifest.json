@@ -1,0 +1,7 @@
+{
+  "generator": "Blender 4.0.2",
+  "player": "footballer.glb",
+  "ball": "match-ball.glb",
+  "player_source": "footballer.blend",
+  "notes": "Original articulated meshes with separate country kit material channels."
+}
