@@ -12,12 +12,12 @@ test('uprights and crossbar deflect high-speed shots',()=>{for(const p of [.2,1]
 test('the whole ball must cross the goal line',()=>{const f=new P.Flight();f.launch(P.createShot(2,1,.7,0),{reaction:1,x:0,y:1},false);while(f.ball.z>0)f.step();assert.equal(f.outcome,null);while(f.ball.z>-.11)f.step();assert.equal(f.outcome,'goal');});
 test('keeper catches central penalties and disabling keeper removes saves',()=>{assert.equal(sim(0,1,.5,0,true).outcome,'saved');assert.equal(sim(0,1,.5,0,false).outcome,'goal');});
 test('same seed and input reproduce goalkeeper and ball outcomes',()=>{const a=sim(2.5,1.5,.6,.8,true,131),b=sim(2.5,1.5,.6,.8,true,131);assert.deepEqual(a,b);});
-test('net containment retains the ball after a goal',()=>{const f=sim(2.8,1.7);for(let i=0;i<500;i++)f.step();assert.equal(f.outcome,'goal');assert.ok(f.ball.z<0&&f.ball.z>=-1.75);assert.ok(f.ball.y>=.11);});
+test('net containment retains the ball after a goal',()=>{const f=sim(2.8,1.7);for(let i=0;i<500;i++)f.step();assert.equal(f.outcome,'goal');assert.ok(f.ball.z<-.55&&f.ball.z>=-2.15);assert.ok(f.ball.y>=.11);});
 test('shootout ends early when the lead is uncatchable',()=>{const m=new P.Shootout();m.add(true,false);m.add(true,false);assert.equal(m.done,false);m.add(true,false);assert.equal(m.done,true);assert.equal(m.winner,'home');assert.equal(m.add(false,true),false);});
 test('sudden death resolves only after equal numbers of penalties',()=>{const m=new P.Shootout();for(let n=0;n<5;n++)m.add(true,true);assert.equal(m.done,false);m.add(false,false);assert.equal(m.done,false);m.add(true,false);assert.equal(m.winner,'home');assert.equal(m.home.length,7);});
 test('losing five-shot result is handled',()=>{const m=new P.Shootout();for(let n=0;n<3;n++)m.add(false,true);assert.equal(m.winner,'away');});
 
-test('scored ball stays in front of the sloping back net at every height',()=>{const f=sim(2.8,1.9);for(let n=0;n<400;n++){f.step();assert.ok(f.ball.z>=-1.8+f.ball.y/2.44*1.3+P.R-1e-8);}});
+test('scored ball stays in front of the sloping back net at every height',()=>{const f=sim(2.8,1.9);for(let n=0;n<400;n++){f.step();assert.ok(f.ball.z>=-2.2+f.ball.y/2.44*1.2+P.R-1e-8);}});
 
 test('central keeper reactions remain upright rather than making a full lateral dive',()=>{const pose=K.createPose();P.keeperAt(K.plan(.15,1,.1),.6,pose);assert.ok(Math.abs(pose.roll)<.15);});
 
@@ -28,7 +28,7 @@ test('straight diagonal gestures aim without accidentally adding curl',()=>{
 });
 test('a change of swipe direction gives mirrored left/right curl on every screen scale',()=>{
  const path=[[0,100],[-15,75],[-20,50],[-15,25],[0,0]],right=stroke(path);
- assert.ok(right>.2&&right<=.45);assert.equal(stroke(path.map(([x,y])=>[-x,y])),-right);
+ assert.ok(right>.04&&right<=.10);assert.equal(stroke(path.map(([x,y])=>[-x,y])),-right);
  for(const scale of [.5,1,3])assert.ok(Math.abs(stroke(path.map(([x,y])=>[x*scale+100,y*scale+300]))-right)<1e-10);
 });
 test('tiny gestures and slight hand jitter do not add spin',()=>{
@@ -115,10 +115,10 @@ test('high central shots trigger a two-foot vertical jump with grounded landing'
 test('assisted freehand drawing filters wobble and softens bends without moving the aim',()=>{
  for(const scale of [.5,1,2]){
  const make=bend=>{const g=gestures.begin(gestures.create(),100*scale,600*scale);for(let i=1;i<=64;i++){const u=i/64;gestures.move(g,(100+Math.sin(u*Math.PI)*bend)*scale,(600-400*u)*scale);}return g;};
- const raw=gestures.sample(make(120)),soft=gestures.sample(make(120),65,.45),jitter=gestures.sample(make(4),65,.45);
+ const raw=gestures.sample(make(120)),soft=gestures.sample(make(120),65,.10),jitter=gestures.sample(make(4),65,.10);
  const rawBend=Math.max(...Array.from(raw).filter((_,i)=>i%2===0))-100*scale;
  const softBend=Math.max(...Array.from(soft).filter((_,i)=>i%2===0))-100*scale;
- assert.ok(softBend>rawBend*.35&&softBend<rawBend*.46);
+ assert.ok(softBend>rawBend*.07&&softBend<rawBend*.11);
  assert.equal(soft[0],100*scale);assert.equal(soft[1],600*scale);assert.equal(soft[128],100*scale);assert.equal(soft[129],200*scale);
  for(let i=0;i<65;i++)assert.ok(Math.abs(jitter[i*2]-100*scale)<1e-6);
  }
@@ -137,4 +137,18 @@ test('freehand paths keep an off-centre start and the intended endpoint',()=>{
  P.sampleShot(shot,shot.T,at);assert.ok(Math.abs(at.x)<1e-9);assert.ok(Math.abs(at.y-1.2)<1e-9);
  const flight=new P.Flight().launch(shot,K.plan(0,1,3),false);while(!flight.outcome)flight.step();assert.equal(flight.outcome,'goal');
  }
+});
+
+test('net reacts at fabric contact, then goals bounce, stay deep inside and stop spinning',()=>{
+ for(const x of [-3,0,3])for(const y of [.25,1.2,2.1]){
+ const f=sim(x,y);assert.equal(f.netHit,0,'Crossing the line is not net contact');
+ let hit=false,bounced=false,maxBounce=0;
+ for(let i=0;i<360;i++){f.step();hit=hit||f.netHit>0;if(f.groundBounces){bounced=true;maxBounce=Math.max(maxBounce,f.ball.y);}assert.ok(f.ball.z<-.11);assert.ok(Math.abs(f.ball.x)<=3.66-P.R+1e-8);}
+ assert.ok(hit);if(y>.3){assert.ok(bounced);assert.ok(maxBounce>P.R);}assert.equal(f.settled,true);assert.ok(f.ball.z<-.55);
+ assert.equal(Math.hypot(f.ball.vx,f.ball.vy,f.ball.vz,f.ball.wx,f.ball.wy,f.ball.wz),0);
+ const before={...f.ball};for(let i=0;i<120;i++)f.step();assert.deepEqual(f.ball,before);
+ }
+});
+test('keyboard curl remains a slight bend while keeping the aimed endpoint',()=>{
+ for(const curve of [-1,1]){const s=P.createShot(2,1.5,.7,curve),p={};P.sampleShot(s,s.T*.5,p);assert.ok(Math.abs(p.x-1)<.03);P.sampleShot(s,s.T,p);assert.ok(Math.abs(p.x-2)<1e-9);}
 });

@@ -56,3 +56,6 @@ Run `npm ci` first to install the browser test dependencies. Deterministic physi
 - `legacy.html`: original game retained for comparison and rollback.
 
 The original GitHub Pages deployment stays on main until the overhaul is reviewed and merged. Once merged, deployments run the physics and browser suites before publishing. This is a single-player build; it does not implement online multiplayer.
+
+### Latest gameplay and menu changes (2.3.0)
+Slight lateral curl with a world-space cap, deeper reactive nets, damped goal bounces and stopped rotation at rest. Training is first, followed by Shootout, Target and Nations Cup. Choose one of twelve countries directly on Home; use Home from gameplay, pause or settings. The menu now features licensed real international-football photographs, with credits in-game and in [docs/PHOTO_CREDITS.md](docs/PHOTO_CREDITS.md).

@@ -25,6 +25,8 @@ jobs:
         run: |
           npm ci
           python -m pip install Pillow
+      - name: Cache licensed football photographs
+        run: python tools/fetch_home_photos.py
       - name: Deterministic gameplay checks
         run: npm test
       - name: Check asset source revision

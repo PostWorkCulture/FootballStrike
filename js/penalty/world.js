@@ -130,14 +130,14 @@ class World{
  makeGoal(){
  const m=this.mat(0xf3f4ea,.3);
  this.beam([-3.66,0,0],[-3.66,2.44,0],.06,m);this.beam([3.66,0,0],[3.66,2.44,0],.06,m);this.beam([-3.66,2.44,0],[3.66,2.44,0],.06,m);
- for(const x of [-3.66,3.66]){this.beam([x,2.44,0],[x,2.44,-.5],.023,m);this.beam([x,2.44,-.5],[x,0,-1.8],.022,m);this.beam([x,0,0],[x,0,-1.8],.023,m);}
- this.beam([-3.66,.03,-1.8],[3.66,.03,-1.8],.024,m);
+ for(const x of [-3.66,3.66]){this.beam([x,2.44,0],[x,2.44,-1.0],.023,m);this.beam([x,2.44,-1.0],[x,0,-2.2],.022,m);this.beam([x,0,0],[x,0,-2.2],.023,m);}
+ this.beam([-3.66,.03,-2.2],[3.66,.03,-2.2],.024,m);
  const points=[];
  const add=(x1,y1,z1,x2,y2,z2)=>points.push(x1,y1,z1,x2,y2,z2);
- for(let x=-3.66;x<=3.661;x+=.122){add(x,0,-1.8,x,2.44,-.5);add(x,2.44,-.5,x,2.44,0);}
- for(let y=0;y<=2.441;y+=.122){const z=-1.8+y/2.44*1.3;add(-3.66,y,z,3.66,y,z);for(const x of [-3.66,3.66])add(x,y,0,x,y,z);}
- for(const x of [-3.66,3.66])for(let k=0;k<=12;k++){const u=k/12;add(x,0,-1.8*u,x,2.44,-.5*u);}
- for(let z=-.5;z<=0;z+=.125)add(-3.66,2.44,z,3.66,2.44,z);
+ for(let x=-3.66;x<=3.661;x+=.122){add(x,0,-2.2,x,2.44,-1.0);add(x,2.44,-1.0,x,2.44,0);}
+ for(let y=0;y<=2.441;y+=.122){const z=-2.2+y/2.44*1.2;add(-3.66,y,z,3.66,y,z);for(const x of [-3.66,3.66])add(x,y,0,x,y,z);}
+ for(const x of [-3.66,3.66])for(let k=0;k<=12;k++){const u=k/12;add(x,0,-2.2*u,x,2.44,-1.0*u);}
+ for(let z=-1.0;z<=0;z+=.125)add(-3.66,2.44,z,3.66,2.44,z);
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(points,3));
  this.netBase=new Float32Array(points);this.net=new T.LineSegments(g,new T.LineBasicMaterial({color:0xe3e9dd,transparent:true,opacity:.54}));this.scene.add(this.net);
  }
@@ -291,7 +291,7 @@ class World{
  this.camera.updateProjectionMatrix();if(instant){this.camera.position.copy(this.cameraGoal);this.look.copy(this.lookGoal);this.camera.lookAt(this.look);this.camera.updateMatrixWorld(true);}
  }
  buildDrawnShot(stroke,aim){
- const samples=FSGestures.sample(stroke,65,.45),points=new Float64Array(65*3),first={x:0,y:0},last={x:0,y:0};
+ const samples=FSGestures.sample(stroke,65,.10,.45),points=new Float64Array(65*3),first={x:0,y:0},last={x:0,y:0};
  this.camera.updateMatrixWorld(true);this.screenPoint(this.shotOriginX,P.R,11,first);this.screenPoint(aim.x,aim.y,0,last);
  V.set(this.shotOriginX,P.R,11).applyMatrix4(this.camera.matrixWorldInverse);const d0=-V.z;
  V.set(aim.x,aim.y,0).applyMatrix4(this.camera.matrixWorldInverse);const d1=-V.z;
@@ -300,7 +300,10 @@ class World{
  const x=samples[i*2]+(first.x-stroke.startX)*(1-q)+(last.x-stroke.x)*q;
  const y=samples[i*2+1]+(first.y-stroke.startY)*(1-q)+(last.y-stroke.y)*q;
  this.mouse.set(x/innerWidth*2-1,-y/innerHeight*2+1);this.ray.setFromCamera(this.mouse,this.camera);this.plane.constant=-z;this.ray.ray.intersectPlane(this.plane,this.aimPoint);
- points[i*3]=P.clamp(this.aimPoint.x,-8,8);points[i*3+1]=P.clamp(this.aimPoint.y,P.R,7);points[i*3+2]=z;
+ const chordX=this.shotOriginX*(1-s)+aim.x*s;
+ // Only a slight lateral bend, even for exaggerated drawings on narrow screens.
+ points[i*3]=chordX+P.clamp(this.aimPoint.x-chordX,-.22,.22)*Math.sin(Math.PI*s);
+ points[i*3+1]=P.clamp(this.aimPoint.y,P.R,7);points[i*3+2]=z;
  }
  this.plane.constant=0;points[0]=this.shotOriginX;points[1]=P.R;points[2]=11;points[192]=aim.x;points[193]=aim.y;points[194]=0;
  const shot=P.createPathShot(points);shot.curve=FSGestures.curve(stroke);return shot;
@@ -309,7 +312,7 @@ class World{
  screenToAim(x,y,out){this.mouse.set(x/innerWidth*2-1,-y/innerHeight*2+1);this.ray.setFromCamera(this.mouse,this.camera);this.ray.ray.intersectPlane(this.plane,this.aimPoint);out.x=P.clamp(this.aimPoint.x,-5.5,5.5);out.y=P.clamp(this.aimPoint.y,.11,4.5);return out;}
  showAim(shot,show){this.trajectory.visible=show;if(!show)return;const a=this.trajectory.geometry.attributes.position.array;for(let i=0;i<=32;i++){const t=shot.T*i/32;a[i*3]=shot.vx*t+.5*shot.ax*t*t;a[i*3+1]=.11+shot.vy*t-.5*P.G*t*t;a[i*3+2]=11+shot.vz*t;}this.trajectory.geometry.attributes.position.needsUpdate=true;this.trajectory.computeLineDistances();}
  showTargets(index){if(index<0){this.targetBurst.visible=false;this.burstAge=-1;}this.activeTarget=index;for(let i=0;i<this.targets.length;i++)this.targets[i].visible=i===index;}
- hitNet(x,y){this.netPulse=1;this.netX=x;this.netY=y;this.uniforms.cheer.value=1;}
+ hitNet(){this.uniforms.cheer.value=1;}
  poseActor(rig,time,kind,phase,progress,pose){
  if(!rig)return;
  const n=rig.nodes,b=rig.base;
@@ -337,7 +340,7 @@ class World{
  if(menu){this.poseActor(this.strikerRig,this.time,'striker','idle',0);this.ball.rotation.y+=dt*.03;}
  else if(state){
  const b=state.ball;this.ball.position.set(b.x,b.y,b.z);
- if(state.phase==='flight'||state.phase==='result'||state.phase==='replay'){this.ball.rotation.x-=dt*(state.speed||22);this.ball.rotation.y+=dt*(state.curve||0)*18;}
+ this.ball.rotation.set(b.rx||0,b.ry||0,b.rz||0);
  this.keeper.visible=state.keeperEnabled;
  if(state.phase==='aim'&&this.keeperReady){K.readyAt(this.time,this.idleKeeper);this.poseKeeper(this.idleKeeper);}else this.poseKeeper(state.keeperPose);
  if(state.phase==='runup'){
@@ -352,7 +355,17 @@ class World{
  }
  this.contactShadow.position.set(this.ball.position.x,.019,this.ball.position.z);const height=this.ball.position.y;
  this.contactShadow.scale.setScalar(1+height*.2);this.contactShadow.material.opacity=Math.max(.12,1-height*.25);
- if(this.netPulse>0){this.netPulse=Math.max(0,this.netPulse-dt*.7);const a=this.net.geometry.attributes.position.array,base=this.netBase;for(let i=0;i<a.length;i+=3){const d=Math.hypot(base[i]-this.netX,base[i+1]-this.netY);const anchored=base[i+1]<.02||Math.abs(base[i])>3.63||base[i+2]>-.01;a[i+2]=base[i+2]-(anchored?0:Math.exp(-d*1.6)*Math.sin((1-this.netPulse)*15-d*2)*this.netPulse*.35);}this.net.geometry.attributes.position.needsUpdate=true;}
+ const impact=state?.net,age=impact?.age??10;
+ const pulse=age<.8?Math.sin(Math.PI*age/.8)*impact.strength*Math.exp(-age*1.5):0;
+ if(pulse>0||this.netPulse>0){
+ const a=this.net.geometry.attributes.position.array,base=this.netBase;
+ for(let i=0;i<a.length;i+=3){
+ const d=Math.hypot(base[i]-(impact?.x||0),base[i+1]-(impact?.y||1));
+ const anchored=base[i+1]<.02||Math.abs(base[i])>3.63||base[i+2]>-.01;
+ a[i+2]=base[i+2]-(anchored?0:Math.exp(-d*d*1.4)*pulse);
+ }
+ this.net.geometry.attributes.position.needsUpdate=true;
+ }this.netPulse=pulse;
  if(this.activeTarget>=0){const target=this.targets[this.activeTarget];if(target){target.rotation.z+=dt*.32;target.scale.setScalar(1+Math.sin(this.time*4)*.035);}}
  this.updateTargetBurst(dt);
  this.renderer.render(this.scene,this.camera);

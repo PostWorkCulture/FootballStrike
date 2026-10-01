@@ -47,3 +47,12 @@ Read verification/report.json for the actual browser test outcome. No claim of s
 
 - Shooting positions alternate centre, left and right, with matching ball physics, gesture projection, camera and replay-player placement.
 - Target Rush uses four colourful star targets, with a pooled confetti burst, expanding ring and short hit sound when scored.
+
+## Gentle finishing and menu revision (2.3.0)
+- Lateral gesture strength is now 10% with a 22 cm world-space limit, preserving the aimed endpoint and separately assisted vertical arches. Keyboard curl acceleration is 1.5 m/s².
+- Goal depth is 2.2 m at the floor and 1 m at the top. Fabric contact triggers a local net bulge; damped rebounds, gravity, grass friction and a rest threshold stop the ball well inside the goal.
+- Ball rotation follows deterministic angular state, stops at rest and is recorded in replay. Replay restores the result state when it ends.
+- Home modes are Training, Shootout, Target and Nations Cup. A labelled country dropdown sits above the modes and persists the chosen nation; the visual twelve-country kit browser remains available.
+- Pause actions are aligned, with resume, restart, settings and Home. Gameplay, settings and results expose Home controls.
+- Home includes local licensed France, England and Sweden celebration photographs. See PHOTO_CREDITS.md and the in-game Photo credits dialog.
+- Automated evidence is written by the feature-branch workflow; inspect its actual reports for pass/fail results.

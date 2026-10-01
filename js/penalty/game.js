@@ -34,18 +34,21 @@ let world;try{world=new FSWorld($('stage'),settings);}catch(e){fatal('This brows
 function fatal(message){$('loading').hidden=true;$('error-screen').hidden=false;$('error-text').textContent=message;}
 const flight=new P.Flight(),aim={x:0,y:1.05},screen={x:0,y:0},ballScreen={x:0,y:0};
 const game={phase:'menu',mode:'shootout',elapsed:0,remaining:45,points:0,shots:0,goals:0,stage:0,opponent:null,match:null,outcome:null,shot:null,keeper:null,keeperEnabled:true,paused:false,ready:false,seed:0,random:P.rng(1),rivals:[],combo:0,cupWon:false};
-const renderState={phase:'aim',ball:flight.ball,keeperPose:flight.pose,keeperEnabled:true,elapsed:0,outcome:null,speed:0,curve:0};
-const replay=new Float32Array(600*9);let replayCount=0,replayTime=0,accumulator=0,last=performance.now(),lastHUD=-1,renderFrames=0,totalFrameTime=0;
+const renderState={phase:'aim',ball:flight.ball,net:flight.net,keeperPose:flight.pose,keeperEnabled:true,elapsed:0,outcome:null,speed:0,curve:0};
+const replay=new Float32Array(600*12);let replayReturn=null,replayCount=0,replayTime=0,accumulator=0,last=performance.now(),lastHUD=-1,renderFrames=0,totalFrameTime=0;
 const stroke=G.create();
 const input={active:false,id:null,startX:0,startY:0,keyboard:false,curve:0,hasMoved:false};
 let focusBeforeDialog=null;
 function nationMarkup(t){return FSTeams.flag(t.id)+'<span>'+t.code+'</span>';}
 function setNation(id){
  settings.nation=id;const t=FSTeams.get(id);world.setTeam(t);persist();
- $('selected-nation').innerHTML=FSTeams.flag(id)+'<span><small>YOUR NATION</small><strong>'+t.name+'</strong></span><b>↗</b>';
- $('player-country').textContent=t.name.toUpperCase();$('nation-selection').textContent=t.name+' selected';
+ $('selected-nation').innerHTML=FSTeams.flag(id)+'<span><small>12 NATIONS</small><strong>Browse kits</strong></span><b>↗</b>';
+ $('country-select').value=id;$('country-flag').innerHTML=FSTeams.flag(id);$('player-country').textContent=t.name.toUpperCase();$('nation-selection').textContent=t.name+' selected';
  document.querySelectorAll('.nation-card').forEach(b=>{const on=b.dataset.id===id;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));});
 }
+$('country-select').innerHTML=teams.map(t=>'<option value="'+t.id+'">'+t.name+'</option>').join('');
+$('country-select').onchange=e=>setNation(e.target.value);
+$('photo-credits-open').onclick=()=>$('photo-credits-dialog').showModal();
 $('nation-grid').innerHTML=teams.map(t=>'<button class="nation-card" data-id="'+t.id+'" aria-pressed="false">'+FSTeams.flag(t.id)+'<i class="shirt-chip" style="background:'+t.shirt+';border-bottom:7px solid '+t.shorts+'"></i><strong>'+t.name+'</strong><small>'+t.code+' / HOME</small></button>').join('');
 $('nation-grid').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setNation(b.dataset.id);});
 $('difficulty').value=settings.difficulty;$('quality-setting').value=settings.quality;$('audio-setting').checked=settings.audio;$('motion-setting').checked=settings.reducedMotion;
@@ -67,7 +70,7 @@ function menu(nations=false){
  cancelGesture();game.phase='menu';game.paused=false;game.outcome=null;input.active=false;input.keyboard=false;
  document.body.classList.remove('playing');$('shell').hidden=false;$('hud').hidden=true;$('home').hidden=nations;$('nations').hidden=!nations;
  $('nav-play').classList.toggle('active',!nations);$('nav-nations').classList.toggle('active',nations);
- for(const id of ['pause-dialog','result-dialog'])if($(id).open)$(id).close();
+ for(const id of ['pause-dialog','result-dialog','settings-dialog','photo-credits-dialog'])if($(id).open)$(id).close();
  world.setView(nations?'nations':'home',true);world.showTargets(-1);world.showAim(null,false);
  $('rush-record').innerHTML='BEST: '+settings.best+' <span>→</span>';$('career-record').textContent=settings.cups+' CUP WIN'+(settings.cups===1?'':'S');
  $('shot-feedback').classList.remove('show');
@@ -75,11 +78,16 @@ function menu(nations=false){
 $('nav-play').onclick=()=>menu(false);$('nav-nations').onclick=()=>menu(true);$('selected-nation').onclick=()=>menu(true);$('nation-confirm').onclick=()=>menu(false);
 document.querySelector('.brand').onclick=e=>{e.preventDefault();menu(false);};
 function openSettings(){focusBeforeDialog=document.activeElement;if(game.phase!=='menu')pause();$('settings-dialog').showModal();sound.init();}
-$('settings-open').onclick=openSettings;
+$('settings-open').onclick=openSettings;$('pause-settings').onclick=openSettings;
+$('settings-home').onclick=() => menu(false);$('match-home').onclick=() => menu(false);
 $('settings-dialog').addEventListener('close',()=>focusBeforeDialog?.focus());
 function pause(){
  if(game.phase==='menu'||game.phase==='complete'||game.paused)return;
- cancelGesture();game.paused=true;input.active=false;input.keyboard=false;world.showAim(null,false);$('pause-dialog').showModal();
+ cancelGesture();game.paused=true;input.active=false;input.keyboard=false;world.showAim(null,false);
+$('pause-nation').innerHTML=FSTeams.flag(settings.nation);
+$('pause-mode').textContent={practice:'Training',shootout:'Shootout',rush:'Target',cup:'Nations Cup'}[game.mode];
+$('pause-detail').textContent=FSTeams.get(settings.nation).name+' · '+P.DIFFICULTY[settings.difficulty].label;
+$('pause-dialog').showModal();
 }
 function resume(){game.paused=false;accumulator=0;last=performance.now();$('pause-dialog').close();}
 $('pause-open').onclick=pause;$('resume').onclick=resume;
@@ -109,7 +117,7 @@ function nextShot(){
  game.phase='aim';game.elapsed=0;game.outcome=null;game.shot=null;replayCount=0;
  game.originX=SHOT_POSITIONS[game.shots%SHOT_POSITIONS.length];world.shotOriginX=game.originX;
  Object.assign(flight.ball,{x:game.originX,y:.11,z:11,vx:0,vy:0,vz:0,ax:0});K.readyAt(0,flight.pose);
- flight.outcome=null;aim.x=0;aim.y=1.05;input.active=false;input.keyboard=false;setCurve(0);
+ flight.outcome=null;flight.settled=false;flight.resetSpin();Object.assign(flight.net,{age:10,strength:0});aim.x=0;aim.y=1.05;input.active=false;input.keyboard=false;setCurve(0);
  game.keeperEnabled=game.mode==='rush'?false:game.mode==='practice'?$('keeper-enabled').checked:true;
  world.keeper.visible=game.keeperEnabled;world.setView('match',true);world.showAim(null,false);
  $('shot-feedback').classList.remove('show');$('after-shot').hidden=true;$('match-difficulty').disabled=false;$('keeper-enabled').disabled=false;$('replay-label').hidden=true;
@@ -185,8 +193,8 @@ window.addEventListener('keyup',e=>{if(e.code==='Space'&&input.keyboard){e.preve
 window.addEventListener('blur',()=>{cancelGesture();pause();});
 function recordFrame(){
  if(replayCount>=600)return;
- const i=replayCount*9,b=flight.ball,k=flight.pose;
- replay[i]=b.x;replay[i+1]=b.y;replay[i+2]=b.z;replay[i+3]=k.x;replay[i+4]=k.y;replay[i+5]=k.roll;replay[i+6]=k.extension;replay[i+7]=flight.time;replay[i+8]=game.outcome==='goal'?1:0;replayCount++;
+ const i=replayCount*12,b=flight.ball,n=flight.net;
+ replay[i]=b.x;replay[i+1]=b.y;replay[i+2]=b.z;replay[i+3]=b.rx;replay[i+4]=b.ry;replay[i+5]=b.rz;replay[i+6]=flight.time;replay[i+7]=n.age;replay[i+8]=n.strength;replay[i+9]=n.x;replay[i+10]=n.y;replayCount++;
 }
 function resolve(){
  if(game.outcome)return;
@@ -243,9 +251,10 @@ $('result-menu').onclick=()=>menu(false);
 $('result-dialog').addEventListener('cancel',e=>{e.preventDefault();menu(false);});
 $('replay').onclick=()=>{
  if(game.phase!=='result'||replayCount<3||game.mode==='rush')return;
- game.phase='replay';replayTime=0;$('after-shot').hidden=true;$('shot-feedback').classList.remove('show');$('replay-label').hidden=false;world.setView(settings.reducedMotion?'match':'replay',true);
+ replayReturn={ball:{...flight.ball},net:{...flight.net}};game.phase='replay';replayTime=0;$('after-shot').hidden=true;$('shot-feedback').classList.remove('show');$('replay-label').hidden=false;world.setView(settings.reducedMotion?'match':'replay',true);
 };
 function leaveReplay(){
+ if(replayReturn){Object.assign(flight.ball,replayReturn.ball);Object.assign(flight.net,replayReturn.net);replayReturn=null;}
  game.phase='result';game.elapsed=0;$('after-shot').hidden=false;$('replay-label').hidden=true;$('shot-feedback').classList.add('show');world.setView('match',true);
 }
 function fixedStep(dt){
@@ -258,7 +267,7 @@ function fixedStep(dt){
  }else if(game.phase==='flight'){
  flight.step(dt);recordFrame();if(flight.outcome)resolve();
  }else if(game.phase==='result'){
- flight.step(dt);if(flight.time<Math.max(1.65,game.keeper?.endTime+.25||0))recordFrame();
+ flight.step(dt);if(flight.time<Math.max(2.65,game.keeper?.endTime+.25||0))recordFrame();
  if(game.mode==='rush'&&game.elapsed>.75){if(game.remaining<=0)finishMatch();else nextShot();}
  else if(game.mode!=='rush'){
  // Offer replay during the result pause; never cut off the keeper's recovery.
@@ -268,8 +277,9 @@ function fixedStep(dt){
  }
  }
  }else if(game.phase==='replay'){
- replayTime+=dt*.45;const frame=Math.min(replayCount-1,Math.floor(replayTime/P.STEP)),i=frame*9;
- flight.ball.x=replay[i];flight.ball.y=replay[i+1];flight.ball.z=replay[i+2];P.keeperAt(flight.keeper,replay[i+7],flight.pose);
+ replayTime+=dt*.45;const frame=Math.min(replayCount-1,Math.floor(replayTime/P.STEP)),i=frame*12;
+ flight.ball.x=replay[i];flight.ball.y=replay[i+1];flight.ball.z=replay[i+2];flight.ball.rx=replay[i+3];flight.ball.ry=replay[i+4];flight.ball.rz=replay[i+5];P.keeperAt(flight.keeper,replay[i+6],flight.pose);
+ Object.assign(flight.net,{age:replay[i+7],strength:replay[i+8],x:replay[i+9],y:replay[i+10]});
  if(frame>=replayCount-1)leaveReplay();
  }
 }
@@ -290,7 +300,7 @@ world.ready.then(results=>{
 });
 // Read-only diagnostics are always available; simulation controls require ?test=1.
 window.FootballStrike={
- version:'2.2.2',get ready(){return game.ready;},
+ version:'2.3.0',get ready(){return game.ready;},
  snapshot:()=>({originX:game.originX||0,phase:game.phase,mode:game.mode,nation:settings.nation,difficulty:settings.difficulty,score:game.match?.score,shots:game.shots,goals:game.goals,points:game.points,combo:game.combo,outcome:game.outcome,remaining:game.remaining,paused:game.paused,countryCount:teams.length,actorReady:world.actorReady,ballAssetLoaded:world.ballAssetLoaded,assetErrors:world.assetErrors,drawCalls:world.renderer.info.render.calls,triangles:world.renderer.info.render.triangles,crowd:world.crowdCount,averageFrameMs:renderFrames?totalFrameTime/renderFrames*1000:0,stage:game.stage,view:world.mode==='match'?'first-person':world.mode,strikerVisible:world.striker.visible,gestureCurve:input.curve,shotCurve:game.shot?.curve??0,shotPower:game.shot?.power??P.SHOT_POWER,inputActive:input.active,drawnShot:!!game.shot?.drawn,pathPoints:game.shot?.path?.length/3||0,shotApex:game.shot?.maxY??game.shot?.targetY??0,keeperStage:flight.pose.stage,keeperLoaded:world.keeperReady}),
  project:(x,y,z)=>{const s={};world.screenPoint(x,y,z,s);return s;}
 };
@@ -305,6 +315,6 @@ if(new URLSearchParams(location.search).get('test')==='1'){
  const joints=flight.pose.joints;let maxError=0;const v=new THREE.Vector3();
  for(const b of world.keeperRig.bones){b.bone.getWorldPosition(v);maxError=Math.max(maxError,Math.hypot(v.x-joints[b.start*3],v.y-joints[b.start*3+1],v.z-joints[b.start*3+2]));}
  return {plan:k,pose:{...flight.pose,joints:Array.from(joints)},boneError:maxError,skinMeshes:world.keeperRig.meshes};
- },start,fire,step:seconds=>{for(let n=0;n<Math.ceil(seconds/P.STEP);n++)fixedStep(P.STEP);},setDifficulty,setCurve,setSeed:seed=>{game.random=P.rng(seed);},setKeeper:enabled=>{game.keeperEnabled=enabled;$('keeper-enabled').checked=enabled;},next:nextShot,setTime:t=>{game.remaining=t;},getPhysics:()=>({time:flight.time,recoveryEnds:game.keeper?.endTime,ball:{x:flight.ball.x,y:flight.ball.y,z:flight.ball.z,vx:flight.ball.vx,vy:flight.ball.vy,vz:flight.ball.vz},keeper:{...flight.pose,joints:Array.from(flight.pose.joints)},savePart:flight.savePart,caught:flight.caught}),getShot:()=>game.shot,setAim:(x,y)=>{aim.x=x;aim.y=y;},world};
+ },start,fire,step:seconds=>{for(let n=0;n<Math.ceil(seconds/P.STEP);n++)fixedStep(P.STEP);},setDifficulty,setCurve,setSeed:seed=>{game.random=P.rng(seed);},setKeeper:enabled=>{game.keeperEnabled=enabled;$('keeper-enabled').checked=enabled;},next:nextShot,setTime:t=>{game.remaining=t;},getPhysics:()=>({net:{...flight.net},settled:flight.settled,groundBounces:flight.groundBounces,time:flight.time,recoveryEnds:game.keeper?.endTime,ball:{x:flight.ball.x,y:flight.ball.y,z:flight.ball.z,vx:flight.ball.vx,vy:flight.ball.vy,vz:flight.ball.vz,rx:flight.ball.rx,ry:flight.ball.ry,rz:flight.ball.rz,wx:flight.ball.wx,wy:flight.ball.wy,wz:flight.ball.wz},keeper:{...flight.pose,joints:Array.from(flight.pose.joints)},savePart:flight.savePart,caught:flight.caught}),getShot:()=>game.shot,setAim:(x,y)=>{aim.x=x;aim.y=y;},world};
 }
 })();

@@ -12,7 +12,7 @@ const DIFFICULTY={
 function rng(seed){let s=seed>>>0;return ()=>{s=(Math.imul(1664525,s)+1013904223)>>>0;return s/4294967296;};}
 function createShot(x,y,power,curve,originX=0){
 power=clamp(power,.15,1);curve=clamp(curve,-1,1);x=clamp(x,-5.5,5.5);y=clamp(y,R,4.5);
-const speed=19+power*15,T=11/speed,ax=curve*6;
+const speed=19+power*15,T=11/speed,ax=curve*1.5;
 const vx=(x-originX-.5*ax*T*T)/T,vy=(y-R+.5*G*T*T)/T;
 return {x:originX,y:R,z:11,vx,vy,vz:-speed,ax,T,power,curve,targetX:x,targetY:y,speed:Math.hypot(vx,vy,speed)*3.6};
 }
@@ -54,18 +54,34 @@ function sampleShot(shot,t,out){
 }
 function pointSegmentDistance(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,n=dx*dx+dy*dy;const t=n?clamp(((px-ax)*dx+(py-ay)*dy)/n,0,1):0;return Math.hypot(px-ax-dx*t,py-ay-dy*t);}
 class Flight{
- constructor(){this.ball={x:0,y:R,z:11,vx:0,vy:0,vz:0,ax:0};this.keeper=K.plan(0,1,1);this.pose=K.createPose();this.hitPose=K.createPose();this.pathSample={};this.time=0;this.outcome=null;this.keeperEnabled=true;this.netHit=0;}
- launch(shot,keeper,enabled=true){Object.assign(this.ball,shot);this.keeper=keeper.kind?{...keeper}:K.plan(keeper.x,keeper.y,keeper.reaction);this.shot=shot;this.caught=false;this.savePart=null;this.keeperEnabled=enabled;this.time=0;this.outcome=null;this.netHit=0;this.frameHit=false;return this;}
- step(dt=STEP){
- const b=this.ball;const px=b.x,py=b.y,pz=b.z;this.time+=dt;
- keeperAt(this.keeper,this.time,this.pose);
- if(this.caught){const a=this.pose.joints,l=K.J.lf*3,r=K.J.rf*3;b.x=(a[l]+a[r])/2;b.y=(a[l+1]+a[r+1])/2;b.z=(a[l+2]+a[r+2])/2+.06;b.vx=b.vy=b.vz=b.ax=0;return;}
- if(this.outcome==='goal'){
- b.vx*=Math.exp(-5*dt);b.vz*=Math.exp(-7*dt);b.vy-=G*dt;
- b.x=clamp(b.x+b.vx*dt,-3.45,3.45);b.y=Math.max(R,b.y+b.vy*dt);
- const backNet=-1.8+b.y/2.44*1.3+R;b.z=Math.max(backNet,b.z+b.vz*dt);
- if(b.y===R)b.vy=0;return;
+ constructor(){this.ball={x:0,y:R,z:11,vx:0,vy:0,vz:0,ax:0};this.keeper=K.plan(0,1,1);this.pose=K.createPose();this.hitPose=K.createPose();this.pathSample={};this.time=0;this.outcome=null;this.keeperEnabled=true;this.netHit=0;this.net={age:10,strength:0,x:0,y:1};this.resetSpin();}
+ launch(shot,keeper,enabled=true){Object.assign(this.ball,shot);this.keeper=keeper.kind?{...keeper}:K.plan(keeper.x,keeper.y,keeper.reaction);this.shot=shot;this.caught=false;this.savePart=null;this.keeperEnabled=enabled;this.time=0;this.outcome=null;this.netHit=0;this.frameHit=false;this.settled=false;this.groundBounces=0;Object.assign(this.net,{age:10,strength:0,x:0,y:1});this.resetSpin();this.ball.wx=-26;this.ball.wy=shot.curve*8;this.ball.wz=-shot.vx*.18;return this;}
+ resetSpin(){Object.assign(this.ball,{rx:0,ry:0,rz:0,wx:0,wy:0,wz:0});}
+ spin(dt){const b=this.ball;b.rx+=b.wx*dt;b.ry+=b.wy*dt;b.rz+=b.wz*dt;}
+ impactNet(speed){this.netHit++;Object.assign(this.net,{age:0,strength:clamp(speed/55,.12,.55),x:this.ball.x,y:this.ball.y});}
+ goalStep(dt){
+ const b=this.ball;if(this.settled)return;
+ b.vy-=G*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;b.z+=b.vz*dt;
+ // Fabric absorbs nearly all impact energy. The small rebound stays inside the goal.
+ const back=-2.2+clamp(b.y,R,2.44-R)/2.44*1.2+R;
+ if(b.z<back){if(!this.netHit)this.impactNet(Math.abs(b.vz));b.z=back;b.vz=Math.min(.65,Math.abs(b.vz)*.022);b.vx*=.12;b.vy*=.22;b.wx*=.12;b.wy*=.12;b.wz*=.12;}
+ if(Math.abs(b.x)>3.66-R){if(!this.netHit)this.impactNet(Math.abs(b.vx));b.x=clamp(b.x,-3.66+R,3.66-R);b.vx*=-.06;b.vz*=.45;b.vy*=.4;}
+ if(b.y>2.44-R){b.y=2.44-R;b.vy=-Math.abs(b.vy)*.12;b.vx*=.4;b.vz*=.5;}
+ if(b.y<=R){
+ b.y=R;
+ if(b.vy<-.65){b.vy=-b.vy*.28;this.groundBounces++;}else b.vy=0;
+ const friction=Math.exp(-9*dt);b.vx*=friction;b.vz*=friction;
+ b.wx=b.vz/R;b.wz=-b.vx/R;b.wy*=Math.exp(-14*dt);
+ if(b.vy===0&&Math.hypot(b.vx,b.vz)<.035){b.vx=b.vy=b.vz=b.wx=b.wy=b.wz=0;this.settled=true;}
+ }else{const drag=Math.exp(-1.8*dt);b.vx*=drag;b.vz*=drag;b.wx*=drag;b.wy*=drag;b.wz*=drag;}
+ this.spin(dt);
  }
+ step(dt=STEP){
+ const b=this.ball;const px=b.x,py=b.y,pz=b.z;this.time+=dt;this.net.age+=dt;
+ keeperAt(this.keeper,this.time,this.pose);
+ if(this.caught){const a=this.pose.joints,l=K.J.lf*3,r=K.J.rf*3;b.x=(a[l]+a[r])/2;b.y=(a[l+1]+a[r+1])/2;b.z=(a[l+2]+a[r+2])/2+.06;b.vx=b.vy=b.vz=b.ax=b.wx=b.wy=b.wz=0;return;}
+ if(this.outcome==='goal'){this.goalStep(dt);return;}
+ this.spin(dt);
  if(this.shot.path&&!this.outcome){sampleShot(this.shot,this.time,this.pathSample);b.x=this.pathSample.x;b.y=this.pathSample.y;b.z=this.pathSample.z;b.vx=(b.x-px)/dt;b.vy=(b.y-py)/dt;b.vz=(b.z-pz)/dt;}
  else{b.x+=b.vx*dt+.5*b.ax*dt*dt;b.y+=b.vy*dt-.5*G*dt*dt;b.z+=b.vz*dt;b.vx+=b.ax*dt;b.vy-=G*dt;}
  if(b.y<R){b.y=R;b.vy=Math.abs(b.vy)*.42;b.vx*=.985;b.vz*=.985;}
@@ -92,7 +108,7 @@ class Flight{
  if(pz>-R&&b.z<=-R){
  const u=(pz+R)/(pz-b.z),x=px+(b.x-px)*u,y=py+(b.y-py)*u;
  if(Math.abs(x)<3.66-R-.06&&y<2.44-R-.06&&y>=R-.001){
- this.outcome='goal';this.netHit=1;b.ax=0;
+ this.outcome='goal';b.ax=0;
  }else this.outcome='wide';
  }
  if(this.time>3.5&&!this.outcome)this.outcome='wide';

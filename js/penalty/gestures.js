@@ -17,7 +17,7 @@ function move(s,x,y){
 function curve(s){
  if(s.distance<24)return 0;
  const amount=Math.max(-1,Math.min(1,s.area/(s.distance*s.distance*.27)));
- return Math.abs(amount)<.12?0:Math.sign(amount)*(Math.abs(amount)-.12)/.88*.45;
+ return Math.abs(amount)<.12?0:Math.sign(amount)*(Math.abs(amount)-.12)/.88*.10;
 }
 root.FSGestures={create,begin,move,curve};
 if(typeof module!=='undefined')module.exports=root.FSGestures;
@@ -27,7 +27,7 @@ if(typeof module!=='undefined')module.exports=root.FSGestures;
    No reduction to a single curl parameter: arches and S-curves retain their shape. */
 (function(root){
 'use strict';const G=root.FSGestures;
-G.sample=function(s,count=65,bendStrength=1){
+G.sample=function(s,count=65,bendStrength=1,archStrength=bendStrength){
  const out=new Float64Array(count*2),distances=new Float64Array(s.count);let total=0;
  for(let i=1;i<s.count;i++){total+=Math.hypot(s.points[i*2]-s.points[(i-1)*2],s.points[i*2+1]-s.points[(i-1)*2+1]);distances[i]=total;}
  let cursor=1;
@@ -43,7 +43,7 @@ G.sample=function(s,count=65,bendStrength=1){
  const q=i/(count-1),cx=s.startX+s.dx*q,cy=s.startY+s.dy*q;
  for(let c=0;c<2;c++){
  const base=c?cy:cx,delta=out[i*2+c]-base;
- out[i*2+c]=base+Math.sign(delta)*Math.max(0,Math.abs(delta)-deadZone)*bendStrength;
+ out[i*2+c]=base+Math.sign(delta)*Math.max(0,Math.abs(delta)-deadZone)*(c?archStrength:bendStrength);
  }
  }
  }

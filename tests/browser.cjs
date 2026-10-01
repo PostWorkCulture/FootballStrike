@@ -21,6 +21,17 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await page.waitForFunction(()=>window.FootballStrike?.ready||!document.getElementById('error-screen').hidden,{timeout:90000});
  assert.equal(await page.evaluate(()=>window.FootballStrike?.ready),true,await page.$eval('#error-text',e=>e.textContent));
  await check('Blender assets load and WebGL scene renders',async()=>{const s=await snap();assert.equal(s.actorReady,true);assert.equal(s.keeperLoaded,true);assert.equal(s.ballAssetLoaded,true);assert.deepEqual(s.assetErrors,[]);assert.ok(s.triangles>5000);assert.ok(s.crowd>3000);report.render=s;});
+ await check('home shows licensed football photos, ordered modes and an explicit country selector',async()=>{
+ assert.deepEqual(await page.$$eval('.mode-card',els=>els.map(e=>e.dataset.mode)),['practice','shootout','rush','cup']);
+ assert.equal(await page.$$eval('#country-select option',els=>els.length),12);
+ const photos=await page.$$eval('.football-photo img',els=>els.map(e=>({loaded:e.complete&&e.naturalWidth>700,alt:e.alt})));
+ assert.equal(photos.length,3);assert.ok(photos.every(p=>p.loaded&&/celebrating/.test(p.alt)));
+ await page.select('#country-select','bra');assert.equal((await snap()).nation,'bra');
+ await page.reload({waitUntil:'networkidle0'});await page.waitForFunction(()=>window.FootballStrike?.ready);
+ assert.equal(await page.$eval('#country-select',e=>e.value),'bra');assert.equal((await snap()).nation,'bra');
+ await page.select('#country-select','swe');await page.click('#photo-credits-open');
+ assert.equal(await page.$eval('#photo-credits-dialog',e=>e.open),true);await page.click('#photo-credits-dialog .primary');
+ });
  await screenshot('01-home-desktop');
  await check('all 12 countries select and update the 3D kit',async()=>{
  await page.click('#nav-nations');const ids=await page.$$eval('.nation-card',els=>els.map(e=>e.dataset.id));assert.equal(ids.length,12);
@@ -65,6 +76,29 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await page.mouse.move(ball.x,ball.y);await page.mouse.down();await page.mouse.move(target.x,target.y,{steps:14});await page.mouse.up();await page.click('#pause-open');
  const before=await page.evaluate(()=>FootballStrike.test.getPhysics());await step(3);const after=await page.evaluate(()=>FootballStrike.test.getPhysics());assert.deepEqual(after,before);assert.equal((await snap()).paused,true);await page.click('#resume');await step(2);assert.equal((await snap()).shots,2);
  });
+ await check('pause actions align and Home is available from gameplay, pause and settings',async()=>{
+ await page.click('#pause-open');
+ const alignment=await page.$$eval('#resume,#restart,#pause-settings,#quit',els=>els.map(e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};}));
+ assert.ok(Math.abs(alignment[0].width-alignment[3].width)<1);
+ assert.ok(Math.abs(alignment[1].y-alignment[2].y)<1&&Math.abs(alignment[1].width-alignment[2].width)<1);
+ assert.ok(alignment.every(r=>r.height>=44));await screenshot('19-pause-desktop');
+ await page.click('#pause-settings');await page.click('#settings-home');assert.equal((await snap()).phase,'menu');
+ await page.click('[data-mode="practice"]');await page.click('#match-home');assert.equal((await snap()).phase,'menu');
+ await page.click('[data-mode="practice"]');await page.evaluate(()=>FootballStrike.test.setKeeper(false));
+ });
+ await check('a goal visibly bulges the net and a resting ball keeps its exact orientation',async()=>{
+ await page.evaluate(()=>FootballStrike.test.fire(0,1.8));await step(.75);
+ await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+ const impact=await page.evaluate(()=>{const w=FootballStrike.test.world,a=w.net.geometry.attributes.position.array;let delta=0;for(let i=2;i<a.length;i+=3)delta=Math.max(delta,w.netBase[i]-a[i]);return {delta,physics:FootballStrike.test.getPhysics()};});
+ assert.ok(impact.physics.net.strength>0&&impact.delta>.06);await screenshot('20-net-impact');
+ await step(1.8);
+ const resting=await page.evaluate(()=>FootballStrike.test.getPhysics());
+ assert.equal(resting.settled,true);assert.ok(resting.ball.z<-.55);assert.ok(resting.groundBounces>0);
+ await page.click('#pause-open');const rotation=await page.evaluate(()=>FootballStrike.test.world.ball.rotation.toArray());
+ await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+ assert.deepEqual(await page.evaluate(()=>FootballStrike.test.world.ball.rotation.toArray()),rotation);
+ await page.click('#resume');await step(3);assert.equal((await snap()).phase,'aim');
+ });
  await check('mouse direction controls curl; straight strokes and different speeds keep the same shot pace',async()=>{
  const results=[];
  for(const bend of [-75,75,0]){
@@ -74,7 +108,7 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  for(let i=1;i<=12;i++){const u=i/12;await page.mouse.move(b.x+(t.x-b.x)*u+Math.sin(u*Math.PI)*bend,b.y+(t.y-b.y)*u);if(bend===75)await new Promise(r=>setTimeout(r,25));}
  await page.mouse.up();results.push(await snap());await step(2);
  }
- assert.ok(results[0].shotCurve>.08&&results[0].shotCurve<=.45);assert.ok(results[1].shotCurve<-.08&&results[1].shotCurve>=-.45);assert.equal(results[2].shotCurve,0);
+ assert.ok(results[0].shotCurve>.015&&results[0].shotCurve<=.10);assert.ok(results[1].shotCurve<-.015&&results[1].shotCurve>=-.10);assert.equal(results[2].shotCurve,0);
  assert.deepEqual(results.map(r=>r.shotPower),[.7,.7,.7]);
  assert.equal(await page.$('#power-fill'),null);assert.equal(await page.$('input[type="range"]'),null);
  });
@@ -87,7 +121,7 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  assert.equal(await page.$('#gesture-trail'),null);assert.equal(await page.evaluate(()=>FootballStrike.test.world.trajectory.visible),false);await page.mouse.up();
  const shot=await page.evaluate(()=>{const s=FootballStrike.test.getShot();return {drawn:s.drawn,path:Array.from(s.path),origin:s.x,maxY:s.maxY,targetY:s.targetY};});
  assert.equal(shot.drawn,true);assert.equal(shot.path.length,195);
- if(kind==='arch')assert.ok(shot.maxY>shot.targetY+.25);else{const xs=shot.path.filter((_,i)=>i%3===0).map((x,i)=>x-shot.origin*shot.path[i*3+2]/11);assert.ok(Math.min(...xs)<-.15&&Math.max(...xs)>.15);}
+ if(kind==='arch')assert.ok(shot.maxY>shot.targetY+.25);else{const xs=shot.path.filter((_,i)=>i%3===0).map((x,i)=>x-shot.origin*shot.path[i*3+2]/11);assert.ok(Math.min(...xs)<-.035&&Math.max(...xs)>.008);}
  await step(2);assert.equal((await snap()).outcome,'goal');
  }
  });
@@ -151,6 +185,11 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  });
  await page.setViewport({width:390,height:844,deviceScaleFactor:1,isMobile:true,hasTouch:true});await page.reload({waitUntil:'networkidle0'});await page.waitForFunction(()=>window.FootballStrike?.ready);
  await screenshot('06-home-mobile');
+ await check('phone country control and home photos remain visible',async()=>{
+ await page.select('#country-select','nor');assert.equal((await snap()).nation,'nor');
+ const r=await page.$eval('#country-select',e=>{const r=e.getBoundingClientRect();return {x:r.x,right:r.right,y:r.y,bottom:r.bottom};});
+ assert.ok(r.x>=0&&r.right<=390&&r.y>0&&r.bottom<844);
+ });
  await check('mobile menu and nation grid fit the viewport',async()=>{
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  const box=await page.$eval('[data-mode="practice"]',e=>{const r=e.getBoundingClientRect();return {bottom:r.bottom,top:r.top};});assert.ok(box.bottom<=844&&box.top>=0);
@@ -197,15 +236,16 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  });
  await check('phone landscape keeps the goal, ball and controls usable',async()=>{
  await screenshot('09-match-landscape');await checkFraming();
+ await page.tap('#pause-open');await screenshot('21-pause-landscape');await page.tap('#resume');
  const r=await page.$eval('#match-settings',e=>({bottom:e.getBoundingClientRect().bottom,top:e.getBoundingClientRect().top}));assert.ok(r.bottom<=390&&r.top>=0);
- await touchStroke(-45);assert.equal((await snap()).goals,2);assert.ok((await snap()).shotCurve>.06&&(await snap()).shotCurve<=.45);
+ await touchStroke(-45);assert.equal((await snap()).goals,2);assert.ok((await snap()).shotCurve>.012&&(await snap()).shotCurve<=.10);
  });
  await check('tablet portrait and landscape support curved touch shots and difficulty selection',async()=>{
  for(const [width,height,name,bend] of [[820,1180,'12-tablet-portrait',-85],[1180,820,'13-tablet-landscape',85]]){
  await page.setViewport({width,height,isMobile:true,hasTouch:true});await page.evaluate(()=>FootballStrike.test.next());
  await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
  await page.select('#match-difficulty','pro');assert.equal((await snap()).difficulty,'pro');await checkFraming();await screenshot(name);
- const before=(await snap()).goals;await touchStroke(bend);const after=await snap();assert.equal(after.goals,before+1);assert.ok(Math.abs(after.shotCurve)>.06&&Math.abs(after.shotCurve)<=.45);
+ const before=(await snap()).goals;await touchStroke(bend);const after=await snap();assert.equal(after.goals,before+1);assert.ok(Math.abs(after.shotCurve)>.012&&Math.abs(after.shotCurve)<=.10);
  }
  });
  await check('a second finger does not replace the active shooting gesture',async()=>{

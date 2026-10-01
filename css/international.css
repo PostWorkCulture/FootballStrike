@@ -63,3 +63,69 @@ body.playing{overscroll-behavior:none;user-select:none;-webkit-user-select:none}
 
 #match-settings{background:rgba(9,24,30,.94);box-shadow:0 0 0 4px rgba(9,24,30,.94);border-radius:2px}
 .difficulty-control>span,.keeper-option{color:#e4efed}
+
+/* Home: real football photography and a country choice before every mode. */
+#home{overflow-y:auto;justify-content:flex-start;padding-top:24px;scrollbar-width:thin}
+.home-feature{position:relative;display:grid;grid-template-columns:.85fr 1.15fr;gap:32px;align-items:center;flex:1;min-height:250px;margin-bottom:22px}
+.home-feature .hero{position:relative;top:auto;left:auto}
+.home-feature h1{font-size:clamp(66px,7.4vw,116px)}
+.home-feature .hero-copy{margin:20px 0 0;font-size:14px}
+.football-gallery{display:grid;grid-template-columns:1.7fr 1fr;grid-template-rows:1fr 1fr;gap:8px;height:100%;max-height:430px;min-height:250px}
+.football-photo{position:relative;overflow:hidden;margin:0;background:#203c41;border:1px solid #416065}
+.football-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#04141be6,transparent 55%);pointer-events:none}
+.football-photo img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+.photo-1{grid-row:1/3}.photo-1 img{object-position:48% center}
+.football-photo figcaption{position:absolute;left:16px;right:12px;bottom:15px;z-index:1}
+.football-photo figcaption strong{display:block;font:700 26px var(--display)}
+.football-photo figcaption span{display:block;font-size:9px;line-height:1.4;margin-top:3px;color:#d2dedd}
+.country-bar{display:flex;align-items:center;gap:20px;flex-shrink:0;padding:14px 18px;background:#10262dee;border:1px solid var(--line)}
+.country-picker{display:flex;align-items:center;gap:22px;flex:1}.country-picker>label{font-size:10px;letter-spacing:1.7px;font-weight:800;color:var(--accent)}
+.country-select-wrap{display:flex;align-items:center;gap:12px;flex:1;max-width:330px}
+#country-flag svg{display:block;width:36px;height:25px}
+#country-select{width:100%;height:46px;font-size:17px;font-weight:700;padding-left:14px}
+.country-bar .selected-nation{min-width:168px;height:48px;margin:0;background:transparent;padding:8px 12px}
+.country-bar .selected-nation>svg{display:none}.country-bar .selected-nation strong{font-size:12px}
+#home .play-dock{flex-shrink:0;margin-top:17px}
+#home footer{flex-shrink:0;min-height:35px}
+#photo-credits-open{background:none;font-size:8px;letter-spacing:1px;color:#a9b9bc;padding:12px 0}
+.photo-credit{padding:12px 0;border-bottom:1px solid var(--line)}.photo-credit h3{margin:0;font-size:16px}.photo-credit p{margin:7px 0;font-size:11px}.photo-credit a{color:var(--accent);font-size:11px;text-decoration:underline}
+.match-actions{display:flex;gap:8px}
+#pause-dialog{width:min(92vw,460px);padding:30px;border-top:3px solid var(--accent);border-radius:8px;background:linear-gradient(140deg,#19353d,#0c1e27)}
+.pause-header{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.pause-header .eyebrow{margin:0 0 12px}.pause-header h2{margin:0;font-size:48px}.pause-symbol{display:grid;place-items:center;width:52px;height:52px;border:1px solid var(--line);border-radius:50%;font-size:28px;color:var(--accent)}
+.pause-context{display:flex;align-items:center;gap:14px;padding:20px 0;margin:18px 0 8px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.pause-context svg{display:block;width:42px;height:28px}.pause-context strong{display:block;font-size:15px}.pause-context small{display:block;color:var(--muted);font-size:12px;margin-top:5px}
+.pause-actions{display:grid;gap:10px}.pause-actions .primary,.pause-actions .secondary{width:100%;margin:0;min-height:50px;border-radius:3px}
+.pause-secondary{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pause-secondary .secondary{justify-content:center;gap:10px;letter-spacing:.5px}
+.pause-home{justify-content:flex-start!important;gap:12px;font-size:12px;letter-spacing:.5px}.pause-home svg{width:19px;height:19px}.pause-home b{margin-left:auto;color:var(--accent)}
+@media(max-width:900px){
+ #home{padding-top:18px}.home-feature{grid-template-columns:1fr 1.1fr;gap:18px;margin-bottom:16px;min-height:230px}
+ .home-feature h1{font-size:74px}.home-feature .eyebrow{font-size:8px;line-height:1.6}
+ .football-gallery{min-height:230px;gap:6px}.football-photo figcaption{left:10px;bottom:10px}.football-photo figcaption strong{font-size:22px}.football-photo figcaption span{font-size:7px}
+ .country-picker{gap:12px;align-items:flex-start;flex-direction:column}.country-picker>label{font-size:8px}
+ .country-select-wrap{width:100%;gap:9px;max-width:none}.country-bar{padding:12px;gap:15px}.country-bar .selected-nation{min-width:130px}
+ #country-select{height:42px;font-size:15px}.home-feature .hero-copy{font-size:12px}
+}
+@media(max-width:600px){
+ #home{padding-top:13px}.home-feature{display:flex;align-items:flex-end;min-height:196px;margin-bottom:13px}
+ .football-gallery{position:absolute;inset:0;min-height:0;max-height:none;grid-template-columns:1.85fr 1fr}
+ .photo-1:after{background:linear-gradient(0deg,#04141bfa,transparent 100%)}.photo-1 figcaption{top:12px;bottom:auto}.photo-1 figcaption strong{font-size:17px}.photo-1 figcaption span{font-size:7px}
+ .home-feature .hero{z-index:2;padding:0 12px 14px;pointer-events:none;max-width:65%}.home-feature h1{font-size:59px}.home-feature .hero-copy,.home-feature .eyebrow{display:none}
+ .football-photo figcaption strong{font-size:18px}.football-photo figcaption span{font-size:7px;line-height:1.3}
+ .country-picker{gap:7px}.country-picker>label{font-size:8px;letter-spacing:1px}.country-bar{gap:9px;padding:11px}
+ .country-bar .selected-nation{min-width:102px;padding:8px;gap:6px}.country-bar .selected-nation strong{font-size:10px}.country-bar .selected-nation small{font-size:7px}
+ #country-flag svg{width:27px;height:19px}#country-select{font-size:14px;padding-left:9px}
+ #home .play-dock{margin-top:12px}.pause-header h2{font-size:41px}#pause-dialog{padding:24px}
+}
+@media(max-height:540px) and (min-width:600px){
+ #home{padding-top:10px}.home-feature{min-height:105px;grid-template-columns:.85fr 1.15fr;margin-bottom:8px;gap:15px}.home-feature h1{font-size:46px}.home-feature .hero-copy,.home-feature .eyebrow{display:none}
+ .football-gallery{min-height:105px;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr}.photo-1{grid-row:auto}.football-photo figcaption{left:8px;bottom:7px}.football-photo figcaption strong{font-size:18px}.football-photo figcaption span{display:none}
+ .country-bar{padding:7px 10px;gap:14px}.country-picker{flex-direction:row;align-items:center;gap:16px}.country-select-wrap{max-width:240px}.country-picker>label{font-size:8px}
+ #country-select{height:38px;font-size:13px}.country-bar .selected-nation{height:38px;min-width:132px}.country-bar .selected-nation small{display:none}
+ #home .play-dock{margin-top:8px}.dock-heading{margin-bottom:6px}.mode-card{min-height:96px}.mode-description{display:none}#home footer{min-height:24px;height:24px}
+ #pause-dialog{width:min(92vw,510px);padding:18px 24px}.pause-header h2{font-size:34px}.pause-header .eyebrow{margin-bottom:6px}.pause-symbol{width:42px;height:42px}.pause-context{margin:12px 0 8px;padding:12px 0}.pause-actions{grid-template-columns:1fr 1fr}.pause-actions>.primary{grid-column:1/3}.pause-secondary{grid-column:1}.pause-actions .primary,.pause-actions .secondary{min-height:44px;padding:10px}.pause-secondary .secondary{font-size:8px;gap:6px}
+}
+
+.football-gallery{grid-template-rows:repeat(2,minmax(0,1fr))}.football-photo{min-width:0;min-height:0}.football-photo img{position:absolute;inset:0}
+@media(max-height:540px) and (min-width:600px){.football-gallery{grid-template-rows:minmax(0,1fr)}}
