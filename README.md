@@ -21,7 +21,11 @@ npm run build:assets
 ```
 
 ## Controls
-Drag from the ball towards the goal, then release. Faster swipes add power. The curl slider bends the flight. Keyboard: arrows aim, hold/release Space shoots, Q/E adjust curl, Escape pauses. The game pauses when the tab is hidden.
+Shooting uses a first-person eye-level view. Swipe towards the goal with a mouse, finger or pen and release. Every shot has the same pace, so swipe speed is not a power control. Straight swipes give straight shots. Change direction near the end of the swipe to curl left or right. A visible trail follows the gesture.
+
+Keyboard: arrows aim, Space shoots, Q/E adjust curl, Escape pauses. The game pauses when the tab is hidden. Cancelled touch gestures, extra fingers and screen rotation cannot launch an accidental shot.
+
+Choose **Easy**, **Normal** or **Hard** from the home menu or before a penalty. Easy is the initial setting. The levels change reaction time, dive speed, reach, accuracy, wrong-way guesses and rival scoring. In the checked-in seeded 3,000-shot calibration, save rates are approximately 17%, 37% and 60%; these are simulation measurements, not predicted player success rates.
 
 ## Verification
 ```sh

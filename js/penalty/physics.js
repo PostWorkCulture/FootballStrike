@@ -1,9 +1,13 @@
 /* Deterministic 120 Hz penalty simulation. Coordinates: goal z=0, ball z=11. */
 (function(root){
 'use strict';
-const R=.11,G=9.81,STEP=1/120;
+const R=.11,G=9.81,STEP=1/120,SHOT_POWER=.7,KICK_DELAY=.18;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const DIFFICULTY={rookie:{reaction:.23,reach:2.15,error:.65,rival:.55},pro:{reaction:.16,reach:2.65,error:.4,rival:.68},elite:{reaction:.11,reach:3.05,error:.22,rival:.78}};
+const DIFFICULTY={
+ rookie:{label:'Easy',description:'More time to beat the keeper',reaction:.23,duration:.42,reach:1.95,error:1.15,wrongWay:.28,rival:.48},
+ pro:{label:'Normal',description:'A balanced challenge',reaction:.16,duration:.36,reach:2.45,error:.85,wrongWay:.20,rival:.62},
+ elite:{label:'Hard',description:'Faster reactions, tighter angles',reaction:.12,duration:.34,reach:2.7,error:.75,wrongWay:.17,rival:.74}
+};
 function rng(seed){let s=seed>>>0;return ()=>{s=(Math.imul(1664525,s)+1013904223)>>>0;return s/4294967296;};}
 function createShot(x,y,power,curve){
 power=clamp(power,.15,1);curve=clamp(curve,-1,1);x=clamp(x,-5.5,5.5);y=clamp(y,R,4.5);
@@ -12,15 +16,16 @@ const vx=(x-.5*ax*T*T)/T,vy=(y-R+.5*G*T*T)/T;
 return {x:0,y:R,z:11,vx,vy,vz:-speed,ax,T,power,curve,targetX:x,targetY:y,speed:Math.hypot(vx,vy,speed)*3.6};
 }
 function keeperAt(k,t,out){
-const a=clamp((t-k.reaction)/.3,0,1),u=a*a*(3-2*a);
+const a=clamp((t-k.reaction)/(k.duration||.36),0,1),u=a*a*(3-2*a);
 out.x=k.x*u;out.y=1+Math.max(0,k.y-1)*u-.65*u*(k.y<.8?1:0);
 out.roll=-Math.sign(k.x)*1.12*u*clamp(Math.abs(k.x)/1.7,0,1);out.extension=.33+.58*u;
 return out;
 }
 function makeKeeper(shot,difficulty,random){
 const d=DIFFICULTY[difficulty]||DIFFICULTY.pro;
-const guess=random()<.13?-Math.sign(shot.targetX||1):Math.sign(shot.targetX||1);
-return {reaction:d.reaction,x:clamp(guess*Math.abs(shot.targetX)+(random()-.5)*d.error*2,-d.reach,d.reach),y:clamp(shot.targetY+(random()-.5)*d.error,.35,2.1)};
+// Commit to a fallible read. Every level can guess wrong, and curl costs reaction time.
+const guess=random()<d.wrongWay?-Math.sign(shot.targetX||1):Math.sign(shot.targetX||1);
+return {reaction:d.reaction+Math.abs(shot.curve)*.035,duration:d.duration,x:clamp(guess*Math.abs(shot.targetX)+(random()-.5)*d.error*2,-d.reach,d.reach),y:clamp(shot.targetY+(random()-.5)*d.error*1.3,.35,2.1)};
 }
 function pointSegmentDistance(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,n=dx*dx+dy*dy;const t=n?clamp(((px-ax)*dx+(py-ay)*dy)/n,0,1):0;return Math.hypot(px-ax-dx*t,py-ay-dy*t);}
 class Flight{
@@ -77,6 +82,6 @@ class Shootout{
  }
  get score(){return [this.home.filter(Boolean).length,this.away.filter(Boolean).length];}
 }
-root.FSPhysics={R,G,STEP,clamp,rng,createShot,makeKeeper,keeperAt,Flight,Shootout,DIFFICULTY};
+root.FSPhysics={R,G,STEP,SHOT_POWER,KICK_DELAY,clamp,rng,createShot,makeKeeper,keeperAt,Flight,Shootout,DIFFICULTY};
 if(typeof module!=='undefined')module.exports=root.FSPhysics;
 })(typeof window!=='undefined'?window:globalThis);

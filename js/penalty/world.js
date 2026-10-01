@@ -230,16 +230,20 @@ class World{
  resize(){this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();this.renderer.setSize(innerWidth,innerHeight);this.setView(this.mode,true);}
  setView(mode,instant=false){
  this.mode=mode;const mobile=innerWidth<700;
+ // Country preview and cinematic replays show the footballer. Active shooting is at eye level.
+ this.striker.visible=mode==='home'||mode==='nations'||mode==='replay';
  if(mode==='home'||mode==='nations'){
  this.cameraGoal.set(mobile?3.8:4.1,mobile?2.15:2.2,mobile?18.2:16.4);this.lookGoal.set(mobile?-.6:-.9,mobile?.42:.15,mobile?10.9:10.6);
  this.camera.fov=mobile?43:36;this.striker.position.set(mobile?.75:.85,0,12);this.striker.rotation.y=.35;this.ball.position.set(mobile?.25:.25,.11,12.7);this.keeper.visible=false;
  }else if(mode==='replay'){
  this.cameraGoal.set(8,3.4,5.8);this.lookGoal.set(0,1.1,3);this.camera.fov=45;
  }else{
- this.cameraGoal.set(0,mobile?3.6:2.8,mobile?22:19);this.lookGoal.set(0,mobile?.55:.3,2);this.camera.fov=mobile?46:39;
+ const landscape=innerHeight<540&&innerWidth>innerHeight,aspect=innerWidth/innerHeight;
+ this.cameraGoal.set(0,1.72,landscape?15.5:14.2);this.lookGoal.set(0,landscape?-.65:-.9,0);
+ this.camera.fov=landscape?52:Math.max(54,2*Math.atan(.33/aspect)*180/Math.PI);
  this.striker.rotation.y=Math.PI;this.keeper.rotation.y=0;
  }
- this.camera.updateProjectionMatrix();if(instant){this.camera.position.copy(this.cameraGoal);this.look.copy(this.lookGoal);this.camera.lookAt(this.look);}
+ this.camera.updateProjectionMatrix();if(instant){this.camera.position.copy(this.cameraGoal);this.look.copy(this.lookGoal);this.camera.lookAt(this.look);this.camera.updateMatrixWorld(true);}
  }
  screenPoint(x,y,z,out){V.set(x,y,z).project(this.camera);out.x=(V.x*.5+.5)*innerWidth;out.y=(-V.y*.5+.5)*innerHeight;return out;}
  screenToAim(x,y,out){this.mouse.set(x/innerWidth*2-1,-y/innerHeight*2+1);this.ray.setFromCamera(this.mouse,this.camera);this.ray.ray.intersectPlane(this.plane,this.aimPoint);out.x=P.clamp(this.aimPoint.x,-5.5,5.5);out.y=P.clamp(this.aimPoint.y,.11,4.5);return out;}
