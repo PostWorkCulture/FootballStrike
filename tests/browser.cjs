@@ -26,7 +26,7 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await page.click('[data-id="swe"]');});
  await screenshot('02-nations-desktop');await page.click('#nation-confirm');
  await check('Easy, Normal and Hard are visible, and Easy is the initial setting',async()=>{
- assert.deepEqual(await page.$eval('#difficulty option',nodes=>nodes.map(e=>e.textContent)),['Easy','Normal','Hard']);
+ assert.deepEqual(await page.$$eval('#difficulty option',nodes=>nodes.map(e=>e.textContent)),['Easy','Normal','Hard']);
  assert.equal((await snap()).difficulty,'rookie');await page.select('#difficulty','elite');
  });
  await check('difficulty can change before a penalty and remains synchronised',async()=>{
