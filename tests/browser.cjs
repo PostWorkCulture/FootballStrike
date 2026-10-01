@@ -167,10 +167,10 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  async function checkFraming(){
  const geometry=await page.evaluate(()=>{
  const b=FootballStrike.project(FootballStrike.snapshot().originX,.11,11),left=FootballStrike.project(-3.66,2.44,0),right=FootballStrike.project(3.66,2.44,0);
- return {b,left,right,width:innerWidth,height:innerHeight,settings:(()=>{const r=document.getElementById('match-settings').getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};})(),score:document.querySelector('.scoreboard').getBoundingClientRect().bottom};
+ return {b,left,right,width:innerWidth,height:innerHeight,toolsLeft:document.querySelector('.match-tools').getBoundingClientRect().left,settings:(()=>{const r=document.getElementById('match-settings').getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};})(),score:document.querySelector('.scoreboard').getBoundingClientRect().bottom};
  });
  assert.ok(geometry.b.y<geometry.height-25);assert.ok(geometry.b.y>geometry.score);
- assert.ok(geometry.settings.left<40&&geometry.settings.top<130&&geometry.settings.right<geometry.width/2);
+ assert.ok(geometry.toolsLeft<40&&geometry.settings.left>=geometry.toolsLeft&&geometry.settings.top<130&&geometry.settings.right<geometry.width/2);
  assert.ok(geometry.settings.right<geometry.left.x||geometry.settings.bottom<Math.min(geometry.left.y,geometry.right.y)-8);
  assert.equal(await page.$('#shot-help'),null);assert.equal(await page.$('#aim-reticle'),null);
  assert.ok(geometry.left.x>8&&geometry.right.x<geometry.width-8);assert.ok(geometry.left.y>geometry.score+5);

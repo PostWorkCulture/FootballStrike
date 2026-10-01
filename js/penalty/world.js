@@ -150,43 +150,43 @@ class World{
  this.contactShadow=this.mesh(new T.PlaneGeometry(.52,.52),new T.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false}),0,.018,11);this.contactShadow.rotation.x=-Math.PI/2;this.contactShadow.castShadow=false;
  }
  makeTargets(){
- this.targets=[];this.targetColours=[0xff4f9a,0x36ddff,0xff913d,0xb082ff];
+ this.targets=[];this.targetColours=[0xff287f,0x00c7f2,0xff7428,0x9747ff];
  const positions=[[-2.65,1.8],[2.65,1.8],[-2.7,.65],[2.7,.65]];
  const star=new T.Shape();for(let i=0;i<10;i++){const a=i*Math.PI/5+Math.PI/2,r=i%2?.085:.17,x=Math.cos(a)*r,y=Math.sin(a)*r;if(i)star.lineTo(x,y);else star.moveTo(x,y);}star.closePath();
  const starGeometry=new T.ShapeGeometry(star);
  positions.forEach((p,i)=>{
  const group=new T.Group(),colour=this.targetColours[i];group.position.set(p[0],p[1],.1);
- const outer=new T.Mesh(new T.TorusGeometry(.38,.038,8,48),new T.MeshBasicMaterial({color:colour}));group.add(outer);
+ const outer=new T.Mesh(new T.TorusGeometry(.38,.038,8,48),new T.MeshBasicMaterial({color:new T.Color(colour).convertSRGBToLinear(),toneMapped:false}));group.add(outer);
  const inner=new T.Mesh(new T.TorusGeometry(.265,.013,6,40),new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.8}));inner.position.z=.012;group.add(inner);
- const core=new T.Mesh(new T.CircleGeometry(.34,32),new T.MeshBasicMaterial({color:colour,transparent:true,opacity:.24,depthWrite:false}));core.position.z=-.012;group.add(core);
+ const core=new T.Mesh(new T.CircleGeometry(.34,32),new T.MeshBasicMaterial({color:new T.Color(colour).convertSRGBToLinear(),toneMapped:false,transparent:true,opacity:.32,depthWrite:false}));core.position.z=-.012;group.add(core);
  const badge=new T.Mesh(starGeometry,new T.MeshBasicMaterial({color:0xffffff}));badge.position.z=.025;group.add(badge);
  group.visible=false;this.scene.add(group);this.targets.push(group);
  });
  this.activeTarget=-1;
  // Reuse one particle pool for every target burst.
- this.burstAge=-1;this.burstCount=36;this.burstVelocity=new Float32Array(this.burstCount*3);
+ this.burstAge=-1;this.burstCount=48;this.burstVelocity=new Float32Array(this.burstCount*3);
  this.targetBurst=new T.Group();this.targetBurst.visible=false;this.scene.add(this.targetBurst);
- this.burstMaterial=new T.MeshBasicMaterial({color:0xffffff,transparent:true,depthWrite:false});
- this.burstParticles=new T.InstancedMesh(new T.IcosahedronGeometry(.055,0),this.burstMaterial,this.burstCount);this.burstParticles.frustumCulled=false;this.targetBurst.add(this.burstParticles);
+ this.burstMaterial=new T.MeshBasicMaterial({color:0xffffff,toneMapped:false,transparent:true,depthWrite:false});
+ this.burstParticles=new T.InstancedMesh(new T.IcosahedronGeometry(.085,0),this.burstMaterial,this.burstCount);this.burstParticles.frustumCulled=false;this.targetBurst.add(this.burstParticles);
  for(let i=0;i<this.burstCount;i++){const a=i*2.39996323,speed=1.3+(i%7)*.26;this.burstVelocity[i*3]=Math.cos(a)*speed;this.burstVelocity[i*3+1]=Math.sin(a)*speed+1.1;this.burstVelocity[i*3+2]=.6+(i%5)*.19;}
- this.burstRing=new T.Mesh(new T.RingGeometry(.32,.39,48),new T.MeshBasicMaterial({color:0xffffff,transparent:true,depthWrite:false,side:T.DoubleSide}));this.targetBurst.add(this.burstRing);
+ this.burstRing=new T.Mesh(new T.RingGeometry(.32,.39,48),new T.MeshBasicMaterial({color:0xffffff,toneMapped:false,transparent:true,depthWrite:false,side:T.DoubleSide}));this.targetBurst.add(this.burstRing);
  const lineG=new T.BufferGeometry();lineG.setAttribute('position',new T.BufferAttribute(new Float32Array(33*3),3));
  this.trajectory=new T.Line(lineG,new T.LineDashedMaterial({color:0xdcf8a3,dashSize:.15,gapSize:.13,transparent:true,opacity:.65}));this.trajectory.visible=false;this.scene.add(this.trajectory);
  }
  hitTarget(index){
  const target=this.targets[index];if(!target)return;
  target.visible=false;this.targetBurst.position.copy(target.position);this.targetBurst.visible=true;this.burstAge=0;
- this.burstRing.material.color.setHex(this.targetColours[index]);this.burstRing.material.opacity=1;this.burstRing.scale.setScalar(1);
+ this.burstRing.material.color.setHex(this.targetColours[index]).convertSRGBToLinear();this.burstRing.material.opacity=1;this.burstRing.scale.setScalar(1);
  this.burstMaterial.opacity=1;
- for(let i=0;i<this.burstCount;i++){O.position.set(0,0,0);O.rotation.set(0,0,0);O.scale.setScalar(1);O.updateMatrix();this.burstParticles.setMatrixAt(i,O.matrix);this.burstParticles.setColorAt(i,COL.setHex(i%3===0?0xffffff:this.targetColours[(index+i%2)%4]));}
+ for(let i=0;i<this.burstCount;i++){O.position.set(0,0,0);O.rotation.set(0,0,0);O.scale.setScalar(1);O.updateMatrix();this.burstParticles.setMatrixAt(i,O.matrix);this.burstParticles.setColorAt(i,COL.setHex(i%6===0?0xffffff:this.targetColours[(index+i%3)%4]).convertSRGBToLinear());}
  this.burstParticles.instanceColor.needsUpdate=true;this.burstParticles.instanceMatrix.needsUpdate=true;
  }
  updateTargetBurst(dt){
  if(this.burstAge<0)return;
  this.burstAge+=dt;const t=this.burstAge,u=Math.min(1,t/.85);
  if(u>=1){this.targetBurst.visible=false;this.burstAge=-1;return;}
- this.burstMaterial.opacity=1-u;this.burstRing.material.opacity=(1-u)*(1-u);this.burstRing.scale.setScalar(1+u*5);
- for(let i=0;i<this.burstCount;i++){const j=i*3;O.position.set(this.burstVelocity[j]*t,this.burstVelocity[j+1]*t-2.8*t*t,this.burstVelocity[j+2]*t);O.rotation.set(t*(i%4+2),t*(i%5+1),i+t*3);O.scale.setScalar((1-u)*(.8+i%3*.3));O.updateMatrix();this.burstParticles.setMatrixAt(i,O.matrix);}
+ this.burstMaterial.opacity=1-u*u;this.burstRing.material.opacity=(1-u)*(1-u);this.burstRing.scale.setScalar(1+u*5);
+ for(let i=0;i<this.burstCount;i++){const j=i*3;O.position.set(this.burstVelocity[j]*t,this.burstVelocity[j+1]*t-2.8*t*t,this.burstVelocity[j+2]*t);O.rotation.set(t*(i%4+2),t*(i%5+1),i+t*3);O.scale.setScalar((1-u*.5)*(.8+i%3*.3));O.updateMatrix();this.burstParticles.setMatrixAt(i,O.matrix);}
  this.burstParticles.instanceMatrix.needsUpdate=true;
  }
  makeActors(){
