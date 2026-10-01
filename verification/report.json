@@ -6,11 +6,14 @@
     "difficulty can change before a penalty and remains synchronised",
     "training starts with a stationary ball during the run-up",
     "a real scored penalty increments training once",
-    "replay returns without counting the goal twice",
+    "replay pauses automatic progression, then returns to the next penalty without counting twice",
     "the ball is clearly above the bottom controls",
     "mouse swipe shoots, and pause freezes the simulation",
     "mouse direction controls curl; straight strokes and different speeds keep the same shot pace",
     "free drawing retains a vertical arch and both turns of an S shot without a line",
+    "goals, misses, woodwork and saves advance automatically without counting twice",
+    "automatic progression waits for the goalkeeper to finish recovering",
+    "pausing a finished shot also pauses automatic progression",
     "quit and restart clear shot and match state",
     "five-shot match or sudden death reaches a result and restarts",
     "keyboard aiming and Space release fire a penalty",
@@ -19,11 +22,13 @@
     "settings persist and performance mode works",
     "mobile menu and nation grid fit the viewport",
     "touch swipe scores a straight penalty on a phone without scrolling",
+    "a phone penalty resets automatically for the next touch shot",
     "cancelled touch and screen rotation do not launch accidental penalties",
     "phone landscape keeps the goal, ball and controls usable",
     "tablet portrait and landscape support curved touch shots and difficulty selection",
     "a second finger does not replace the active shooting gesture",
     "a touch-drawn arch uses the full flight path and lands at the target",
+    "the real animation clock advances to the next penalty without further input",
     "no JavaScript or WebGL shader errors"
   ],
   "errors": [],
@@ -43,7 +48,7 @@
     "13-tablet-landscape.jpg",
     "00-original-game.jpg"
   ],
-  "started": "2026-10-01T17:10:13.773Z",
+  "started": "2026-10-01T17:26:50.209Z",
   "passed": true,
   "render": {
     "phase": "menu",
@@ -64,7 +69,7 @@
     "drawCalls": 77,
     "triangles": 984456,
     "crowd": 8133,
-    "averageFrameMs": 794.5,
+    "averageFrameMs": 848.0333333333352,
     "stage": 0,
     "view": "home",
     "strikerVisible": true,
@@ -78,5 +83,5 @@
     "keeperStage": "set",
     "keeperLoaded": true
   },
-  "finished": "2026-10-01T17:16:32.961Z"
+  "finished": "2026-10-01T17:35:01.423Z"
 }
