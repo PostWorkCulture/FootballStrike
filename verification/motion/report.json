@@ -52,7 +52,7 @@
     {
       "file": "low-left-8.jpg",
       "name": "low-left",
-      "time": 2.4099104898331127,
+      "time": 2.549910489833113,
       "stage": "set"
     },
     {
@@ -106,7 +106,7 @@
     {
       "file": "mid-right-8.jpg",
       "name": "mid-right",
-      "time": 2.9029871972556744,
+      "time": 3.2629871972556743,
       "stage": "set"
     },
     {
@@ -160,8 +160,8 @@
     {
       "file": "high-left-8.jpg",
       "name": "high-left",
-      "time": 3.362545802640554,
-      "stage": "shuffle"
+      "time": 3.682545802640554,
+      "stage": "set"
     },
     {
       "file": "central-0.jpg",

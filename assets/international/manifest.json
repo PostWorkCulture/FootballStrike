@@ -4,6 +4,7 @@
   "ball": "match-ball.glb",
   "player_source": "footballer.blend",
   "notes": "Original articulated meshes with separate country kit material channels.",
+  "asset_source_sha": "0addf5e8bed47edaa58f534aaa4b24f07c12808f60d05cb35f6c3c244c86afc1",
   "keeper": "keeper.glb",
   "keeper_source": "keeper.blend",
   "keeper_rig": "16-bone anatomical armature with continuous elbow/knee skinning"
