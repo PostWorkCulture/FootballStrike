@@ -1,15 +1,41 @@
-# Football Strike 3D
+# Football Strike: International
 
-A 3D penalty shootout football game built with Three.js and Cannon.js.
+Three.js penalty football with Blender-authored articulated players and a stitched match ball.
 
-## Features
+## Play modes
+- **Nations Cup:** three knockout rounds against CPU rivals.
+- **Shootout:** five penalties per side, early resolution and paired sudden death. Rival penalties are simulated.
+- **Target Rush:** 45 seconds, corner targets, streak bonuses and a saved personal best.
+- **Training:** unlimited penalties, optional goalkeeper and an aiming trajectory.
 
-- **Realistic Turf**: High-granularity hybrid grass with procedural micro-shading, directional mower striping, and floodlight bump mapping.
-- **Regulation Markings**: Accurate FIFA-spec chalk boundary lines, 11m penalty spot with boot wear divots, and goalmouth wear trough.
-- **Physics Simulation**: Aerodynamic Magnus effect trajectory swerve and collision responses.
-- **Swipe-to-Shoot Controls**: Gesture velocity and curvature recognition for power, loft, and curve.
-- **3D Stadium Atmosphere**: Spectator grandstands, stadium floodlights, and animated goalkeeper.
+Choose Sweden, England, Norway, Brazil, Italy, France, Germany, Argentina, Spain, Portugal, Netherlands or Mexico. The twelve home-strip recreations have distinct palettes and patterns; exact official crests and final pattern matching remain outstanding. See [kit references](docs/KIT_REFERENCES.md).
 
-## Live Demo
+## Run
+Node.js 22:
+```sh
+npm install
+npm start
+```
+Open http://localhost:8080. Assets are generated in the feature-branch CI and checked in after verification. If absent, install Blender and run:
+```sh
+npm run build:assets
+```
 
-Play directly in the browser: [https://postworkculture.github.io/FootballStrike/](https://postworkculture.github.io/FootballStrike/)
+## Controls
+Drag from the ball towards the goal, then release. Faster swipes add power. The curl slider bends the flight. Keyboard: arrows aim, hold/release Space shoots, Q/E adjust curl, Escape pauses. The game pauses when the tab is hidden.
+
+## Verification
+```sh
+npm test
+npm run verify
+```
+Deterministic physics tests cover scoring, posts, keeper saves, full-ball goal-line crossing, reproducibility and shootout rules. Puppeteer checks the actual UI on desktop, mobile and landscape. Results and screenshots are written to `verification/`. Performance readings from software-rendered CI are diagnostic, not a physical-device FPS guarantee.
+
+## Architecture
+- `js/penalty/physics.js`: deterministic fixed-step ball and shootout rules.
+- `js/penalty/world.js`: Three.js lighting, pitch, instanced crowd, stadium, net and actor rendering.
+- `js/penalty/game.js`: menus, input, match state, replay and sound.
+- `tools/build_international_assets.py`: reproducible Blender source for GLB players and ball.
+- `legacy.html`: original game retained for comparison and rollback.
+
+The original GitHub Pages deployment stays on main until the overhaul is reviewed and merged. This is a single-player build; it does not implement online multiplayer.
