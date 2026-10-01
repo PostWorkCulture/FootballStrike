@@ -103,3 +103,11 @@ test('keeper feet plant before take-off and visible gloves determine contact',()
  K.poseAt(k,k.start+.20,p);assert.ok(p.joints[K.J.la*3+1]>.2&&p.joints[K.J.ra*3+1]>.2);
  const i=K.J.rf*3;assert.equal(K.contact(p,p.joints[i],p.joints[i+1],p.joints[i+2]),'glove');assert.equal(K.contact(p,7,1,.7),null);
 });
+
+test('high central shots trigger a two-foot vertical jump with grounded landing',()=>{
+ const k=K.plan(0,2.3,.08),p=K.createPose();assert.equal(k.leap,true);
+ K.poseAt(k,k.start+.18,p);assert.equal(p.stage,'jump');assert.ok(p.y>1.05);assert.ok(Math.abs(p.roll)<1e-8);
+ assert.ok(p.joints[K.J.la*3+1]>.30&&p.joints[K.J.ra*3+1]>.30);
+ K.poseAt(k,k.leapLand+.12,p);assert.equal(p.stage,'land');assert.ok(p.joints[K.J.la*3+1]<.101&&p.joints[K.J.ra*3+1]<.101);
+ K.poseAt(k,1.5,p);assert.ok(Math.abs(p.y-.83)<1e-8);
+});

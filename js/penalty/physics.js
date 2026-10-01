@@ -76,7 +76,7 @@ class Flight{
  const u=n/4,x=mix(px,b.x,u),y=mix(py,b.y,u),z=mix(pz,b.z,u),at=this.time-dt+dt*u;
  keeperAt(this.keeper,at,this.hitPose);const part=K.contact(this.hitPose,x,y,z,R);
  if(part){
- this.outcome='saved';this.savePart=part;this.keeper.saveAt=at;this.caught=part==='glove'&&this.keeper.kind==='centre';this.keeper.caught=this.caught;
+ this.outcome='saved';this.savePart=part;this.keeper.saveAt=at;this.caught=part==='glove'&&this.keeper.kind==='centre'&&!this.keeper.leap;this.keeper.caught=this.caught;
  b.x=x;b.y=y;b.z=z;b.vz=Math.abs(b.vz)*.28;b.vx=this.keeper.dir*(3.5+Math.abs(b.vx)*.25);b.vy=Math.min(3.5,.65+Math.abs(b.vy)*.2);b.ax=0;return;
  }
  }

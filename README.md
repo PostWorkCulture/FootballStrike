@@ -25,10 +25,10 @@ Shooting uses a first-person eye-level view. Draw the full flight of your shot w
 
 Keyboard: arrows aim, Space shoots, Q/E adjust curl, Escape pauses. The game pauses when the tab is hidden. Cancelled touch gestures, extra fingers and screen rotation cannot launch an accidental shot.
 
-Choose **Easy**, **Normal** or **Hard** from the home menu or before a penalty. Easy is the initial setting. The levels change reaction time, dive speed, reach, accuracy, wrong-way guesses and rival scoring. In the checked-in seeded 3,000-shot calibration, save rates are approximately 15%, 27% and 39%; these are simulation measurements, not predicted player success rates.
+Choose **Easy**, **Normal** or **Hard** from the home menu or before a penalty. Easy is the initial setting. The levels change reaction time, dive speed, reach, accuracy, wrong-way guesses and rival scoring. In the checked-in seeded 3,000-shot calibration, save rates are approximately 15%, 27.5% and 40%; these are simulation measurements, not predicted player success rates.
 
 ## Goalkeeper
-The goalkeeper uses a dedicated Blender skinned model. Its joint animation includes a bent-knee set, a planted step and push-off, separate low/mid/high dives, hands leading the reach, side landing, a supporting hand, kneeling recovery and stepping back into position. Central saves remain upright. Collision capsules follow the visible gloves and limbs; the keeper commits to an imperfect read of the early shot direction. Replays reproduce the full motion.
+The goalkeeper uses a dedicated Blender skinned model. Its joint animation includes a bent-knee set, a planted step and push-off, separate low/mid/high dives, hands leading the reach, side landing, a supporting hand, kneeling recovery and stepping back into position. Central saves use an upright block; high central shots trigger a vertical jump and parry. Collision capsules follow the visible gloves and limbs; the keeper commits to an imperfect read of the early shot direction. Replays reproduce the full motion.
 
 ## Verification
 ```sh

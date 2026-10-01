@@ -27,7 +27,7 @@ Read verification/report.json for the actual browser test outcome. No claim of s
 ## Freehand and goalkeeper revision (2.2)
 - Sixty-five resampled gesture points become a perspective-correct world path. Timing depends on path distance at a fixed pace, rather than input-event speed.
 - Dedicated original Blender goalkeeper with a continuous skinned body, elbow/knee weights, proportionate head, boots and detailed gloves.
-- The deterministic joint solver uses planted feet, push-off, ballistic root motion, leading/trailing arms, separate low/mid/high dives, side landing and recovery. Central shots use an upright block/catch.
+- The deterministic joint solver uses planted feet, push-off, ballistic root motion, leading/trailing arms, separate low/mid/high dives, side landing and recovery. Central shots use an upright block/catch; high central shots trigger a two-foot jump and parry.
 - Visible joints also drive swept ball contact. The old planar reach volume is removed.
 - Replay and next-penalty timing preserve the recovery sequence.
 - Motion review evidence: verification/motion/report.json and the low-left, mid-right, high-left and central contact sheets. The browser capture checks skin-bone alignment against collision joints.

@@ -34,8 +34,9 @@ function plan(x,y,reaction,maxSpeed=3.7){
  const push=.13,start=reaction+push,vy=kind==='high'?2.6:kind==='mid'?1.6:.1,startY=.83;
  const air=(vy+Math.sqrt(vy*vy+2*9.81*(startY-.36)))/9.81;
  const vx=dir*Math.min(maxSpeed,2.2+Math.abs(x)*.62,2.85/air);
+ const leap=kind==='centre'&&y>1.75,leapVy=2.15+Math.max(0,y-1.75)*.8,leapLand=start+2*leapVy/9.81;
  const land=start+air,landX=dir*.18+vx*air,cycles=Math.max(2,Math.ceil((Math.abs(landX)+.16)/.43));
- return {x,y,dir,kind,reaction,push,start,startY,vy,vx,land,landX,cycles,returnStart:land+.94,endTime:kind==='centre'?1.5:land+.94+cycles*.26,saveAt:-1};
+ return {x,y,dir,kind,leap,leapVy,leapLand,reaction,push,start,startY,vy,vx,land,landX,cycles,returnStart:land+.94,endTime:kind==='centre'?1.5:land+.94+cycles*.26,saveAt:-1};
 }
 function shuffleTravel(k,side,p){
  const delay=side===k.dir?0:.5,phase=p*k.cycles-delay;
@@ -50,6 +51,12 @@ function poseAt(k,t,o){
  if(kind==='centre'){
  const action=smooth((t-k.reaction)/.16),release=1-smooth((t-.65)/.5),u=action*release;
  o.y-=Math.max(0,.8-k.y)*.28*u;o.pitch+=.10*u;o.stage=u>.01?'block':'set';o.extension=u;
+ if(k.leap){
+ o.extension=action*(1-smooth((t-k.leapLand+.06)/.38));o.pitch=.14;
+ if(t<k.start){o.y=.83-.065*Math.sin(load*Math.PI);o.stage=load>0?'plant':'set';}
+ else if(t<k.leapLand){const air=t-k.start;o.y=.83+k.leapVy*air-4.905*air*air;o.pitch=.14-.06*smooth(air/.12);o.stage='jump';}
+ else{const settle=clamp((t-k.leapLand)/.20,0,1);o.y=.83-.055*Math.sin(settle*Math.PI);o.pitch=.08+.06*smooth(settle);o.stage=settle<1?'land':'set';}
+ }
  if(k===READY){o.x=Math.sin(time*1.25)*.008;o.y+=Math.sin(time*2.4)*.003;o.pitch+=Math.sin(time*2.4)*.004;}
  }else if(t<k.start){
  o.x=dir*.18*load;o.y=.83-.09*Math.sin(load*Math.PI);o.pitch=.14+.10*Math.sin(load*Math.PI);o.roll=-dir*.14*load;o.stage=load>0?'plant':'set';o.extension=load*.18;
@@ -72,7 +79,7 @@ function poseAt(k,t,o){
  local(o,shoulder,side*.255,.445,0);local(o,hip,side*.115,0,0);
  // Independent feet remain planted through loading; knees solve towards the pitch-facing pole.
  let fx=side*.34+dir*.18*load,fy=.10,fz=.05;
- if(o.stage==='set'||kind==='centre'){fx=side*.34;fy=.10;}
+ if(o.stage==='set'||kind==='centre'){fx=side*.34;fy=.10+(o.stage==='jump'?Math.max(0,o.y-.83):0);}
  else if(o.stage==='plant'){fx=side*.34+(side===dir?dir*.18*load:0);fy=.10+(side===dir?.025*Math.sin(load*Math.PI):0);}
  else if(o.stage==='shuffle'){
  const p=returning,delay=side===dir?0:.5,phase=p*k.cycles-delay,step=Math.max(0,Math.floor(phase)),part=phase<0?0:phase-step;
@@ -103,7 +110,8 @@ function poseAt(k,t,o){
  put(a,wrist,hx,Math.max(.15,hy),hz);
  ik(a,shoulder,elbow,wrist,upperArm,forearm,a[shoulder*3]+o.sr,a[shoulder*3+1]-o.cr,a[shoulder*3+2]);
  // Glove centre sits 6 cm beyond the wrist, palms facing the arriving ball.
- const handTurn=smooth(o.extension),handX=mix(side*.01,dir*.055,handTurn),handY=mix(-.085,-.025,handTurn),handZ=.04,handScale=.098/Math.hypot(handX,handY,handZ);
+ const handTurn=smooth(o.extension),reachX=k.x-sx,reachY=k.y-sy,reachLength=Math.max(.01,Math.hypot(reachX,reachY));
+ const handX=mix(side*.01,reachX/reachLength*.078,handTurn),handY=mix(-.085,reachY/reachLength*.078,handTurn),handZ=.04,handScale=.098/Math.hypot(handX,handY,handZ);
  put(a,fingers,a[wrist*3]+handX*handScale,a[wrist*3+1]+handY*handScale,a[wrist*3+2]+handZ*handScale);
  }
  return o;

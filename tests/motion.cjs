@@ -11,9 +11,9 @@ let browser;const report={passed:false,frames:[],errors:[],maxBoneError:0};
  await page.goto('http://127.0.0.1:8081/index.html?test=1',{waitUntil:'networkidle0',timeout:90000});await page.waitForFunction(()=>window.FootballStrike?.ready,{timeout:90000});
  await page.evaluate(()=>{FootballStrike.test.start('practice');FootballStrike.test.freeze(true);document.querySelectorAll('body > :not(#game):not(script)').forEach(e=>{if(!e.querySelector('canvas'))e.style.display='none';});});
  await page.addStyleTag({content:'body>*:not(#game):not(#scene):not(script){visibility:hidden!important} canvas{visibility:visible!important}'});
- for(const [name,x,y] of [['low-left',-2.8,.3],['mid-right',2.8,1.3],['high-left',-2.8,2.2],['central',0,1]]){
+ for(const [name,x,y] of [['low-left',-2.8,.3],['mid-right',2.8,1.3],['high-left',-2.8,2.2],['central',0,1],['central-high',0,2.3]]){
  const first=await page.evaluate(([x,y])=>FootballStrike.test.inspectKeeper(x,y,0),[x,y]),k=first.plan;
- const times=name==='central'?[0,.12,.20,.28,.36,.5,.7,1,1.5]:[0,.19,k.start+.09,k.start+.22,k.land-.025,k.land+.14,k.land+.4,k.returnStart-.1,k.endTime];
+ const times=name==='central-high'?[0,.19,k.start+.09,k.start+.22,k.start+.30,k.leapLand-.03,k.leapLand+.08,k.leapLand+.20,1.5]:name==='central'?[0,.12,.20,.28,.36,.5,.7,1,1.5]:[0,.19,k.start+.09,k.start+.22,k.land-.025,k.land+.14,k.land+.4,k.returnStart-.1,k.endTime];
  for(let i=0;i<times.length;i++){
  const t=times[i],state=await page.evaluate(([x,y,t])=>FootballStrike.test.inspectKeeper(x,y,t),[x,y,t]);assert.ok(state.skinMeshes>0);assert.ok(state.boneError<.0001);report.maxBoneError=Math.max(report.maxBoneError,state.boneError);
  const file=name+'-'+i+'.jpg';await page.screenshot({path:path.join(out,file),type:'jpeg',quality:91});report.frames.push({file,name,time:t,stage:state.pose.stage});
