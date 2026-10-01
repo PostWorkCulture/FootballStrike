@@ -23,6 +23,8 @@ npm run build:assets
 ## Controls
 Shooting uses a first-person eye-level view. Draw the full flight of your shot with a mouse, finger or pen, finish at your target and release. The ball follows the complete shape: straight, bent, arched or S-shaped. The drawing is invisible; a small reticle shows the endpoint. Shots have a fixed pace independent of drawing speed.
 
+The next penalty starts automatically after the result pause and the goalkeeper’s recovery. Replay suspends the transition until playback ends; completed matches open the results screen automatically.
+
 Keyboard: arrows aim, Space shoots, Q/E adjust curl, Escape pauses. The game pauses when the tab is hidden. Cancelled touch gestures, extra fingers and screen rotation cannot launch an accidental shot.
 
 Choose **Easy**, **Normal** or **Hard** from the home menu or before a penalty. Easy is the initial setting. The levels change reaction time, dive speed, reach, accuracy, wrong-way guesses and rival scoring. In the checked-in seeded 3,000-shot calibration, save rates are approximately 15%, 27.5% and 40%; these are simulation measurements, not predicted player success rates.

@@ -15,6 +15,8 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  const snap=()=>page.evaluate(()=>FootballStrike.snapshot());
  const step=s=>page.evaluate(t=>FootballStrike.test.step(t),s);
  const screenshot=async name=>{const bytes=await page.screenshot({path:path.join(output,name+'.jpg'),type:'jpeg',quality:84});fs.writeFileSync(path.join(output,name+'.base64.txt'),Buffer.from(bytes).toString('base64'));report.screenshots.push(name+'.jpg');};
+ // Keep simulation time deterministic while pointer events and rendering remain real.
+ await page.evaluateOnNewDocument(()=>addEventListener('DOMContentLoaded',()=>window.FootballStrike?.test?.setManualClock(true)));
  await page.goto('http://127.0.0.1:8080/?test=1',{waitUntil:'networkidle0',timeout:90000});
  await page.waitForFunction(()=>window.FootballStrike?.ready||!document.getElementById('error-screen').hidden,{timeout:90000});
  assert.equal(await page.evaluate(()=>window.FootballStrike?.ready),true,await page.$eval('#error-text',e=>e.textContent));
@@ -47,9 +49,9 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await step(1.25);
  await check('a real scored penalty increments training once',async()=>{const s=await snap();assert.equal(s.outcome,'goal');assert.equal(s.goals,1);assert.equal(s.shots,1);});
  await screenshot('03-goal-desktop');await step(1.0);
- await check('replay returns without counting the goal twice',async()=>{
- await page.click('#replay');assert.equal((await snap()).phase,'replay');assert.equal((await snap()).strikerVisible,true);await step(.4);await screenshot('10-replay');await step(14);assert.equal((await snap()).phase,'result');assert.equal((await snap()).shots,1);assert.equal((await snap()).strikerVisible,false);
- });await page.click('#next-shot');await screenshot('04-match-desktop');
+ await check('replay pauses automatic progression, then returns to the next penalty without counting twice',async()=>{
+ await page.click('#replay');assert.equal((await snap()).phase,'replay');assert.equal((await snap()).strikerVisible,true);await step(.4);await screenshot('10-replay');assert.equal((await snap()).phase,'replay');await step(14);assert.equal((await snap()).phase,'aim');assert.equal((await snap()).shots,1);assert.equal((await snap()).strikerVisible,false);
+ });await screenshot('04-match-desktop');
  await check('the ball is clearly above the bottom controls',async()=>{const ball=await page.evaluate(()=>FootballStrike.project(0,.11,11)),top=await page.$eval('#shot-controls',e=>e.getBoundingClientRect().top);assert.ok(ball.y>100&&ball.y<top-35);assert.equal((await snap()).strikerVisible,false);});
  await check('mouse swipe shoots, and pause freezes the simulation',async()=>{
  await page.evaluate(()=>FootballStrike.test.setKeeper(false));
@@ -83,10 +85,34 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await step(2);assert.equal((await snap()).outcome,'goal');
  }
  });
+ await check('goals, misses, woodwork and saves advance automatically without counting twice',async()=>{
+ for(const [x,y,keeper,outcome] of [[2.7,1.8,false,'goal'],[4.5,1,false,'wide'],[3.66,1,false,'post'],[0,1,true,'saved']]){
+ await page.evaluate(({x,y,keeper})=>{const t=FootballStrike.test;t.next();t.setCurve(0);t.setDifficulty('pro');t.setSeed(1);t.setKeeper(keeper);t.fire(x,y);},{x,y,keeper});
+ const before=(await snap()).shots;await step(1.2);assert.equal((await snap()).outcome,outcome);
+ assert.equal(await page.$('#next-shot'),null);
+ await step(5);const s=await snap();assert.equal(s.phase,'aim');assert.equal(s.shots,before+1);
+ assert.equal(await page.evaluate(()=>FootballStrike.test.getPhysics().ball.z),11);
+ assert.equal(await page.$eval('#shot-controls',e=>e.hidden),false);
+ }
+ });
+ await check('automatic progression waits for the goalkeeper to finish recovering',async()=>{
+ await page.evaluate(()=>{const t=FootballStrike.test;t.next();t.setKeeper(true);t.setDifficulty('pro');t.setSeed(1);t.fire(3,2);});
+ await step(3);let p=await page.evaluate(()=>FootballStrike.test.getPhysics());
+ assert.equal((await snap()).phase,'result');assert.ok(p.recoveryEnds>p.time+.2);
+ await step(p.recoveryEnds-p.time-.03);assert.equal((await snap()).phase,'result');
+ await step(.1);assert.equal((await snap()).phase,'aim');assert.equal((await snap()).keeperStage,'set');
+ });
+ await check('pausing a finished shot also pauses automatic progression',async()=>{
+ await page.evaluate(()=>{FootballStrike.test.setKeeper(false);FootballStrike.test.fire(2.7,1.8);});await step(1.4);
+ await page.click('#pause-open');const before=await page.evaluate(()=>FootballStrike.test.getPhysics());
+ await step(10);assert.equal((await snap()).phase,'result');assert.deepEqual(await page.evaluate(()=>FootballStrike.test.getPhysics()),before);
+ await page.click('#resume');await step(5);assert.equal((await snap()).phase,'aim');
+ await page.select('#match-difficulty','rookie');
+ });
  await check('quit and restart clear shot and match state',async()=>{await page.click('#pause-open');await page.click('#quit');await page.click('[data-mode="shootout"]');const s=await snap();assert.equal(s.shots,0);assert.deepEqual(s.score,[0,0]);assert.equal(s.phase,'aim');});
  await check('five-shot match or sudden death reaches a result and restarts',async()=>{
- for(let n=0;n<35;n++){await page.evaluate(()=>{FootballStrike.test.setKeeper(false);FootballStrike.test.fire(2.6,1.6,.8);});await step(2);
- const text=await page.$eval('#next-shot',e=>e.textContent);await page.click('#next-shot');if(text.includes('RESULT'))break;}
+ for(let n=0;n<35;n++){await page.evaluate(()=>{FootballStrike.test.setKeeper(false);FootballStrike.test.fire(2.6,1.6,.8);});await step(5);
+ if((await snap()).phase==='complete')break;assert.equal((await snap()).phase,'aim');}
  assert.equal((await snap()).phase,'complete');await screenshot('05-match-result');await page.click('#result-next');assert.equal((await snap()).shots,0);
  });
  await check('keyboard aiming and Space release fire a penalty',async()=>{
@@ -99,7 +125,7 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await page.click('[data-mode="cup"]');await page.evaluate(()=>FootballStrike.test.setSeed(7321));
  for(let round=0;round<3;round++){
  assert.equal((await snap()).stage,round);
- for(let n=0;n<35;n++){await page.evaluate(()=>{FootballStrike.test.setKeeper(false);FootballStrike.test.fire(2.7,1.7,.8);});await step(2);const label=await page.$eval('#next-shot',e=>e.textContent);await page.click('#next-shot');if(label.includes('RESULT'))break;}
+ for(let n=0;n<35;n++){await page.evaluate(()=>{FootballStrike.test.setKeeper(false);FootballStrike.test.fire(2.7,1.7,.8);});await step(5);if((await snap()).phase==='complete')break;assert.equal((await snap()).phase,'aim');}
  assert.equal((await snap()).phase,'complete');assert.ok((await page.$eval('#result-title',e=>e.textContent)).match(/through|Champions/));
  if(round<2)await page.click('#result-next');
  }
@@ -138,8 +164,10 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await checkFraming();await touchStroke();assert.equal((await snap()).shots,1);assert.equal((await snap()).goals,1);assert.equal((await snap()).shotCurve,0);assert.equal((await snap()).drawnShot,true);assert.equal((await snap()).pathPoints,65);
  assert.equal(await page.evaluate(()=>scrollY),0);
  });
+ await check('a phone penalty resets automatically for the next touch shot',async()=>{
+ await step(3);assert.equal((await snap()).phase,'aim');assert.equal((await snap()).shots,1);
+ });
  await check('cancelled touch and screen rotation do not launch accidental penalties',async()=>{
- await page.evaluate(()=>FootballStrike.test.next());
  const b=await page.evaluate(()=>FootballStrike.project(0,.11,11));
  await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:b.x,y:b.y,id:0}]});
  await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:b.x+20,y:b.y-35,id:0}]});
@@ -180,6 +208,12 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  const shot=await page.evaluate(()=>{const s=FootballStrike.test.getShot();return {apex:s.maxY,end:s.targetY,drawn:s.drawn};});assert.ok(shot.drawn&&shot.apex>shot.end+.4);
  await step(2);assert.equal((await snap()).outcome,'goal');assert.equal(await page.evaluate(()=>scrollY),0);
+ });
+ await check('the real animation clock advances to the next penalty without further input',async()=>{
+ const before=await page.evaluate(()=>{const t=FootballStrike.test;t.next();t.setKeeper(false);t.setCurve(0);const n=FootballStrike.snapshot().shots;t.setManualClock(false);t.fire(2.7,1.8);return n;});
+ await page.waitForFunction(n=>FootballStrike.snapshot().phase==='aim'&&FootballStrike.snapshot().shots===n+1,{timeout:90000},before);
+ assert.equal(await page.evaluate(()=>FootballStrike.test.getPhysics().ball.z),11);assert.equal(await page.$('#next-shot'),null);
+ await page.evaluate(()=>FootballStrike.test.setManualClock(true));
  });
  await check('no JavaScript or WebGL shader errors',async()=>assert.deepEqual(report.errors,[]));
  const legacy=await browser.newPage();

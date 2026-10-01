@@ -32,3 +32,9 @@ Read verification/report.json for the actual browser test outcome. No claim of s
 - Replay and next-penalty timing preserve the recovery sequence.
 - Motion review evidence: verification/motion/report.json and the low-left, mid-right, high-left and central contact sheets. The browser capture checks skin-bone alignment against collision joints.
 - Reference cues: FIFA Training Centre, [mid-height dives](https://www.fifatrainingcentre.com/en/environment/fifa-goalkeeper-training/goalkeeping-fundamentals/learning-to-dive-at-mid-height.php) and [high dives](https://www.fifatrainingcentre.com/en/environment/fifa-goalkeeper-training/goalkeeping-fundamentals/learning-to-dive-high.php). The movement is procedural animation, not motion capture.
+
+
+## Automatic shot progression (2.2.1)
+- Removed the Next Penalty button. Goals, saves, misses and woodwork hits advance automatically after a short result pause and complete goalkeeper recovery.
+- Replay and pause suspend progression. Final shootout and cup penalties open match results automatically; Target Rush retains its faster pacing.
+- Browser verification covers each outcome, recovery timing, replay, pause, full matches, phone touch and automatic advancement with the real animation clock.

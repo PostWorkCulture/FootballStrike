@@ -19,10 +19,10 @@ let browser;
  await page.waitForFunction(()=>window.FootballStrike?.ready,{timeout:90000});
  report.home=await page.evaluate(()=>FootballStrike.snapshot());
  await page.click('[data-mode="practice"]');
- await page.evaluate(()=>{FootballStrike.test.setKeeper(false);FootballStrike.test.fire(2.7,1.8,.8);FootballStrike.test.step(2);});
+ await page.evaluate(()=>{FootballStrike.test.setKeeper(false);FootballStrike.test.fire(2.7,1.8,.8);FootballStrike.test.step(5);});
  report.match=await page.evaluate(()=>FootballStrike.snapshot());
- report.passed=report.home.countryCount===12&&report.home.actorReady&&report.home.keeperLoaded&&report.match.goals===1&&report.match.view==='first-person'&&!report.match.strikerVisible&&report.match.shotPower===.7&&report.errors.length===0;
- if(!report.passed)throw Error('Public preview did not pass its loading and scoring checks');
+ report.passed=report.home.countryCount===12&&report.home.actorReady&&report.home.keeperLoaded&&report.match.goals===1&&report.match.shots===1&&report.match.phase==='aim'&&report.match.view==='first-person'&&!report.match.strikerVisible&&report.match.shotPower===.7&&report.errors.length===0;
+ if(!report.passed)throw Error('Public preview did not pass its loading, scoring and automatic progression checks');
  console.log('PREVIEW_VERIFIED '+url);
 })().catch(e=>{report.failure=e.message;console.error('Preview unavailable: '+e.message);}).finally(async()=>{
  fs.mkdirSync('verification',{recursive:true});fs.writeFileSync('verification/public-preview.json',JSON.stringify(report,null,2));if(browser)await browser.close();
