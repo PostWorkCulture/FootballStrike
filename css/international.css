@@ -60,3 +60,6 @@ body.playing{overscroll-behavior:none;user-select:none;-webkit-user-select:none}
 }
 
 .stage-label:empty{display:none}
+
+#match-settings{background:rgba(9,24,30,.94);box-shadow:0 0 0 4px rgba(9,24,30,.94);border-radius:2px}
+.difficulty-control>span,.keeper-option{color:#e4efed}
