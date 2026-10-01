@@ -43,7 +43,7 @@
     "13-tablet-landscape.jpg",
     "00-original-game.jpg"
   ],
-  "started": "2026-10-01T16:59:15.044Z",
+  "started": "2026-10-01T17:10:13.773Z",
   "passed": true,
   "render": {
     "phase": "menu",
@@ -64,7 +64,7 @@
     "drawCalls": 77,
     "triangles": 984456,
     "crowd": 8133,
-    "averageFrameMs": 786.5999999999975,
+    "averageFrameMs": 794.5,
     "stage": 0,
     "view": "home",
     "strikerVisible": true,
@@ -78,5 +78,5 @@
     "keeperStage": "set",
     "keeperLoaded": true
   },
-  "finished": "2026-10-01T17:07:45.357Z"
+  "finished": "2026-10-01T17:16:32.961Z"
 }
