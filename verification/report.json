@@ -1,0 +1,12 @@
+{
+  "checks": [],
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "screenshots": [],
+  "started": "2026-10-01T12:37:08.368Z",
+  "passed": false,
+  "failure": "TimeoutError: Waiting failed: 90000ms exceeded\n    at new WaitTask (file:///home/runner/work/FootballStrike/FootballStrike/node_modules/puppeteer-core/lib/puppeteer/common/WaitTask.js:46:34)\n    at IsolatedWorld.waitForFunction (file:///home/runner/work/FootballStrike/FootballStrike/node_modules/puppeteer-core/lib/puppeteer/api/Realm.js:49:26)\n    at CdpFrame.waitForFunction (file:///home/runner/work/FootballStrike/FootballStrike/node_modules/puppeteer-core/lib/puppeteer/api/Frame.js:585:43)\n    at CdpFrame.<anonymous> (file:///home/runner/work/FootballStrike/FootballStrike/node_modules/puppeteer-core/lib/puppeteer/util/decorators.js:101:27)\n    at CdpPage.waitForFunction (file:///home/runner/work/FootballStrike/FootballStrike/node_modules/puppeteer-core/lib/puppeteer/api/Page.js:1537:37)\n    at /home/runner/work/FootballStrike/FootballStrike/tests/browser.cjs:18:13",
+  "finished": "2026-10-01T12:38:44.852Z"
+}
