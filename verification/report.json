@@ -33,7 +33,7 @@
     "09-match-landscape.jpg",
     "00-original-game.jpg"
   ],
-  "started": "2026-10-01T12:53:23.744Z",
+  "started": "2026-10-01T13:01:31.797Z",
   "passed": true,
   "render": {
     "phase": "menu",
@@ -54,8 +54,8 @@
     "drawCalls": 77,
     "triangles": 984456,
     "crowd": 8133,
-    "averageFrameMs": 923.0399999999997,
+    "averageFrameMs": 558.8600000000013,
     "stage": 0
   },
-  "finished": "2026-10-01T12:57:05.275Z"
+  "finished": "2026-10-01T13:05:36.918Z"
 }
