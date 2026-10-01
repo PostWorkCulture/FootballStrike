@@ -1,8 +1,8 @@
 {
-  "url": "https://raw.githack.com/PostWorkCulture/FootballStrike/96f20a34bc5fb593099592998193014128c42a38/index.html",
-  "commit": "96f20a34bc5fb593099592998193014128c42a38",
+  "url": "https://raw.githack.com/PostWorkCulture/FootballStrike/42ace87f133014118c43033f3f5f76f5dd574469/index.html",
+  "commit": "42ace87f133014118c43033f3f5f76f5dd574469",
   "passed": true,
-  "checked": "2026-10-01T18:11:25.541Z",
+  "checked": "2026-10-01T18:41:48.215Z",
   "errors": [],
   "httpStatus": 200,
   "previewConfirmation": "Open the page",
@@ -26,7 +26,7 @@
     "drawCalls": 77,
     "triangles": 984456,
     "crowd": 8133,
-    "averageFrameMs": 687.4666666666626,
+    "averageFrameMs": 939.6500000000037,
     "stage": 0,
     "view": "home",
     "strikerVisible": true,
@@ -39,6 +39,20 @@
     "shotApex": 0,
     "keeperStage": "set",
     "keeperLoaded": true
+  },
+  "homeMenu": {
+    "modes": [
+      "practice",
+      "shootout",
+      "rush",
+      "cup"
+    ],
+    "countries": 12,
+    "photos": [
+      true,
+      true,
+      true
+    ]
   },
   "shot": {
     "feedback": "1 goals from 1 attempts · 69 mph",
@@ -74,7 +88,7 @@
     "drawCalls": 77,
     "triangles": 984456,
     "crowd": 8133,
-    "averageFrameMs": 740.587499999997,
+    "averageFrameMs": 798.6333333333357,
     "stage": 0,
     "view": "first-person",
     "strikerVisible": false,
