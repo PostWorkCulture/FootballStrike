@@ -1,8 +1,8 @@
 {
-  "url": "https://raw.githack.com/PostWorkCulture/FootballStrike/f30d865aed8d6e4e02c763cf2672da8e6b0269c8/index.html",
-  "commit": "f30d865aed8d6e4e02c763cf2672da8e6b0269c8",
+  "url": "https://raw.githack.com/PostWorkCulture/FootballStrike/44f5e1b36ecf7656317bdde95dcfe5b86a2b583c/index.html",
+  "commit": "44f5e1b36ecf7656317bdde95dcfe5b86a2b583c",
   "passed": true,
-  "checked": "2026-10-01T13:32:08.931Z",
+  "checked": "2026-10-01T16:53:50.368Z",
   "errors": [],
   "httpStatus": 200,
   "previewConfirmation": "Open the page",
@@ -25,14 +25,19 @@
     "drawCalls": 77,
     "triangles": 984456,
     "crowd": 8133,
-    "averageFrameMs": 948.3250000000058,
+    "averageFrameMs": 531.5250000000174,
     "stage": 0,
     "view": "home",
     "strikerVisible": true,
     "gestureCurve": 0,
     "shotCurve": 0,
     "shotPower": 0.7,
-    "inputActive": false
+    "inputActive": false,
+    "drawnShot": false,
+    "pathPoints": 0,
+    "shotApex": 0,
+    "keeperStage": "set",
+    "keeperLoaded": true
   },
   "match": {
     "phase": "result",
@@ -57,13 +62,18 @@
     "drawCalls": 77,
     "triangles": 984456,
     "crowd": 8133,
-    "averageFrameMs": 884.7285714285748,
+    "averageFrameMs": 789.4285714285812,
     "stage": 0,
     "view": "first-person",
     "strikerVisible": false,
     "gestureCurve": 0,
     "shotCurve": 0,
     "shotPower": 0.7,
-    "inputActive": false
+    "inputActive": false,
+    "drawnShot": false,
+    "pathPoints": 0,
+    "shotApex": 1.8,
+    "keeperStage": "rise",
+    "keeperLoaded": true
   }
 }
