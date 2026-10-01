@@ -5,11 +5,13 @@
     "training starts with a stationary ball during the run-up",
     "a real scored penalty increments training once",
     "replay returns without counting the goal twice",
+    "the ball is clearly above the bottom controls",
     "mouse swipe shoots, and pause freezes the simulation",
     "quit and restart clear shot and match state",
     "five-shot match or sudden death reaches a result and restarts",
     "keyboard aiming and Space release fire a penalty",
     "Target Rush expires once and cannot take another shot",
+    "Nations Cup advances through all three rounds and records a trophy",
     "settings persist and performance mode works",
     "mobile menu and nation grid fit the viewport",
     "touch swipe fires a penalty on a phone viewport",
@@ -28,7 +30,7 @@
     "08-match-mobile.jpg",
     "09-match-landscape.jpg"
   ],
-  "started": "2026-10-01T12:40:53.438Z",
+  "started": "2026-10-01T12:46:54.527Z",
   "passed": true,
   "render": {
     "phase": "menu",
@@ -45,10 +47,10 @@
     "ballAssetLoaded": true,
     "assetErrors": [],
     "drawCalls": 78,
-    "triangles": 967628,
+    "triangles": 1681628,
     "crowd": 8133,
-    "averageFrameMs": 668.7200000000001,
+    "averageFrameMs": 941.9199999999987,
     "stage": 0
   },
-  "finished": "2026-10-01T12:43:11.417Z"
+  "finished": "2026-10-01T12:50:55.033Z"
 }
