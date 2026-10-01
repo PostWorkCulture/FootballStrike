@@ -90,6 +90,7 @@ test('keeper limbs stay connected at fixed lengths through left and right dives 
  assert.ok(Math.abs(Math.hypot(a[i*3]-a[j*3],a[i*3+1]-a[j*3+1],a[i*3+2]-a[j*3+2])-len)<1e-8);
  }
  for(let j=0;j<20;j++){assert.ok(a[j*3+1]>=.025);if(previous)maxStep=Math.max(maxStep,Math.hypot(a[j*3]-previous[j*3],a[j*3+1]-previous[j*3+1],a[j*3+2]-previous[j*3+2]));}
+ if(pose.stage==='shuffle')assert.ok(Math.min(a[K.J.la*3+1],a[K.J.ra*3+1])<=.101,'A shuffle always keeps a supporting foot on the ground');
  previous=Array.from(a);
  }
  assert.ok(maxStep<.08,'No limb should teleport between 240 Hz samples: '+maxStep);

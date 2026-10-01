@@ -1,7 +1,7 @@
 """Create a continuous, skinned goalkeeper with an anatomical armature.
 All geometry is original. Units are metres; source coordinates are x/right,y/up,z/pitch.
 """
-import bpy, math, os, json
+import bpy, math, os, json, hashlib
 from mathutils import Matrix
 OUT=os.path.abspath(os.path.join(os.path.dirname(__file__),'..','assets','international'))
 os.makedirs(OUT,exist_ok=True)
@@ -119,11 +119,20 @@ for o in objects:
    if weight>0:o.vertex_groups[name].add([v.index],weight,'REPLACE')
  mod=o.modifiers.new('KeeperSkin','ARMATURE');mod.object=rig;o.parent=rig
  for prop in ['part','side']:del o[prop]
-bpy.ops.object.select_all(action='SELECT')
+# Join surfaces into one skinned object. glTF groups primitives by material,
+# reducing draw calls while preserving the common anatomical vertex groups.
+bpy.ops.object.select_all(action='DESELECT')
+for o in objects:o.select_set(True)
+bpy.context.view_layer.objects.active=objects[0]
+bpy.ops.object.join()
+bpy.context.object.name='KeeperBody'
+rig.select_set(True)
 bpy.ops.export_scene.gltf(filepath=os.path.join(OUT,'keeper.glb'),export_format='GLB',use_selection=True,export_apply=False)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT,'keeper.blend'))
 manifest_path=os.path.join(OUT,'manifest.json')
 manifest=json.load(open(manifest_path)) if os.path.exists(manifest_path) else {}
-manifest.update({'keeper':'keeper.glb','keeper_source':'keeper.blend','keeper_rig':'16-bone anatomical armature with continuous elbow/knee skinning','generator':'Blender '+bpy.app.version_string})
+source_dir=os.path.dirname(__file__)
+source_sha=hashlib.sha256(b''.join(open(os.path.join(source_dir,p),'rb').read() for p in ['build_international_assets.py','build_keeper_assets.py'])).hexdigest()
+manifest.update({'asset_source_sha':source_sha,'keeper':'keeper.glb','keeper_source':'keeper.blend','keeper_rig':'16-bone anatomical armature with continuous elbow/knee skinning','generator':'Blender '+bpy.app.version_string})
 with open(manifest_path,'w') as h:json.dump(manifest,h,indent=2)
 print('KEEPER_BUILT '+str(len(objects))+' skinned mesh parts')

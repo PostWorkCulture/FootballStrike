@@ -34,8 +34,13 @@ function plan(x,y,reaction,maxSpeed=3.7){
  const push=.13,start=reaction+push,vy=kind==='high'?2.6:kind==='mid'?1.6:.1,startY=.83;
  const air=(vy+Math.sqrt(vy*vy+2*9.81*(startY-.36)))/9.81;
  const vx=dir*Math.min(maxSpeed,2.2+Math.abs(x)*.62,2.85/air);
- const land=start+air,landX=dir*.18+vx*air,cycles=Math.max(2,Math.ceil(Math.abs(landX)/.55));
- return {x,y,dir,kind,reaction,push,start,startY,vy,vx,land,landX,cycles,returnStart:land+.94,endTime:kind==='centre'?1.5:land+.94+cycles*.30,saveAt:-1};
+ const land=start+air,landX=dir*.18+vx*air,cycles=Math.max(2,Math.ceil((Math.abs(landX)+.16)/.43));
+ return {x,y,dir,kind,reaction,push,start,startY,vy,vx,land,landX,cycles,returnStart:land+.94,endTime:kind==='centre'?1.5:land+.94+cycles*.26,saveAt:-1};
+}
+function shuffleTravel(k,side,p){
+ const delay=side===k.dir?0:.5,phase=p*k.cycles-delay;
+ if(phase<=0)return 0;
+ return clamp((Math.floor(phase)+smooth((phase-Math.floor(phase))/.42))/(k.cycles-delay),0,1);
 }
 function poseAt(k,t,o){
  const a=o.joints,dir=k.dir||Math.sign(k.x)||1,kind=k.kind||'centre';
@@ -45,6 +50,7 @@ function poseAt(k,t,o){
  if(kind==='centre'){
  const action=smooth((t-k.reaction)/.16),release=1-smooth((t-.65)/.5),u=action*release;
  o.y-=Math.max(0,.8-k.y)*.28*u;o.pitch+=.10*u;o.stage=u>.01?'block':'set';o.extension=u;
+ if(k===READY){o.x=Math.sin(time*1.25)*.008;o.y+=Math.sin(time*2.4)*.003;o.pitch+=Math.sin(time*2.4)*.004;}
  }else if(t<k.start){
  o.x=dir*.18*load;o.y=.83-.09*Math.sin(load*Math.PI);o.pitch=.14+.10*Math.sin(load*Math.PI);o.roll=-dir*.14*load;o.stage=load>0?'plant':'set';o.extension=load*.18;
  }else if(t<k.land){
@@ -56,8 +62,8 @@ function poseAt(k,t,o){
  const u=smooth((t-k.land-.20)/.74);recovery=u;airborne=1-u;landBlend=1;
  o.x=k.landX+dir*.16;o.y=mix(.36,.83,u);o.roll=-dir*1.42*(1-u);o.pitch=mix(.26,.14,u)+.30*Math.sin(u*Math.PI);o.stage=u<.6?'kneel':'rise';o.extension=.45*(1-u);
  }else{
- const duration=k.cycles*.30,p=clamp((t-k.returnStart)/duration,0,1);returning=p;
- o.x=(k.landX+dir*.16)*(1-smooth(p));o.y=.83+Math.sin(p*k.cycles*2*Math.PI)*.015*Math.sin(Math.PI*p);o.pitch=.14;o.stage=p<1?'shuffle':'set';o.extension=0;
+ const duration=k.cycles*.26,p=clamp((t-k.returnStart)/duration,0,1);returning=p;
+ o.x=(k.landX+dir*.16)*(1-(smooth(shuffleTravel(k,-1,p))+smooth(shuffleTravel(k,1,p)))*.5);o.y=.83+Math.sin(p*k.cycles*2*Math.PI)*.015*Math.sin(Math.PI*p);o.pitch=.14;o.stage=p<1?'shuffle':'set';o.extension=0;
  }
  o.cr=Math.cos(o.roll);o.sr=Math.sin(o.roll);o.cp=Math.cos(o.pitch);o.sp=Math.sin(o.pitch);
  local(o,J.hips,0,0,0);local(o,J.chest,0,.46,0);local(o,J.head,0,.62,.01);local(o,J.crown,0,.84,.01);
@@ -69,8 +75,8 @@ function poseAt(k,t,o){
  if(o.stage==='set'||kind==='centre'){fx=side*.34;fy=.10;}
  else if(o.stage==='plant'){fx=side*.34+(side===dir?dir*.18*load:0);fy=.10+(side===dir?.025*Math.sin(load*Math.PI):0);}
  else if(o.stage==='shuffle'){
- const p=returning,delay=side<0?0:.5,phase=p*k.cycles-delay,step=Math.max(0,Math.floor(phase)),part=phase<0?0:phase-step;
- const travel=clamp((step+smooth(part/.42))/(k.cycles-delay),0,1),origin=k.landX+dir*.16;
+ const p=returning,delay=side===dir?0:.5,phase=p*k.cycles-delay,step=Math.max(0,Math.floor(phase)),part=phase<0?0:phase-step;
+ const travel=shuffleTravel(k,side,p),origin=k.landX+dir*.16;
  fx=origin*(1-smooth(travel))+side*.34;fy=.10+(phase>=0&&part<.42?.065*Math.sin(Math.PI*part/.42):0);
 
  }else{
@@ -115,7 +121,7 @@ function contact(o,x,y,z,radius=.11){
  return null;
 }
 const READY={kind:'centre',x:0,y:1.08,reaction:999,dir:1,endTime:0,saveAt:-1};
-function readyAt(t,o){poseAt(READY,0,o);return o;}
+function readyAt(t,o){poseAt(READY,t,o);return o;}
 root.FSKeeper={READY,readyAt,J,REST,BONES,createPose,plan,poseAt,contact,segmentDistance3,upperArm,forearm,thigh,shin};
 if(typeof module!=='undefined')module.exports=root.FSKeeper;
 })(typeof window!=='undefined'?window:globalThis);

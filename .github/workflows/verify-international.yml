@@ -22,14 +22,30 @@ jobs:
           node-version: "22"
           cache: npm
       - name: Install browser dependencies
-        run: npm ci
+        run: |
+          npm ci
+          python -m pip install Pillow
       - name: Deterministic gameplay checks
         run: npm test
+      - name: Check asset source revision
+        id: assets
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import os,json,hashlib
+          paths=['tools/build_international_assets.py','tools/build_keeper_assets.py']
+          digest=hashlib.sha256(b''.join(open(p,'rb').read() for p in paths)).hexdigest()
+          manifest='assets/international/manifest.json'
+          saved=json.load(open(manifest)) if os.path.exists(manifest) else {}
+          complete=all(os.path.exists('assets/international/'+p) for p in ['footballer.glb','match-ball.glb','keeper.glb','keeper.blend'])
+          print('rebuild='+str(not complete or saved.get('asset_source_sha')!=digest).lower())
+          PY
       - name: Install Blender
+        if: steps.assets.outputs.rebuild == 'true'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y blender python3-numpy python3-pil
       - name: Build original 3D assets
+        if: steps.assets.outputs.rebuild == 'true'
         env:
           PYTHONPATH: /usr/lib/python3/dist-packages
         run: |
@@ -42,7 +58,17 @@ jobs:
         continue-on-error: true
         run: |
           node tests/motion.cjs
-          /usr/bin/python3 tools/motion_sheets.py
+          python tools/motion_sheets.py
+      - name: Save goalkeeper review frames
+        if: github.event_name == 'push' && steps.motion.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/international verification/motion verification/difficulty.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Build goalkeeper and capture motion review frames [skip ci]"
+            git push origin HEAD:codex/international-penalty-overhaul
+          fi
       - name: Verify desktop and mobile flows
         id: browser
         continue-on-error: true

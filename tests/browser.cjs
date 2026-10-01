@@ -70,6 +70,19 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  assert.deepEqual(results.map(r=>r.shotPower),[.7,.7,.7]);
  assert.equal(await page.$('#power-fill'),null);assert.equal(await page.$('input[type="range"]'),null);
  });
+ await check('free drawing retains a vertical arch and both turns of an S shot without a line',async()=>{
+ for(const kind of ['arch','s']){
+ await page.evaluate(()=>{FootballStrike.test.next();FootballStrike.test.setKeeper(false);});
+ const b=await page.evaluate(()=>FootballStrike.project(0,.11,11)),t=await page.evaluate(()=>FootballStrike.project(0,.7,0));
+ await page.mouse.move(b.x,b.y);await page.mouse.down();
+ for(let i=1;i<=32;i++){const u=i/32;await page.mouse.move(b.x+(t.x-b.x)*u+(kind==='s'?Math.sin(u*Math.PI*2)*115:0),b.y+(t.y-b.y)*u-(kind==='arch'?Math.sin(u*Math.PI)*240:0));}
+ assert.equal(await page.$('#gesture-trail'),null);assert.equal(await page.evaluate(()=>FootballStrike.test.world.trajectory.visible),false);await page.mouse.up();
+ const shot=await page.evaluate(()=>{const s=FootballStrike.test.getShot();return {drawn:s.drawn,path:Array.from(s.path),maxY:s.maxY,targetY:s.targetY};});
+ assert.equal(shot.drawn,true);assert.equal(shot.path.length,195);
+ if(kind==='arch')assert.ok(shot.maxY>shot.targetY+.5);else{const xs=shot.path.filter((_,i)=>i%3===0);assert.ok(Math.min(...xs)<-.15&&Math.max(...xs)>.15);}
+ await step(2);assert.equal((await snap()).outcome,'goal');
+ }
+ });
  await check('quit and restart clear shot and match state',async()=>{await page.click('#pause-open');await page.click('#quit');await page.click('[data-mode="shootout"]');const s=await snap();assert.equal(s.shots,0);assert.deepEqual(s.score,[0,0]);assert.equal(s.phase,'aim');});
  await check('five-shot match or sudden death reaches a result and restarts',async()=>{
  for(let n=0;n<35;n++){await page.evaluate(()=>{FootballStrike.test.setKeeper(false);FootballStrike.test.fire(2.6,1.6,.8);});await step(2);
@@ -158,6 +171,15 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  assert.equal((await snap()).inputActive,true);
  await touch.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
  assert.equal((await snap()).phase,'aim');assert.equal((await snap()).shots,before);
+ });
+ await check('a touch-drawn arch uses the full flight path and lands at the target',async()=>{
+ await page.evaluate(()=>{FootballStrike.test.next();FootballStrike.test.setKeeper(false);});
+ const b=await page.evaluate(()=>FootballStrike.project(0,.11,11)),t=await page.evaluate(()=>FootballStrike.project(1.5,.65,0));
+ await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:b.x,y:b.y,id:0}]});
+ for(let i=1;i<=28;i++){const u=i/28;await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:b.x+(t.x-b.x)*u,y:b.y+(t.y-b.y)*u-Math.sin(u*Math.PI)*200,id:0}]});}
+ await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ const shot=await page.evaluate(()=>{const s=FootballStrike.test.getShot();return {apex:s.maxY,end:s.targetY,drawn:s.drawn};});assert.ok(shot.drawn&&shot.apex>shot.end+.4);
+ await step(2);assert.equal((await snap()).outcome,'goal');assert.equal(await page.evaluate(()=>scrollY),0);
  });
  await check('no JavaScript or WebGL shader errors',async()=>assert.deepEqual(report.errors,[]));
  const legacy=await browser.newPage();
