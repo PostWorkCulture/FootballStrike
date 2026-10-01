@@ -1,8 +1,8 @@
 {
-  "url": "https://raw.githack.com/PostWorkCulture/FootballStrike/d2a51ae15e0daa4328511be1cd19a1e966627ec6/index.html",
-  "commit": "d2a51ae15e0daa4328511be1cd19a1e966627ec6",
+  "url": "https://raw.githack.com/PostWorkCulture/FootballStrike/f30d865aed8d6e4e02c763cf2672da8e6b0269c8/index.html",
+  "commit": "f30d865aed8d6e4e02c763cf2672da8e6b0269c8",
   "passed": true,
-  "checked": "2026-10-01T13:05:38.718Z",
+  "checked": "2026-10-01T13:32:08.931Z",
   "errors": [],
   "httpStatus": 200,
   "previewConfirmation": "Open the page",
@@ -10,7 +10,7 @@
     "phase": "menu",
     "mode": "shootout",
     "nation": "swe",
-    "difficulty": "pro",
+    "difficulty": "rookie",
     "shots": 0,
     "goals": 0,
     "points": 0,
@@ -25,14 +25,20 @@
     "drawCalls": 77,
     "triangles": 984456,
     "crowd": 8133,
-    "averageFrameMs": 714.0333333333409,
-    "stage": 0
+    "averageFrameMs": 948.3250000000058,
+    "stage": 0,
+    "view": "home",
+    "strikerVisible": true,
+    "gestureCurve": 0,
+    "shotCurve": 0,
+    "shotPower": 0.7,
+    "inputActive": false
   },
   "match": {
     "phase": "result",
     "mode": "practice",
     "nation": "swe",
-    "difficulty": "pro",
+    "difficulty": "rookie",
     "score": [
       0,
       0
@@ -51,7 +57,13 @@
     "drawCalls": 77,
     "triangles": 984456,
     "crowd": 8133,
-    "averageFrameMs": 779.2166666666706,
-    "stage": 0
+    "averageFrameMs": 884.7285714285748,
+    "stage": 0,
+    "view": "first-person",
+    "strikerVisible": false,
+    "gestureCurve": 0,
+    "shotCurve": 0,
+    "shotPower": 0.7,
+    "inputActive": false
   }
 }
