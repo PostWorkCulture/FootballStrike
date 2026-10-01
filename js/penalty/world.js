@@ -91,7 +91,7 @@ class World{
  this.crowdCount=positions.length;
  const bodyParts=[];
  for(const [x,y,sx,sy,sz] of [[0,0,.15,.23,.1],[-.17,-.03,.055,.2,.06],[.17,-.03,.055,.2,.06]]){
- const g=new T.SphereGeometry(1,6,5).toNonIndexed();g.scale(sx,sy,sz);g.translate(x,y,0);bodyParts.push(g);
+ const g=new T.SphereGeometry(1,5,3).toNonIndexed();g.scale(sx,sy,sz);g.translate(x,y,0);bodyParts.push(g);
  }
  const bodyGeometry=new T.BufferGeometry();
  for(const key of ['position','normal']){const total=bodyParts.reduce((n,g)=>n+g.attributes[key].array.length,0),a=new Float32Array(total);let offset=0;for(const g of bodyParts){a.set(g.attributes[key].array,offset);offset+=g.attributes[key].array.length;}bodyGeometry.setAttribute(key,new T.BufferAttribute(a,3));}
@@ -223,7 +223,7 @@ class World{
  setQuality(quality){
  this.quality=quality;const low=quality==='low',high=quality==='high';
  this.renderer.setPixelRatio(Math.min(devicePixelRatio,low?1:high?2:1.5));this.renderer.shadowMap.enabled=!low;
- this.grassBlades.visible=!low;this.grassBlades.count=high?14000:7000;
+ this.grassBlades.visible=false;this.grassBlades.count=high?14000:7000;
  this.renderer.setSize(innerWidth,innerHeight);this.renderer.shadowMap.needsUpdate=true;
  }
  resize(){this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();this.renderer.setSize(innerWidth,innerHeight);this.setView(this.mode,true);}
@@ -231,7 +231,7 @@ class World{
  this.mode=mode;const mobile=innerWidth<700;
  if(mode==='home'||mode==='nations'){
  this.cameraGoal.set(mobile?3.8:4.1,mobile?2.15:2.2,mobile?18.2:16.4);this.lookGoal.set(mobile?-.6:-.9,mobile?.42:.15,mobile?10.9:10.6);
- this.camera.fov=mobile?43:36;this.striker.position.set(mobile?.75:.85,0,12);this.striker.rotation.y=-.18;this.ball.position.set(mobile?.25:.25,.11,12.7);this.keeper.visible=false;
+ this.camera.fov=mobile?43:36;this.striker.position.set(mobile?.75:.85,0,12);this.striker.rotation.y=.35;this.ball.position.set(mobile?.25:.25,.11,12.7);this.keeper.visible=false;
  }else if(mode==='replay'){
  this.cameraGoal.set(8,3.4,5.8);this.lookGoal.set(0,1.1,3);this.camera.fov=45;
  }else{
@@ -259,15 +259,15 @@ class World{
  return;
  }
  const breathe=Math.sin(time*2)*.008;if(hips)hips.position.y+=breathe;if(torso)torso.rotation.x=.02;
- n.LeftArm.rotation.z=.09;n.RightArm.rotation.z=-.09;n.LeftForearm.rotation.x=-.11;n.RightForearm.rotation.x=-.11;
+ n.LeftArm.rotation.z=.09;n.RightArm.rotation.z=-.09;n.LeftForearm.rotation.x=-.26;n.RightForearm.rotation.x=-.2;n.LeftArm.rotation.x=.04;n.RightArm.rotation.x=-.06;
  if(phase==='runup'){
  const stride=Math.sin(progress*Math.PI*5),kick=P.clamp((progress-.64)/.36,0,1);
  hips.position.y+=Math.sin(progress*Math.PI*10)*.028;
- n.LeftLeg.rotation.x=progress<.67?stride*.5:.06;n.RightLeg.rotation.x=progress<.67?-stride*.5:Math.sin(kick*Math.PI)*1.15-kick*.9;
+ n.LeftLeg.rotation.x=progress<.67?stride*.5:.06;n.RightLeg.rotation.x=progress<.67?-stride*.5:Math.sin(kick*Math.PI)*1.15-kick*.3;
  n.LeftShin.rotation.x=Math.max(0,-stride)*.7;n.RightShin.rotation.x=progress<.67?Math.max(0,stride)*.8:Math.sin(kick*Math.PI)*1.45;
  n.LeftArm.rotation.x=-stride*.45;n.RightArm.rotation.x=stride*.45;n.LeftArm.rotation.z=.3;n.RightArm.rotation.z=-.2;torso.rotation.x=.1+kick*.08;torso.rotation.y=kick*.3;
  }else if(phase==='flight'||phase==='result'){
- const follow=Math.exp(-progress*4);n.RightLeg.rotation.x=-.95*follow;n.RightShin.rotation.x=.15;n.LeftArm.rotation.z=.3+follow*.5;n.RightArm.rotation.z=-.15-follow*.4;torso.rotation.y=.3*follow;torso.rotation.x=.13*follow;
+ const follow=Math.exp(-progress*4);n.RightLeg.rotation.x=-(.3+.65*Math.min(1,progress/.15))*follow;n.RightShin.rotation.x=.15;n.LeftArm.rotation.z=.3+follow*.5;n.RightArm.rotation.z=-.15-follow*.4;torso.rotation.y=.3*follow;torso.rotation.x=.13*follow;
  }else if(phase==='celebrate'){n.LeftArm.rotation.z=2.6;n.RightArm.rotation.z=-2.6;n.LeftForearm.rotation.x=-.3;n.RightForearm.rotation.x=-.3;hips.position.y+=Math.abs(Math.sin(progress*5))*.05;}
  }
  update(dt,state){
@@ -284,10 +284,10 @@ class World{
  this.keeper.position.set(k.x+Math.sin(k.roll),k.y-Math.cos(k.roll),.48);this.keeper.rotation.z=k.roll;
  this.poseActor(this.keeperRig,this.time,'keeper',state.phase,state.elapsed,k);
  if(state.phase==='runup'){
- const p=P.clamp(state.elapsed/.62,0,1);this.striker.position.set(-.6+.42*p,Math.abs(Math.sin(p*Math.PI*5))*.008,12.6-1.32*p);
+ const p=P.clamp(state.elapsed/.62,0,1);this.striker.position.set(-.6+.705*p,Math.abs(Math.sin(p*Math.PI*5))*.008,12.6-1.2*p);
  this.poseActor(this.strikerRig,this.time,'striker','runup',p);
  }else{
- this.striker.position.set(-.18,0,11.28);if(state.phase==='aim')this.striker.position.set(-.6,0,12.6);
+ this.striker.position.set(.105,0,11.4);if(state.phase==='aim')this.striker.position.set(-.6,0,12.6);
  this.poseActor(this.strikerRig,this.time,'striker',state.outcome==='goal'&&state.elapsed>1?'celebrate':state.phase,state.elapsed);
  }
  }

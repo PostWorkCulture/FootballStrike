@@ -8,12 +8,13 @@ function rng(seed){let s=seed>>>0;return ()=>{s=(Math.imul(1664525,s)+1013904223
 function createShot(x,y,power,curve){
 power=clamp(power,.15,1);curve=clamp(curve,-1,1);x=clamp(x,-5.5,5.5);y=clamp(y,R,4.5);
 const speed=19+power*15,T=11/speed,ax=curve*14;
-return {x:0,y:R,z:11,vx:(x-.5*ax*T*T)/T,vy:(y-R+.5*G*T*T)/T,vz:-speed,ax,T,power,curve,targetX:x,targetY:y,speed:speed*3.6};
+const vx=(x-.5*ax*T*T)/T,vy=(y-R+.5*G*T*T)/T;
+return {x:0,y:R,z:11,vx,vy,vz:-speed,ax,T,power,curve,targetX:x,targetY:y,speed:Math.hypot(vx,vy,speed)*3.6};
 }
 function keeperAt(k,t,out){
 const a=clamp((t-k.reaction)/.3,0,1),u=a*a*(3-2*a);
 out.x=k.x*u;out.y=1+Math.max(0,k.y-1)*u-.65*u*(k.y<.8?1:0);
-out.roll=-Math.sign(k.x)*1.12*u;out.extension=.33+.58*u;
+out.roll=-Math.sign(k.x)*1.12*u*clamp(Math.abs(k.x)/1.7,0,1);out.extension=.33+.58*u;
 return out;
 }
 function makeKeeper(shot,difficulty,random){

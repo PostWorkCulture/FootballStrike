@@ -22,7 +22,7 @@ jobs:
           node-version: "22"
           cache: npm
       - name: Install browser dependencies
-        run: npm install
+        run: npm ci
       - name: Deterministic gameplay checks
         run: npm test
       - name: Install Blender

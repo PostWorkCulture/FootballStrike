@@ -18,3 +18,5 @@ test('sudden death resolves only after equal numbers of penalties',()=>{const m=
 test('losing five-shot result is handled',()=>{const m=new P.Shootout();for(let n=0;n<3;n++)m.add(false,true);assert.equal(m.winner,'away');});
 
 test('scored ball stays in front of the sloping back net at every height',()=>{const f=sim(2.8,1.9);for(let n=0;n<400;n++){f.step();assert.ok(f.ball.z>=-1.8+f.ball.y/2.44*1.3+P.R-1e-8);}});
+
+test('central keeper reactions remain upright rather than making a full lateral dive',()=>{const pose={};P.keeperAt({reaction:.1,x:.15,y:1},.6,pose);assert.ok(Math.abs(pose.roll)<.15);});

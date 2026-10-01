@@ -22,10 +22,10 @@ class Audio{
  if(this.ctx.state==='suspended')this.ctx.resume().catch(()=>{});
  }catch{}}
  enable(on){this.enabled=on;if(this.master)this.master.gain.setTargetAtTime(on?.42:0,this.ctx.currentTime,.05);}
- tone(freq,duration,volume=.2,type='sine'){if(!this.ctx||!this.enabled)return;const t=this.ctx.currentTime,o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type=type;o.frequency.setValueAtTime(freq,t);o.frequency.exponentialRampToValueAtTime(freq*.35,t+duration);g.gain.setValueAtTime(volume,t);g.gain.exponentialRampToValueAtTime(.001,t+duration);o.connect(g);g.connect(this.master);o.start(t);o.stop(t+duration);}
+ tone(freq,duration,volume=.2,type='sine'){if(!this.ctx||!this.enabled)return;const t=this.ctx.currentTime,o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type=type;o.frequency.setValueAtTime(freq,t);o.frequency.exponentialRampToValueAtTime(freq*.35,t+duration);g.gain.setValueAtTime(volume,t);g.gain.exponentialRampToValueAtTime(.001,t+duration);o.connect(g);g.connect(this.master);o.start(t);o.stop(t+duration);o.onended=()=>{o.disconnect();g.disconnect();};}
  kick(){this.tone(145,.16,.7);}
  post(){this.tone(920,.5,.25,'triangle');this.tone(1450,.35,.12);}
- crowd(goal){if(!this.ctx||!this.enabled)return;const src=this.ctx.createBufferSource(),g=this.ctx.createGain(),t=this.ctx.currentTime;src.buffer=this.noise;g.gain.setValueAtTime(.02,t);g.gain.linearRampToValueAtTime(goal?.9:.4,t+.3);g.gain.exponentialRampToValueAtTime(.005,t+2.4);src.connect(g);g.connect(this.master);src.start();src.stop(t+2.5);}
+ crowd(goal){if(!this.ctx||!this.enabled)return;const src=this.ctx.createBufferSource(),g=this.ctx.createGain(),t=this.ctx.currentTime;src.buffer=this.noise;g.gain.setValueAtTime(.02,t);g.gain.linearRampToValueAtTime(goal?.9:.4,t+.3);g.gain.exponentialRampToValueAtTime(.005,t+2.4);src.connect(g);g.connect(this.master);src.start();src.stop(t+2.5);src.onended=()=>{src.disconnect();g.disconnect();};}
 }
 const sound=new Audio();
 let world;try{world=new FSWorld($('stage'),settings);}catch(e){fatal('This browser could not start 3D graphics. Try enabling hardware acceleration or use another browser.');console.error(e);return;}
@@ -266,12 +266,12 @@ canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();pause();fatal(
 setNation(settings.nation);menu(false);requestAnimationFrame(frame);
 world.ready.then(results=>{
  if(!results.every(Boolean)){fatal('The player or ball could not load. Check your connection and try again.');return;}
- game.ready=true;$('loading').hidden=true;document.querySelector('[data-mode="cup"]').focus({preventScroll:true});
+ game.ready=true;$('loading').hidden=true;
 });
 // Read-only diagnostics are always available; simulation controls require ?test=1.
 window.FootballStrike={
  version:'2.0.0',get ready(){return game.ready;},
- snapshot:()=>({phase:game.phase,mode:game.mode,nation:settings.nation,difficulty:settings.difficulty,score:game.match?.score,shots:game.shots,goals:game.goals,outcome:game.outcome,remaining:game.remaining,paused:game.paused,countryCount:teams.length,actorReady:world.actorReady,ballAssetLoaded:world.ballAssetLoaded,assetErrors:world.assetErrors,drawCalls:world.renderer.info.render.calls,triangles:world.renderer.info.render.triangles,crowd:world.crowdCount,averageFrameMs:renderFrames?totalFrameTime/renderFrames*1000:0,stage:game.stage}),
+ snapshot:()=>({phase:game.phase,mode:game.mode,nation:settings.nation,difficulty:settings.difficulty,score:game.match?.score,shots:game.shots,goals:game.goals,points:game.points,combo:game.combo,outcome:game.outcome,remaining:game.remaining,paused:game.paused,countryCount:teams.length,actorReady:world.actorReady,ballAssetLoaded:world.ballAssetLoaded,assetErrors:world.assetErrors,drawCalls:world.renderer.info.render.calls,triangles:world.renderer.info.render.triangles,crowd:world.crowdCount,averageFrameMs:renderFrames?totalFrameTime/renderFrames*1000:0,stage:game.stage}),
  project:(x,y,z)=>{const s={};world.screenPoint(x,y,z,s);return s;}
 };
 if(new URLSearchParams(location.search).get('test')==='1'){

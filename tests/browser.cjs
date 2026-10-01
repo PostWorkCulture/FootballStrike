@@ -26,14 +26,14 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await page.click('[data-id="swe"]');});
  await screenshot('02-nations-desktop');await page.click('#nation-confirm');
  await check('training starts with a stationary ball during the run-up',async()=>{
- await page.click('[data-mode="practice"]');await page.evaluate(()=>FootballStrike.test.setKeeper(false));await page.evaluate(()=>FootballStrike.test.fire(2.7,1.8,.7));
+ await page.click('[data-mode="practice"]');await screenshot('11-keeper-ready');await page.evaluate(()=>FootballStrike.test.setKeeper(false));await page.evaluate(()=>FootballStrike.test.fire(2.7,1.8,.7));
  assert.equal((await snap()).phase,'runup');const b=await page.evaluate(()=>FootballStrike.test.getPhysics().ball);assert.equal(b.z,11);
  });
  await step(1.25);
  await check('a real scored penalty increments training once',async()=>{const s=await snap();assert.equal(s.outcome,'goal');assert.equal(s.goals,1);assert.equal(s.shots,1);});
  await screenshot('03-goal-desktop');await step(1.0);
  await check('replay returns without counting the goal twice',async()=>{
- await page.click('#replay');assert.equal((await snap()).phase,'replay');await step(14);assert.equal((await snap()).phase,'result');assert.equal((await snap()).shots,1);
+ await page.click('#replay');assert.equal((await snap()).phase,'replay');await step(.4);await screenshot('10-replay');await step(14);assert.equal((await snap()).phase,'result');assert.equal((await snap()).shots,1);
  });await page.click('#next-shot');await screenshot('04-match-desktop');
  await check('the ball is clearly above the bottom controls',async()=>{const ball=await page.evaluate(()=>FootballStrike.project(0,.11,11)),top=await page.$eval('#shot-controls',e=>e.getBoundingClientRect().top);assert.ok(ball.y<top-35);});
  await check('mouse swipe shoots, and pause freezes the simulation',async()=>{
@@ -51,8 +51,8 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await check('keyboard aiming and Space release fire a penalty',async()=>{
  await page.evaluate(()=>document.activeElement.blur());await page.keyboard.press('ArrowLeft');await page.keyboard.down('Space');await page.keyboard.up('Space');assert.ok(['runup','flight'].includes((await snap()).phase));await step(2);
  });
- await check('Target Rush expires once and cannot take another shot',async()=>{
- await page.click('#pause-open');await page.click('#quit');await page.click('[data-mode="rush"]');await page.evaluate(()=>FootballStrike.test.setTime(.15));await step(1);assert.equal((await snap()).phase,'complete');assert.equal(await page.evaluate(()=>FootballStrike.test.fire(0,1,.6)),false);await page.click('#result-menu');
+ await check('Target Rush awards accurate hits, expires once and blocks further shots',async()=>{
+ await page.click('#pause-open');await page.click('#quit');await page.click('[data-mode="rush"]');await page.evaluate(()=>{const w=FootballStrike.test.world,t=w.targets[w.activeTarget].position;FootballStrike.test.fire(t.x,t.y,.8);});await step(2);assert.ok((await snap()).points>=100);await page.evaluate(()=>FootballStrike.test.setTime(.15));await step(1);assert.equal((await snap()).phase,'complete');assert.equal(await page.evaluate(()=>FootballStrike.test.fire(0,1,.6)),false);await page.click('#result-menu');
  });
  await check('Nations Cup advances through all three rounds and records a trophy',async()=>{
  await page.click('[data-mode="cup"]');await page.evaluate(()=>FootballStrike.test.setSeed(7321));
@@ -85,6 +85,15 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  });
  await check('mobile landscape controls remain on screen',async()=>{await page.setViewport({width:844,height:390,isMobile:true,hasTouch:true});await page.evaluate(()=>FootballStrike.test.next());await screenshot('09-match-landscape');const r=await page.$eval('#shot-controls',e=>({bottom:e.getBoundingClientRect().bottom,top:e.getBoundingClientRect().top}));assert.ok(r.bottom<=390&&r.top>=0);});
  await check('no JavaScript or WebGL shader errors',async()=>assert.deepEqual(report.errors,[]));
+ const legacy=await browser.newPage();
+ try {
+ await legacy.setViewport({width:1440,height:900,deviceScaleFactor:1});
+ await legacy.goto('http://127.0.0.1:8080/legacy.html',{waitUntil:'networkidle0',timeout:60000});
+ await legacy.evaluate(()=>{if(window.selectMode)window.selectMode('practice');});
+ await legacy.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+ const oldImage=await legacy.screenshot({path:path.join(output,'00-original-game.jpg'),type:'jpeg',quality:80});
+ fs.writeFileSync(path.join(output,'00-original-game.base64.txt'),Buffer.from(oldImage).toString('base64'));report.screenshots.push('00-original-game.jpg');
+ }catch(e){report.legacyCaptureError=e.message;}finally{await legacy.close();}
  report.passed=true;
 })().catch(e=>{report.failure=e.stack;console.error(e);process.exitCode=1;}).finally(async()=>{
  if(activePage&&!report.passed){try{const bytes=await activePage.screenshot({path:path.join(output,'failure.jpg'),type:'jpeg',quality:80});fs.writeFileSync(path.join(output,'failure.base64.txt'),Buffer.from(bytes).toString('base64'));report.browserState=await activePage.evaluate(()=>({error:document.getElementById('error-text')?.textContent,ready:window.FootballStrike?.ready,state:window.FootballStrike?.snapshot()}));}catch{}}
