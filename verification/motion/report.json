@@ -216,6 +216,60 @@
       "name": "central",
       "time": 1.5,
       "stage": "set"
+    },
+    {
+      "file": "central-high-0.jpg",
+      "name": "central-high",
+      "time": 0,
+      "stage": "set"
+    },
+    {
+      "file": "central-high-1.jpg",
+      "name": "central-high",
+      "time": 0.19,
+      "stage": "plant"
+    },
+    {
+      "file": "central-high-2.jpg",
+      "name": "central-high",
+      "time": 0.33999999999999997,
+      "stage": "jump"
+    },
+    {
+      "file": "central-high-3.jpg",
+      "name": "central-high",
+      "time": 0.47,
+      "stage": "jump"
+    },
+    {
+      "file": "central-high-4.jpg",
+      "name": "central-high",
+      "time": 0.55,
+      "stage": "jump"
+    },
+    {
+      "file": "central-high-5.jpg",
+      "name": "central-high",
+      "time": 0.748032619775739,
+      "stage": "jump"
+    },
+    {
+      "file": "central-high-6.jpg",
+      "name": "central-high",
+      "time": 0.858032619775739,
+      "stage": "land"
+    },
+    {
+      "file": "central-high-7.jpg",
+      "name": "central-high",
+      "time": 0.978032619775739,
+      "stage": "land"
+    },
+    {
+      "file": "central-high-8.jpg",
+      "name": "central-high",
+      "time": 1.5,
+      "stage": "set"
     }
   ],
   "errors": [],
