@@ -23,7 +23,15 @@
     "mobile menu and nation grid fit the viewport",
     "touch swipe scores a straight penalty on a phone without scrolling",
     "a phone penalty resets automatically for the next touch shot",
-    "cancelled touch and screen rotation do not launch accidental penalties"
+    "cancelled touch and screen rotation do not launch accidental penalties",
+    "phone landscape keeps the goal, ball and controls usable",
+    "tablet portrait and landscape support curved touch shots and difficulty selection",
+    "a second finger does not replace the active shooting gesture",
+    "a touch-drawn arch uses the full flight path and lands at the target",
+    "shot feedback shows correctly converted mph",
+    "automatic shots alternate centre, left and right with matching camera and ball origins",
+    "the real animation clock advances to the next penalty without further input",
+    "no JavaScript or WebGL shader errors"
   ],
   "errors": [],
   "screenshots": [
@@ -39,10 +47,16 @@
     "06-home-mobile.jpg",
     "07-nations-mobile.jpg",
     "08-match-mobile.jpg",
-    "09-match-landscape.jpg"
+    "09-match-landscape.jpg",
+    "12-tablet-portrait.jpg",
+    "13-tablet-landscape.jpg",
+    "16-angle-centre.jpg",
+    "17-angle-left.jpg",
+    "18-angle-right.jpg",
+    "00-original-game.jpg"
   ],
-  "started": "2026-10-01T17:51:40.223Z",
-  "passed": false,
+  "started": "2026-10-01T18:03:17.929Z",
+  "passed": true,
   "render": {
     "originX": 0,
     "phase": "menu",
@@ -63,7 +77,7 @@
     "drawCalls": 77,
     "triangles": 984456,
     "crowd": 8133,
-    "averageFrameMs": 771.4799999999983,
+    "averageFrameMs": 642.5799999999989,
     "stage": 0,
     "view": "home",
     "strikerVisible": true,
@@ -77,48 +91,5 @@
     "keeperStage": "set",
     "keeperLoaded": true
   },
-  "failure": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(geometry.settings.left<40&&geometry.settings.top<130&&geometry.settings.right<geometry.width/2)\n\n    at checkFraming (/home/runner/work/FootballStrike/FootballStrike/tests/browser.cjs:173:9)\n    at async /home/runner/work/FootballStrike/FootballStrike/tests/browser.cjs:199:41\n    at async check (/home/runner/work/FootballStrike/FootballStrike/tests/browser.cjs:8:31)\n    at async /home/runner/work/FootballStrike/FootballStrike/tests/browser.cjs:198:2",
-  "browserState": {
-    "error": "",
-    "ready": true,
-    "state": {
-      "originX": -2.7,
-      "phase": "aim",
-      "mode": "practice",
-      "nation": "eng",
-      "difficulty": "rookie",
-      "score": [
-        0,
-        0
-      ],
-      "shots": 1,
-      "goals": 1,
-      "points": 0,
-      "combo": 0,
-      "outcome": null,
-      "remaining": 45,
-      "paused": false,
-      "countryCount": 12,
-      "actorReady": true,
-      "ballAssetLoaded": true,
-      "assetErrors": [],
-      "drawCalls": 23,
-      "triangles": 968348,
-      "crowd": 8133,
-      "averageFrameMs": 442.5216981132073,
-      "stage": 0,
-      "view": "first-person",
-      "strikerVisible": false,
-      "gestureCurve": 0,
-      "shotCurve": 0,
-      "shotPower": 0.7,
-      "inputActive": false,
-      "drawnShot": false,
-      "pathPoints": 0,
-      "shotApex": 0,
-      "keeperStage": "set",
-      "keeperLoaded": true
-    }
-  },
-  "finished": "2026-10-01T17:57:13.532Z"
+  "finished": "2026-10-01T18:11:19.422Z"
 }
