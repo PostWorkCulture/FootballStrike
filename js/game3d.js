@@ -327,38 +327,34 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.92;
+renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
 
 // Broadcast-Quality Post-Processing Pipeline
-const renderTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
-    minFilter: THREE.LinearFilter,
-    magFilter: THREE.LinearFilter,
-    format: THREE.RGBAFormat
-});
-
-const composer = new THREE.EffectComposer(renderer, renderTarget);
+const composer = new THREE.EffectComposer(renderer);
+composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 const renderPass = new THREE.RenderPass(scene, camera);
 composer.addPass(renderPass);
 
-// Stadium Floodlight Bloom (Subtle cinematic glow on bright surfaces)
+// Fine-Tuned UnrealBloomPass (Broadcast floodlight & specular radiance)
 const bloomPass = new THREE.UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.30,   // strength — subtle, not overdone
-    0.65,   // radius
-    0.88    // threshold — only brightest surfaces bloom
+    0.32,   // strength — balanced broadcast floodlight radiance without scene fogging
+    0.45,   // radius — sharp optical halo around luminaire banks
+    0.85    // threshold — highlights only floodlight emitters, metallic specular glints, and digital hoardings
 );
 composer.addPass(bloomPass);
 
-// Cinematic Vignette (Darken edges for broadcast depth)
+// Soft Cinematic Broadcast Vignette (Subtle telephoto lens falloff)
 const vignettePass = new THREE.ShaderPass(THREE.VignetteShader);
-vignettePass.uniforms['offset'].value = 0.95;
-vignettePass.uniforms['darkness'].value = 1.15;
+vignettePass.uniforms['offset'].value = 1.08;
+vignettePass.uniforms['darkness'].value = 1.10;
 composer.addPass(vignettePass);
 
-// FXAA Anti-Aliasing (Smooth jagged edges)
+// Sharp FXAA Anti-Aliasing (Synchronized to true backbuffer resolution)
 const fxaaPass = new THREE.ShaderPass(THREE.FXAAShader);
-fxaaPass.uniforms['resolution'].value.set(1.0 / window.innerWidth, 1.0 / window.innerHeight);
+const curPr = composer._pixelRatio || Math.min(window.devicePixelRatio, 2);
+fxaaPass.uniforms['resolution'].value.set(1.0 / (window.innerWidth * curPr), 1.0 / (window.innerHeight * curPr));
 composer.addPass(fxaaPass);
 
 // Cannon Physics World
@@ -377,40 +373,50 @@ world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, postPhysMat, { 
 world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, netPhysMat, { friction: 0.98, restitution: 0.0 }));
 
 // Matchday Broadcast Stadium Floodlighting & Character Illumination
-const hemiLight = new THREE.HemisphereLight(0xffffff, 0x475569, 0.90);
+const hemiLight = new THREE.HemisphereLight(0xf0f6ff, 0x1e3a1f, 0.72); // 5600K sky daylight tungsten with rich turf bounce
 scene.add(hemiLight);
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.50);
+const ambientLight = new THREE.AmbientLight(0x334155, 0.40); // Stadium bowl shadow fill
 scene.add(ambientLight);
 
-const mainSun = new THREE.DirectionalLight(0xfffdf5, 0.85);
-mainSun.position.set(18, 36, 12);
-mainSun.castShadow = true;
-scene.add(mainSun);
-
 // Dedicated High-Intensity Goalmouth Key Light (Brightens Goalkeeper Face, Kit & Gloves)
-const goalKeyLight = new THREE.DirectionalLight(0xffffff, 1.35);
-goalKeyLight.position.set(0, 16, -4);
+const goalKeyLight = new THREE.DirectionalLight(0xfffbf0, 1.25);
+goalKeyLight.position.set(0, 18, -4);
 goalKeyLight.target.position.set(0, 1.2, -20);
 scene.add(goalKeyLight);
 scene.add(goalKeyLight.target);
 
-const createFloodlight = (x, y, z, tx, ty, tz) => {
-    const spot = new THREE.SpotLight(0xf8fafc, 1.65, 120, Math.PI / 3.2, 0.40, 1.1);
+// 4-Point Stadium Floodlight Mast Arrays (5600K Daylight Tungsten: 0xf1f6ff)
+// Cross-pitch lighting vectors producing realistic quad-shadows and specular gleams on aluminum posts & damp pitch
+const mastFloodlights = [];
+const createMastFloodlight = (x, y, z, tx, ty, tz, castShadow = true, intensity = 1.65) => {
+    const spot = new THREE.SpotLight(0xf1f6ff, intensity, 140, Math.PI / 3.4, 0.38, 1.05);
     spot.position.set(x, y, z);
     spot.target.position.set(tx, ty, tz);
-    spot.castShadow = true;
-    spot.shadow.mapSize.width = 1024; spot.shadow.mapSize.height = 1024;
+    if (castShadow) {
+        spot.castShadow = true;
+        spot.shadow.mapSize.width = 1024;
+        spot.shadow.mapSize.height = 1024;
+        spot.shadow.bias = -0.0004;
+        spot.shadow.camera.near = 12;
+        spot.shadow.camera.far = 135;
+    }
     scene.add(spot);
     scene.add(spot.target);
+    mastFloodlights.push(spot);
     return spot;
 };
-createFloodlight(38, 32, -42, 0, 1.2, -20);
-createFloodlight(-38, 32, -42, 0, 1.2, -20);
-createFloodlight(26, 22, -6, 0, 1.2, -19.6);
-createFloodlight(-26, 22, -6, 0, 1.2, -19.6);
-createFloodlight(38, 32, 22, 0, 1.2, -15);
-createFloodlight(-38, 32, 22, 0, 1.2, -15);
+
+// 4 Corner Mast Floodlights:
+// NW Mast Array (-38, 33, -44) -> Cross-pitch targeting pitch & goalmouth right channel
+const floodlightNW = createMastFloodlight(-38, 33, -44, 2.5, 0.4, -18, true, 1.55);
+// NE Mast Array (38, 33, -44) -> Cross-pitch targeting pitch & goalmouth left channel
+const floodlightNE = createMastFloodlight(38, 33, -44, -2.5, 0.4, -18, true, 1.55);
+// SW Mast Array (-38, 33, 26) -> Cross-pitch forward targeting penalty area and front of posts
+const floodlightSW = createMastFloodlight(-38, 33, 26, 2.0, 1.2, -19.5, true, 1.70);
+// SE Mast Array (38, 33, 26) -> Cross-pitch forward targeting penalty area and front of posts
+const floodlightSE = createMastFloodlight(38, 33, 26, -2.0, 1.2, -19.5, true, 1.70);
+window.mastFloodlights = mastFloodlights;
 
 // ============================================================================
 // 3. PITCH, CHALK MARKINGS & GOAL FRAME
@@ -516,18 +522,33 @@ function generateChalkDecal() {
     return new THREE.CanvasTexture(canvas);
 }
 
+// Procedural PBR Texture Loader & Pitch Turf Maps
+const pbrTextureLoader = new THREE.TextureLoader();
+
+const turfNormalTex = pbrTextureLoader.load('assets/turf_normal_pbr.png');
+turfNormalTex.wrapS = THREE.RepeatWrapping;
+turfNormalTex.wrapT = THREE.RepeatWrapping;
+turfNormalTex.repeat.set(16, 22);
+
+const turfRoughnessTex = pbrTextureLoader.load('assets/turf_roughness_pbr.png');
+turfRoughnessTex.wrapS = THREE.RepeatWrapping;
+turfRoughnessTex.wrapT = THREE.RepeatWrapping;
+turfRoughnessTex.repeat.set(16, 22);
+
 const pitchGeo = new THREE.PlaneGeometry(80, 110);
 const pitchMat = new THREE.MeshStandardMaterial({
     map: generateTurf(),
-    bumpMap: generateBump(),
-    bumpScale: 0.05,
-    roughness: 0.88,
-    metalness: 0.05
+    normalMap: turfNormalTex,
+    normalScale: new THREE.Vector2(0.85, 0.85),
+    roughnessMap: turfRoughnessTex,
+    roughness: 0.78,
+    metalness: 0.04
 });
 const pitchMesh = new THREE.Mesh(pitchGeo, pitchMat);
 pitchMesh.rotation.x = -Math.PI / 2;
 pitchMesh.receiveShadow = true;
 scene.add(pitchMesh);
+window.pitchMesh = pitchMesh;
 
 const groundBody = new CANNON.Body({
     mass: 0,
@@ -559,25 +580,43 @@ function generateCrowdTexture() {
     canvas.width = 1024; canvas.height = 512;
     const ctx = canvas.getContext('2d');
     
-    // Background seat shell
-    ctx.fillStyle = '#0f172a';
+    // Deep stadium seating shadow base
+    ctx.fillStyle = '#0b1120';
     ctx.fillRect(0, 0, 1024, 512);
 
-    const fanColors = ['#dc2626', '#2563eb', '#38bdf8', '#fbbf24', '#ffffff', '#16a34a', '#ea580c', '#6366f1', '#e2e8f0'];
-    const skinTones = ['#f8d7b8', '#e09d72', '#a56842', '#693e25', '#f3c299'];
+    const fanColors = [
+        '#dc2626', '#b91c1c', '#ef4444', // Home Reds
+        '#1d4ed8', '#2563eb', '#38bdf8', // Royal & Sky Blues
+        '#fbbf24', '#f59e0b',             // Club Gold/Amber
+        '#ffffff', '#f1f5f9', '#94a3b8', // Matchday Whites & Grays
+        '#15803d', '#16a34a',             // Emerald Green accents
+        '#0f172a'                         // Dark coats/jackets
+    ];
+    const skinTones = ['#f8d7b8', '#e09d72', '#a56842', '#693e25', '#f3c299', '#dfa87e'];
 
-    // 8 distinct rows of spectators
+    // 8 distinct tiered rows of spectators
     const rowH = 64;
     for (let r = 0; r < 8; r++) {
         const rowY = r * rowH;
         // Concrete riser & step nosing
         ctx.fillStyle = '#1e293b';
-        ctx.fillRect(0, rowY, 1024, 14);
+        ctx.fillRect(0, rowY, 1024, 12);
         ctx.fillStyle = '#fbbf24'; // Yellow safety edge
-        ctx.fillRect(0, rowY + 12, 1024, 2);
+        ctx.fillRect(0, rowY + 10, 1024, 2);
 
-        // Individual human-scale spectators
+        // 16 spectator columns with access stairways at columns 4 & 12
         for (let s = 0; s < 16; s++) {
+            if (s === 4 || s === 12) {
+                // High-visibility yellow safety stair walkway
+                ctx.fillStyle = '#d97706';
+                ctx.fillRect(s * 64 + 4, rowY + 12, 56, 50);
+                ctx.fillStyle = '#92400e';
+                for (let step = 0; step < 4; step++) {
+                    ctx.fillRect(s * 64 + 8, rowY + 16 + step * 10, 48, 2);
+                }
+                continue;
+            }
+
             const colX = s * 64 + 4;
             const kit = fanColors[Math.floor(Math.random() * fanColors.length)];
             const skin = skinTones[Math.floor(Math.random() * skinTones.length)];
@@ -585,27 +624,42 @@ function generateCrowdTexture() {
             // Fan Torso
             ctx.fillStyle = kit;
             ctx.beginPath();
-            ctx.roundRect(colX + 6, rowY + 28, 44, 34, [6, 6, 0, 0]);
+            ctx.roundRect(colX + 8, rowY + 28, 40, 34, [6, 6, 0, 0]);
             ctx.fill();
 
             // Head & Face
             ctx.fillStyle = skin;
             ctx.beginPath();
-            ctx.arc(colX + 28, rowY + 22, 11, 0, Math.PI * 2);
+            ctx.arc(colX + 28, rowY + 21, 10, 0, Math.PI * 2);
             ctx.fill();
 
             // Hair / Cap
-            if (Math.random() > 0.3) {
+            if (Math.random() > 0.25) {
                 ctx.fillStyle = Math.random() > 0.5 ? '#18181b' : kit;
                 ctx.beginPath();
-                ctx.arc(colX + 28, rowY + 18, 11, Math.PI, Math.PI * 2);
+                ctx.arc(colX + 28, rowY + 17, 10, Math.PI, Math.PI * 2);
                 ctx.fill();
             }
 
-            // Scarf or Cheering Arms
-            if (Math.random() > 0.5) {
+            // Scarf held overhead or cheering club banner
+            if (Math.random() > 0.45) {
+                ctx.fillStyle = Math.random() > 0.5 ? '#dc2626' : '#2563eb';
+                ctx.fillRect(colX + 6, rowY + 33, 44, 7);
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(colX + 10, rowY + 34, 36, 6);
+                ctx.fillRect(colX + 16, rowY + 34, 24, 5);
+            }
+
+            // Cheering club flag on lower rows
+            if (r < 3 && Math.random() > 0.68) {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(colX + 44, rowY + 8, 2, 26);
+                ctx.fillStyle = kit;
+                ctx.beginPath();
+                ctx.moveTo(colX + 46, rowY + 8);
+                ctx.lineTo(colX + 62, rowY + 14);
+                ctx.lineTo(colX + 46, rowY + 20);
+                ctx.closePath();
+                ctx.fill();
             }
         }
     }
@@ -617,10 +671,11 @@ function generateCrowdTexture() {
 
 const crowdTex = generateCrowdTexture();
 const concreteMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.85 });
+const seatMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.45 });
 const roofMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.35, metalness: 0.7 });
 const suiteMat = new THREE.MeshBasicMaterial({ color: 0xfde047 });
 
-// North Stand Behind Goal (14 Stepped Tiers with Human-Scaled Crowd Risers)
+// North Stand Behind Goal (14 Stepped 3D Tiers with Crowd Density Textures & Seating Rows)
 for (let t = 0; t < 14; t++) {
     const w = 72 + t * 2.8;
     const tierDepth = 2.4;
@@ -644,6 +699,11 @@ for (let t = 0; t < 14; t++) {
     const riser = new THREE.Mesh(new THREE.PlaneGeometry(w, tierH), crowdMat);
     riser.position.set(0, tierY + tierH * 0.5, tierZ + tierDepth * 0.5);
     stadium.add(riser);
+
+    // 3D Stadium Seating Row
+    const seatRow = new THREE.Mesh(new THREE.BoxGeometry(w * 0.96, 0.22, 0.45), seatMat);
+    seatRow.position.set(0, tierY + 0.28, tierZ - 0.4);
+    stadium.add(seatRow);
 }
 
 // Upper Executive VIP Hospitality Boxes
@@ -656,84 +716,262 @@ for (let s = 0; s < 18; s++) {
     stadium.add(windowMesh);
 }
 
-// Cantilever Steel Girders & Stadium Canopy
+// Cantilever Structural Steel Girders & Stadium Canopy
 const northRoof = new THREE.Mesh(new THREE.BoxGeometry(116, 1.2, 38), roofMat);
 northRoof.position.set(0, 26.5, -46);
 stadium.add(northRoof);
 
-// South Stand (8 Tiers)
+// South Stand (8 Stepped 3D Tiers with Spectator Crowd Risers)
 for (let t = 0; t < 8; t++) {
     const w = 72 + t * 2.8;
-    const step = new THREE.Mesh(new THREE.BoxGeometry(w, 1.2, 2.4), concreteMat);
-    step.position.set(0, 1.1 + t * 1.35, 20 + t * 2.2);
+    const tierDepth = 2.4;
+    const tierH = 1.35;
+    const tierZ = 20 + t * 2.2;
+    const tierY = 1.1 + t * 1.35;
+
+    const step = new THREE.Mesh(new THREE.BoxGeometry(w, 0.35, tierDepth), concreteMat);
+    step.position.set(0, tierY, tierZ);
     stadium.add(step);
+
+    const sCrowdMat = new THREE.MeshStandardMaterial({
+        map: crowdTex.clone(),
+        roughness: 0.7
+    });
+    sCrowdMat.map.repeat.set(Math.round(w / 3.0), 1);
+    sCrowdMat.map.needsUpdate = true;
+
+    const riser = new THREE.Mesh(new THREE.PlaneGeometry(w, tierH), sCrowdMat);
+    riser.rotation.y = Math.PI;
+    riser.position.set(0, tierY + tierH * 0.5, tierZ - tierDepth * 0.5);
+    stadium.add(riser);
 }
 
-// East & West Grandstands
+// Flanking East & West Grandstands (12 Stepped 3D Tiers with Crowd Risers)
 for (let t = 0; t < 12; t++) {
     const len = 96 + t * 2.2;
-    const lStep = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.2, len), concreteMat);
-    lStep.position.set(-36 - t * 2.2, 1.1 + t * 1.35, -8);
+    const tierW = 2.4;
+    const tierH = 1.35;
+    const tierY = 1.1 + t * 1.35;
+    const lx = -36 - t * 2.2;
+    const rx = 36 + t * 2.2;
+
+    // West Stand
+    const lStep = new THREE.Mesh(new THREE.BoxGeometry(tierW, 0.35, len), concreteMat);
+    lStep.position.set(lx, tierY, -8);
     stadium.add(lStep);
 
-    const rStep = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.2, len), concreteMat);
-    rStep.position.set(36 + t * 2.2, 1.1 + t * 1.35, -8);
+    const lCrowdMat = new THREE.MeshStandardMaterial({ map: crowdTex.clone(), roughness: 0.7 });
+    lCrowdMat.map.repeat.set(Math.round(len / 3.0), 1);
+    lCrowdMat.map.needsUpdate = true;
+    const lRiser = new THREE.Mesh(new THREE.PlaneGeometry(len, tierH), lCrowdMat);
+    lRiser.rotation.y = Math.PI / 2;
+    lRiser.position.set(lx + tierW * 0.5, tierY + tierH * 0.5, -8);
+    stadium.add(lRiser);
+
+    // East Stand
+    const rStep = new THREE.Mesh(new THREE.BoxGeometry(tierW, 0.35, len), concreteMat);
+    rStep.position.set(rx, tierY, -8);
     stadium.add(rStep);
+
+    const rCrowdMat = new THREE.MeshStandardMaterial({ map: crowdTex.clone(), roughness: 0.7 });
+    rCrowdMat.map.repeat.set(Math.round(len / 3.0), 1);
+    rCrowdMat.map.needsUpdate = true;
+    const rRiser = new THREE.Mesh(new THREE.PlaneGeometry(len, tierH), rCrowdMat);
+    rRiser.rotation.y = -Math.PI / 2;
+    rRiser.position.set(rx - tierW * 0.5, tierY + tierH * 0.5, -8);
+    stadium.add(rRiser);
 }
 
-// 4 High-Intensity Steel Lattice Floodlight Towers
-const floodlightLampGeo = new THREE.BoxGeometry(0.7, 0.7, 0.4);
-const floodlightLampMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+// Sideline Team Dugouts / Technical Area Shelters
+const dugoutCanopyMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.40, roughness: 0.2 });
+[-34.8, 34.8].forEach((dx, dIdx) => {
+    const dugout = new THREE.Group();
+    const shelter = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 9.0, 16, 1, false, 0, Math.PI), dugoutCanopyMat);
+    shelter.rotation.z = Math.PI / 2;
+    shelter.rotation.y = dIdx === 0 ? Math.PI / 2 : -Math.PI / 2;
+    shelter.position.set(0, 1.4, 0);
+    dugout.add(shelter);
+
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.45, 8.2), seatMat);
+    bench.position.set(dIdx === 0 ? -0.4 : 0.4, 0.35, 0);
+    dugout.add(bench);
+
+    dugout.position.set(dx, 0, -8);
+    stadium.add(dugout);
+});
+
+// 4 High-Intensity Steel Lattice Floodlight Mast Arrays (5600K Daylight Tungsten)
+const floodlightLampGeo = new THREE.BoxGeometry(0.72, 0.72, 0.42);
+const floodlightLampMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); // 5600K high-luminance emitter face
 const pylonMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.25 });
+const pylonBraceMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.80, roughness: 0.30 });
+const mastCoronaMat = new THREE.MeshBasicMaterial({
+    color: 0xdbeafe,
+    transparent: true,
+    opacity: 0.55,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+});
 
 const cornerPylons = [
-    { x: -38, z: -44 },
-    { x: 38, z: -44 },
-    { x: -38, z: 26 },
-    { x: 38, z: 26 }
+    { x: -38, z: -44, rotY: Math.PI / 4 },
+    { x: 38, z: -44, rotY: -Math.PI / 4 },
+    { x: -38, z: 26, rotY: (3 * Math.PI) / 4 },
+    { x: 38, z: 26, rotY: (-3 * Math.PI) / 4 }
 ];
 
 cornerPylons.forEach(pos => {
+    // 4 Inward-tapering steel lattice corner columns
     for (let leg = 0; leg < 4; leg++) {
-        const lx = (leg % 2 === 0 ? -1 : 1) * 1.3;
-        const lz = (leg < 2 ? -1 : 1) * 1.3;
-        const pylonLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.32, 32, 8), pylonMat);
-        pylonLeg.position.set(pos.x + lx, 16, pos.z + lz);
+        const lx0 = (leg % 2 === 0 ? -1 : 1) * 1.6;
+        const lz0 = (leg < 2 ? -1 : 1) * 1.6;
+        const lx1 = (leg % 2 === 0 ? -1 : 1) * 1.0;
+        const lz1 = (leg < 2 ? -1 : 1) * 1.0;
+
+        const pylonLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.32, 33, 8), pylonMat);
+        pylonLeg.position.set(pos.x + (lx0 + lx1) * 0.5, 16.5, pos.z + (lz0 + lz1) * 0.5);
         stadium.add(pylonLeg);
     }
-    const gantry = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.6, 4.8), concreteMat);
-    gantry.position.set(pos.x, 32, pos.z);
+
+    // 4 Horizontal cross-brace tiers along the tower height
+    for (let b = 1; b <= 4; b++) {
+        const bY = b * 7.5;
+        const braceW = 3.2 - b * 0.35;
+        const braceX = new THREE.Mesh(new THREE.BoxGeometry(braceW, 0.12, 0.12), pylonBraceMat);
+        braceX.position.set(pos.x, bY, pos.z);
+        stadium.add(braceX);
+    }
+
+    // Service Gantry & Maintenance Walkway Platform
+    const gantry = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.6, 5.2), concreteMat);
+    gantry.position.set(pos.x, 33, pos.z);
     stadium.add(gantry);
 
+    // Gantry Safety Railing
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.8, roughness: 0.3 });
+    const railing = new THREE.Mesh(new THREE.BoxGeometry(5.1, 0.8, 5.1), railMat);
+    railing.position.set(pos.x, 33.7, pos.z);
+    stadium.add(railing);
+
+    // Angled Floodlight Head Frame (Tilted ~35° down toward pitch)
+    const headFrame = new THREE.Group();
+    headFrame.position.set(pos.x, 34.2, pos.z);
+    headFrame.rotation.y = pos.rotY;
+    headFrame.rotation.x = 0.60; // Pitch downward
+
+    // 4 Rows x 5 Columns = 20 Projector Luminaires per mast
     for (let r = 0; r < 4; r++) {
-        for (let c = 0; c < 4; c++) {
+        for (let c = 0; c < 5; c++) {
             const lamp = new THREE.Mesh(floodlightLampGeo, floodlightLampMat);
-            lamp.position.set(pos.x - 1.65 + c * 1.1, 33.2 + r * 1.0, pos.z);
-            stadium.add(lamp);
+            lamp.position.set(-2.0 + c * 1.0, r * 0.95, 0.25);
+            headFrame.add(lamp);
         }
     }
+
+    // Soft Optical Corona Flare Billboard (Triggers UnrealBloomPass broadcast halo)
+    const coronaMesh = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), mastCoronaMat);
+    coronaMesh.position.set(0, 1.5, 0.6);
+    headFrame.add(coronaMesh);
+
+    stadium.add(headFrame);
 });
 
-// Perimeter Animated Digital LED Boards
-const adTexCanvas = document.createElement('canvas');
-adTexCanvas.width = 1024; adTexCanvas.height = 64;
-const actx = adTexCanvas.getContext('2d');
-actx.fillStyle = '#0284c7'; actx.fillRect(0, 0, 1024, 64);
-actx.fillStyle = '#ffffff'; actx.font = '900 28px sans-serif';
-actx.fillText('FOOTBALL STRIKE 3D • WORLD CHAMPIONSHIP • MASTER THE SWERVE', 20, 43);
-const adTex = new THREE.CanvasTexture(adTexCanvas);
-adTex.wrapS = THREE.RepeatWrapping; adTex.repeat.set(4, 1);
-const adMat = new THREE.MeshBasicMaterial({ map: adTex });
+// Perimeter Animated Digital LED Hoardings (2048x128 High-Definition Broadcast Graphics)
+function generateAdHoardingTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048; canvas.height = 128;
+    const ctx = canvas.getContext('2d');
 
-const northAd = new THREE.Mesh(new THREE.BoxGeometry(72, 1.0, 0.3), adMat);
-northAd.position.set(0, 0.5, -26.5);
-stadium.add(northAd);
-const leftAd = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.0, 80), adMat);
-leftAd.position.set(-34, 0.5, -8);
-stadium.add(leftAd);
-const rightAd = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.0, 80), adMat);
-rightAd.position.set(34, 0.5, -8);
-stadium.add(rightAd);
+    ctx.fillStyle = '#050811';
+    ctx.fillRect(0, 0, 2048, 128);
+
+    // Scanline matrix grid
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    for (let y = 0; y < 128; y += 4) ctx.fillRect(0, y, 2048, 1);
+
+    const panels = [
+        { border: '#38bdf8', tag: 'OFFICIAL TOURNAMENT', main: '⚽ FOOTBALL STRIKE PRO', sub: 'WORLD SHOOTOUT CHAMPIONSHIP • NEXT-GEN BALL DYNAMICS' },
+        { border: '#fbbf24', tag: 'BALL TELEMETRY', main: '⚡ HYPERVORTEX SPEED', sub: '120 KM/H RADAR TRACKING • CONTINUOUS AERODYNAMIC SWERVE' },
+        { border: '#f87171', tag: 'MATCHDAY BROADCAST', main: '🏆 CONTINENTAL CUP', sub: 'LIVE MATCH ATMOSPHERE • ZERO-REBOUND PRO NETS' },
+        { border: '#4ade80', tag: 'EQUIPMENT SPONSOR', main: '🧤 TITAN HYPER-GRIP', sub: '4MM PRO LATEX FOAM • PRECISION PALM DAMPENING' },
+        { border: '#818cf8', tag: 'AERODYNAMICS', main: '🔥 APEX KINETICS', sub: 'MAGNUS SPIN COMPUTATION • 480 RPM CURL PRECISION' }
+    ];
+
+    const pW = 2048 / panels.length;
+    panels.forEach((p, idx) => {
+        const px = idx * pW;
+        const grad = ctx.createLinearGradient(px, 0, px + pW, 0);
+        grad.addColorStop(0, '#0a101f'); grad.addColorStop(0.3, '#101c36'); grad.addColorStop(0.7, '#101c36'); grad.addColorStop(1, '#0a101f');
+        ctx.fillStyle = grad;
+        ctx.fillRect(px + 4, 6, pW - 8, 116);
+
+        ctx.strokeStyle = p.border;
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(px + 6, 8, pW - 12, 112);
+
+        ctx.fillStyle = p.border;
+        ctx.fillRect(px + 22, 14, 150, 18);
+        ctx.fillStyle = '#050811';
+        ctx.font = '900 11px sans-serif';
+        ctx.fillText(p.tag, px + 28, 27);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 32px sans-serif';
+        ctx.shadowColor = p.border; ctx.shadowBlur = 10;
+        ctx.fillText(p.main, px + 22, 70);
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '700 14px sans-serif';
+        ctx.fillText(p.sub, px + 22, 100);
+
+        ctx.strokeStyle = p.border; ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(px + pW - 32, 38); ctx.lineTo(px + pW - 18, 64); ctx.lineTo(px + pW - 32, 90);
+        ctx.stroke();
+    });
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.repeat.set(3, 1);
+    return tex;
+}
+
+const adTex = generateAdHoardingTexture();
+const adMat = new THREE.MeshStandardMaterial({
+    map: adTex,
+    emissiveMap: adTex,
+    emissive: 0xffffff,
+    emissiveIntensity: 0.65,
+    roughness: 0.25,
+    metalness: 0.20
+});
+const adCasingMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.85 });
+
+// North Goal-Line Digital LED Hoarding
+const northAdGroup = new THREE.Group();
+const northAd = new THREE.Mesh(new THREE.BoxGeometry(72, 1.0, 0.25), adMat);
+northAd.position.set(0, 0.52, 0);
+northAdGroup.add(northAd);
+const northCasing = new THREE.Mesh(new THREE.BoxGeometry(72.4, 1.08, 0.35), adCasingMat);
+northCasing.position.set(0, 0.50, -0.05);
+northAdGroup.add(northCasing);
+northAdGroup.position.set(0, 0, -26.5);
+stadium.add(northAdGroup);
+
+// Left & Right Touchline Digital LED Hoardings
+[-34, 34].forEach(sideX => {
+    const sideAdGroup = new THREE.Group();
+    const sideAd = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.0, 84), adMat);
+    sideAd.position.set(0, 0.52, 0);
+    sideAdGroup.add(sideAd);
+    const sideCasing = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.08, 84.4), adCasingMat);
+    sideCasing.position.set(sideX < 0 ? -0.05 : 0.05, 0.50, 0);
+    sideAdGroup.add(sideCasing);
+    sideAdGroup.position.set(sideX, 0, -8);
+    stadium.add(sideAdGroup);
+});
 
 // 12 Stadium Camera Flashbulbs
 const flashGeo = new THREE.SphereGeometry(0.4, 8, 8);
@@ -751,19 +989,142 @@ scene.add(stadium);
 // 5. REGULATION GOAL FRAME & SPRING-DEFORMING NET
 // ============================================================================
 const goalGroup = new THREE.Group();
-const postMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.35 });
-const stanchionMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.3, metalness: 0.8 });
-const postRadius = 0.06, postHeight = 2.44, goalWidth = 7.32, goalDepth = 2.0;
 
-// Front Goal Posts & Crossbar
+// Tubular aluminum goal posts with realistic metallic specularity
+const postMat = new THREE.MeshStandardMaterial({
+    color: 0xfdfdfd,
+    roughness: 0.12,
+    metalness: 0.62
+});
+const stanchionMat = new THREE.MeshStandardMaterial({
+    color: 0x64748b,
+    roughness: 0.28,
+    metalness: 0.82
+});
+const jointWeldMat = new THREE.MeshStandardMaterial({
+    color: 0xe2e8f0,
+    roughness: 0.22,
+    metalness: 0.55
+});
+const groundSocketMat = new THREE.MeshStandardMaterial({
+    color: 0x334155,
+    roughness: 0.35,
+    metalness: 0.85
+});
+const groundAnchorBoltMat = new THREE.MeshStandardMaterial({
+    color: 0x94a3b8,
+    roughness: 0.20,
+    metalness: 0.90
+});
+const rubberTurfMat = new THREE.MeshStandardMaterial({
+    color: 0x1e293b,
+    roughness: 0.92,
+    metalness: 0.05
+});
+
+const postRadius = 0.06, postHeight = 2.44, goalWidth = 7.32, goalDepth = 2.0, ballRadius = 0.22;
+
+// Upright Tubular Aluminum Posts
 const leftPost = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, postHeight, 32), postMat);
-leftPost.position.set(-goalWidth / 2, postHeight / 2, 0); leftPost.castShadow = true; goalGroup.add(leftPost);
+leftPost.position.set(-goalWidth / 2, postHeight / 2, 0);
+leftPost.castShadow = true;
+goalGroup.add(leftPost);
 
 const rightPost = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, postHeight, 32), postMat);
-rightPost.position.set(goalWidth / 2, postHeight / 2, 0); rightPost.castShadow = true; goalGroup.add(rightPost);
+rightPost.position.set(goalWidth / 2, postHeight / 2, 0);
+rightPost.castShadow = true;
+goalGroup.add(rightPost);
 
+// Crossbar spanning horizontally
 const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(postRadius, postRadius, goalWidth + postRadius * 2, 32), postMat);
-crossbar.rotation.z = Math.PI / 2; crossbar.position.set(0, postHeight, 0); crossbar.castShadow = true; goalGroup.add(crossbar);
+crossbar.rotation.z = Math.PI / 2;
+crossbar.position.set(0, postHeight, 0);
+crossbar.castShadow = true;
+goalGroup.add(crossbar);
+
+// Crossbar Corner Depth Bevels & Elbow Castings:
+// Left Corner Elbow Joint
+const leftElbow = new THREE.Mesh(new THREE.TorusGeometry(postRadius, postRadius * 0.98, 16, 24, Math.PI / 2), postMat);
+leftElbow.rotation.z = Math.PI;
+leftElbow.position.set(-goalWidth / 2 + postRadius, postHeight - postRadius, 0);
+goalGroup.add(leftElbow);
+
+// Left Corner Weld Sleeves & Depth End Cap
+const leftWeldV = new THREE.Mesh(new THREE.CylinderGeometry(postRadius * 1.04, postRadius * 1.04, 0.02, 32), jointWeldMat);
+leftWeldV.position.set(-goalWidth / 2, postHeight - postRadius * 1.8, 0);
+goalGroup.add(leftWeldV);
+const leftWeldH = new THREE.Mesh(new THREE.CylinderGeometry(postRadius * 1.04, postRadius * 1.04, 0.02, 32), jointWeldMat);
+leftWeldH.rotation.z = Math.PI / 2;
+leftWeldH.position.set(-goalWidth / 2 + postRadius * 1.8, postHeight, 0);
+goalGroup.add(leftWeldH);
+const leftCornerCap = new THREE.Mesh(new THREE.SphereGeometry(postRadius, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2), postMat);
+leftCornerCap.position.set(-goalWidth / 2, postHeight, 0);
+goalGroup.add(leftCornerCap);
+
+// Right Corner Elbow Joint
+const rightElbow = new THREE.Mesh(new THREE.TorusGeometry(postRadius, postRadius * 0.98, 16, 24, Math.PI / 2), postMat);
+rightElbow.rotation.z = -Math.PI / 2;
+rightElbow.position.set(goalWidth / 2 - postRadius, postHeight - postRadius, 0);
+goalGroup.add(rightElbow);
+
+// Right Corner Weld Sleeves & Depth End Cap
+const rightWeldV = new THREE.Mesh(new THREE.CylinderGeometry(postRadius * 1.04, postRadius * 1.04, 0.02, 32), jointWeldMat);
+rightWeldV.position.set(goalWidth / 2, postHeight - postRadius * 1.8, 0);
+goalGroup.add(rightWeldV);
+const rightWeldH = new THREE.Mesh(new THREE.CylinderGeometry(postRadius * 1.04, postRadius * 1.04, 0.02, 32), jointWeldMat);
+rightWeldH.rotation.z = Math.PI / 2;
+rightWeldH.position.set(goalWidth / 2 - postRadius * 1.8, postHeight, 0);
+goalGroup.add(rightWeldH);
+const rightCornerCap = new THREE.Mesh(new THREE.SphereGeometry(postRadius, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2), postMat);
+rightCornerCap.position.set(goalWidth / 2, postHeight, 0);
+goalGroup.add(rightCornerCap);
+
+// Ground Anchor Pins & Foundation Sockets:
+[-goalWidth / 2, goalWidth / 2].forEach(px => {
+    // Heavy galvanized ground socket collar embedded into pitch
+    const socket = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.105, 0.07, 24), groundSocketMat);
+    socket.position.set(px, 0.035, 0);
+    goalGroup.add(socket);
+
+    // Turf protector rubber gasket flush with grass
+    const rubberRim = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.125, 0.02, 24), rubberTurfMat);
+    rubberRim.position.set(px, 0.01, 0);
+    goalGroup.add(rubberRim);
+
+    // 4 High-Tensile Steel Ground Anchor Hex Bolts/Pins
+    for (let b = 0; b < 4; b++) {
+        const ang = (b * Math.PI) / 2 + Math.PI / 4;
+        const bx = px + Math.cos(ang) * 0.082;
+        const bz = Math.sin(ang) * 0.082;
+        const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.045, 6), groundAnchorBoltMat);
+        bolt.position.set(bx, 0.05, bz);
+        goalGroup.add(bolt);
+    }
+
+    // Ground locking wedge latch pin clamping the upright into socket
+    const lockPin = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.09, 12), groundAnchorBoltMat);
+    lockPin.rotation.x = Math.PI / 2;
+    lockPin.position.set(px, 0.06, 0);
+    goalGroup.add(lockPin);
+});
+
+// Turf Net Ground Anchor Peg Pins (Holding bottom net taut into the pitch)
+for (let p = -3.2; p <= 3.25; p += 0.8) {
+    const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.09, 8), groundAnchorBoltMat);
+    peg.position.set(p, 0.03, -goalDepth);
+    goalGroup.add(peg);
+    const pegCap = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), groundAnchorBoltMat);
+    pegCap.position.set(p, 0.07, -goalDepth);
+    goalGroup.add(pegCap);
+}
+// Side turf anchor pegs
+[-goalWidth / 2, goalWidth / 2].forEach(sx => {
+    [-0.5, -1.0, -1.5].forEach(sz => {
+        const sidePeg = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.08, 8), groundAnchorBoltMat);
+        sidePeg.position.set(sx, 0.03, sz);
+        goalGroup.add(sidePeg);
+    });
+});
 
 // Rear Stanchions
 const leftStanchion = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, postHeight, 16), stanchionMat);
@@ -822,13 +1183,37 @@ goalGroup.add(roofNet);
 goalGroup.position.set(0, 0, -20);
 scene.add(goalGroup);
 
-// Net Spring Vertex State
+// FIFA-Grade 3D Hexagonal Spring-Mass Net Cloth Engine
+let netClothPhysics = null;
+if (window.NetClothPhysics) {
+    netClothPhysics = new window.NetClothPhysics({
+        scene,
+        goalGroup,
+        goalWidth,
+        postHeight,
+        goalDepth,
+        ballRadius: 0.22,
+        goalZ: -20.0,
+        replaceMeshes: [backNet, leftSideNet, rightSideNet, roofNet]
+    });
+    window.netClothPhysics = netClothPhysics;
+}
+
+// Net Spring Vertex State (Fallback)
 const netVertexCount = backNetGeo.attributes.position.count;
 const netDisplacements = new Float32Array(netVertexCount);
 const netVelocities = new Float32Array(netVertexCount);
 const netOrigPositions = backNetGeo.attributes.position.array.slice();
 
 function triggerNetBillow(worldHitX, worldHitY) {
+    if (netClothPhysics) {
+        const vz = (typeof ballBody !== 'undefined' && ballBody) ? ballBody.velocity.z : -20;
+        const vx = (typeof ballBody !== 'undefined' && ballBody) ? ballBody.velocity.x : 0;
+        const vy = (typeof ballBody !== 'undefined' && ballBody) ? ballBody.velocity.y : 0;
+        const hitZ = (typeof ballBody !== 'undefined' && ballBody) ? ballBody.position.z : -21.8;
+        netClothPhysics.triggerImpact(worldHitX, worldHitY, hitZ, vx, vy, vz);
+        return;
+    }
     const localHitX = worldHitX;
     const localHitY = worldHitY - postHeight / 2;
     const pos = backNetGeo.attributes.position.array;
@@ -845,6 +1230,10 @@ function triggerNetBillow(worldHitX, worldHitY) {
 }
 
 function updateNetDeformation(dt) {
+    if (netClothPhysics) {
+        netClothPhysics.update(dt, (typeof ballBody !== 'undefined' ? ballBody : null), (typeof ballMesh !== 'undefined' ? ballMesh : null));
+        return;
+    }
     let active = false;
     const pos = backNetGeo.attributes.position.array;
     const stiffness = 85.0;
@@ -895,19 +1284,21 @@ addCylinderCollider(goalWidth / 2, postHeight / 2, -20, postRadius, postHeight);
 addCylinderCollider(0, postHeight, -20, postRadius, goalWidth, Math.PI / 2);
 
 // ============================================================================
-// 6. HIGH-POLY 3D MATCH BALL
+// 6. HIGH-POLY 3D MATCH BALL (PBR REGULATION MATCH BALL)
 // ============================================================================
-const ballRadius = 0.22;
 const ballGeo = new THREE.SphereGeometry(ballRadius, 32, 32);
-const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.15 });
 
-const bCanvas = document.createElement('canvas'); bCanvas.width = 512; bCanvas.height = 256;
-const bctx = bCanvas.getContext('2d'); bctx.fillStyle = '#f8f8f8'; bctx.fillRect(0, 0, 512, 256);
-bctx.fillStyle = '#161616';
-for (let p = 0; p < 6; p++) {
-    bctx.beginPath(); bctx.arc(85 * p + 45, 64 + (p % 2) * 128, 28, 0, Math.PI * 2); bctx.fill();
-}
-ballMat.map = new THREE.CanvasTexture(bCanvas);
+const ballNormalTex = pbrTextureLoader.load('assets/ball_normal_pbr.png');
+const ballDiffuseTex = pbrTextureLoader.load('assets/ball_texture_pbr.png');
+
+const ballMat = new THREE.MeshStandardMaterial({
+    map: ballDiffuseTex,
+    normalMap: ballNormalTex,
+    normalScale: new THREE.Vector2(0.95, 0.95),
+    roughness: 0.28,
+    metalness: 0.08
+});
+
 const ballMesh = new THREE.Mesh(ballGeo, ballMat);
 ballMesh.castShadow = true;
 scene.add(ballMesh);
@@ -922,6 +1313,7 @@ const ballBody = new CANNON.Body({
 world.addBody(ballBody);
 window.ballBody = ballBody;
 window.ballMesh = ballMesh;
+window.ballRadius = ballRadius;
 
 // ============================================================================
 // 7. HIGH-FIDELITY ATHLETIC 3D GOALKEEPER & DEFENSIVE WALL RIG
@@ -956,11 +1348,24 @@ gkGroup.add(gkSpine);
 const gkMesh = new THREE.Group();
 gkSpine.add(gkMesh);
 
+const glovesNormalTex = pbrTextureLoader.load('assets/gloves_normal_pbr.png');
+glovesNormalTex.wrapS = THREE.RepeatWrapping;
+glovesNormalTex.wrapT = THREE.RepeatWrapping;
+glovesNormalTex.repeat.set(4, 4);
+
+const jerseyNormalTex = pbrTextureLoader.load('assets/jersey_normal_pbr.png');
+jerseyNormalTex.wrapS = THREE.RepeatWrapping;
+jerseyNormalTex.wrapT = THREE.RepeatWrapping;
+jerseyNormalTex.repeat.set(10, 10);
+
 const gkPoseModels = {
     idle: null,
     dive_right: null,
     dive_left: null,
-    parry: null
+    parry: null,
+    low_sweep_right: null,
+    low_sweep_left: null,
+    recovery_roll: null
 };
 
 function setupGkPoseModel(gltf, poseKey) {
@@ -971,10 +1376,13 @@ function setupGkPoseModel(gltf, poseKey) {
             node.castShadow = true;
             node.receiveShadow = true;
             if (node.material) {
-                node.material.roughness = 0.35;
-                node.material.metalness = 0.03;
+                node.material.normalMap = glovesNormalTex;
+                node.material.normalScale = new THREE.Vector2(0.65, 0.65);
+                node.material.roughness = 0.32; // German Contact Latex foam palm & grip
+                node.material.metalness = 0.04;
                 node.material.emissive = new THREE.Color(0x333333);
                 node.material.emissiveIntensity = 0.35;
+                node.material.needsUpdate = true;
             }
         }
     });
@@ -987,12 +1395,18 @@ charGltfLoader.load('assets/goalkeeper_pro_3d.glb', (gltf) => setupGkPoseModel(g
 charGltfLoader.load('assets/goalkeeper_dive_right.glb', (gltf) => setupGkPoseModel(gltf, 'dive_right'));
 charGltfLoader.load('assets/goalkeeper_dive_left.glb', (gltf) => setupGkPoseModel(gltf, 'dive_left'));
 charGltfLoader.load('assets/goalkeeper_parry.glb', (gltf) => setupGkPoseModel(gltf, 'parry'));
+charGltfLoader.load('assets/goalkeeper_low_sweep_right.glb', (gltf) => setupGkPoseModel(gltf, 'low_sweep_right'));
+charGltfLoader.load('assets/goalkeeper_low_sweep_left.glb', (gltf) => setupGkPoseModel(gltf, 'low_sweep_left'));
+charGltfLoader.load('assets/goalkeeper_recovery_roll.glb', (gltf) => setupGkPoseModel(gltf, 'recovery_roll'));
 
 function setGkPose(poseKey) {
     for (const k in gkPoseModels) {
         if (gkPoseModels[k]) {
             gkPoseModels[k].visible = (k === poseKey);
         }
+    }
+    if (window.PlayerKinematics) {
+        PlayerKinematics.setGkPose(poseKey);
     }
 }
 window.setGkPose = setGkPose;
@@ -1045,10 +1459,14 @@ charGltfLoader.load('assets/wall_defender_pro_3d.glb', (gltf) => {
                 node.castShadow = true;
                 node.receiveShadow = true;
                 if (node.material) {
-                    node.material.roughness = 0.40;
-                    node.material.metalness = 0.04;
+                    node.material = node.material.clone();
+                    node.material.normalMap = jerseyNormalTex;
+                    node.material.normalScale = new THREE.Vector2(0.75, 0.75);
+                    node.material.roughness = 0.44; // Micro-knit polyester weave
+                    node.material.metalness = 0.02;
                     node.material.emissive = new THREE.Color(0x222222);
                     node.material.emissiveIntensity = 0.22;
+                    node.material.needsUpdate = true;
                 }
             }
         });
@@ -1115,6 +1533,70 @@ window.gkShadow = gkShadow;
 window.gkSpine = gkSpine;
 window.gkMesh = gkMesh;
 window.gkBodyCollider = gkBodyCollider;
+
+// ============================================================================
+// 8B. HIGH-FIDELITY ATHLETIC 3D STRIKER RIG & KINEMATICS INITIALIZATION
+// ============================================================================
+const strikerGroup = new THREE.Group();
+const strikerShadowGeo = new THREE.PlaneGeometry(1.20, 0.90);
+strikerShadowGeo.rotateX(-Math.PI / 2);
+const strikerShadowMat = new THREE.MeshBasicMaterial({ map: softShadowTex, transparent: true, opacity: 0.75, depthWrite: false });
+const strikerShadow = new THREE.Mesh(strikerShadowGeo, strikerShadowMat);
+strikerShadow.position.set(0, 0.015, -7.0);
+scene.add(strikerShadow);
+strikerGroup.position.set(0, 0, -7.0);
+scene.add(strikerGroup);
+
+const strikerPoseModels = {
+    idle: null,
+    run: null,
+    plant: null,
+    strike_instep: null,
+    strike_laces: null,
+    follow_through: null,
+    celebrate: null,
+    disbelief: null
+};
+
+function setupStrikerPoseModel(gltf, poseKey) {
+    const model = gltf.scene;
+    model.scale.set(1.24, 1.24, 1.24);
+    model.traverse(node => {
+        if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+            if (node.material) {
+                node.material.roughness = 0.35;
+                node.material.metalness = 0.04;
+                node.material.emissive = new THREE.Color(0x222222);
+                node.material.emissiveIntensity = 0.25;
+            }
+        }
+    });
+    model.visible = (poseKey === 'idle');
+    strikerGroup.add(model);
+    strikerPoseModels[poseKey] = model;
+}
+
+charGltfLoader.load('assets/striker_idle.glb', (gltf) => setupStrikerPoseModel(gltf, 'idle'));
+charGltfLoader.load('assets/striker_run.glb', (gltf) => setupStrikerPoseModel(gltf, 'run'));
+charGltfLoader.load('assets/striker_plant.glb', (gltf) => setupStrikerPoseModel(gltf, 'plant'));
+charGltfLoader.load('assets/striker_strike_instep.glb', (gltf) => setupStrikerPoseModel(gltf, 'strike_instep'));
+charGltfLoader.load('assets/striker_strike_laces.glb', (gltf) => setupStrikerPoseModel(gltf, 'strike_laces'));
+charGltfLoader.load('assets/striker_follow_through.glb', (gltf) => setupStrikerPoseModel(gltf, 'follow_through'));
+charGltfLoader.load('assets/striker_celebrate.glb', (gltf) => setupStrikerPoseModel(gltf, 'celebrate'));
+charGltfLoader.load('assets/striker_disbelief.glb', (gltf) => setupStrikerPoseModel(gltf, 'disbelief'));
+
+window.strikerGroup = strikerGroup;
+window.strikerShadow = strikerShadow;
+window.strikerPoseModels = strikerPoseModels;
+window.kickerGroup = strikerGroup; // Backwards-compatible for test suites
+
+if (window.PlayerKinematics) {
+    PlayerKinematics.initStriker(strikerGroup, strikerShadow, strikerPoseModels);
+    PlayerKinematics.initGoalkeeper(gkGroup, gkSpine, gkMesh, gkShadow, gkBodyCollider, gkPoseModels);
+    PlayerKinematics.initWall(wallGroup, wallDefenders, wallShadows, wallBodies, wallDefenderConfigs);
+}
 // ============================================================================
 // ============================================================================
 // 9. TARGET RACE TARGETS & SHATTER EFFECTS (Vibrant Red & White Bullseyes)
@@ -1437,6 +1919,10 @@ function finishShot(outcome, bannerMain, bannerSub, bannerColor) {
         setTimeout(() => { bloomPass.strength = 0.30; }, 800);
     }
 
+    if (window.PlayerKinematics) {
+        PlayerKinematics.setStrikerOutcome(outcome === 'goal' ? 'goal' : 'miss');
+    }
+
     if (currentGameMode === 'duel') {
         duelResults[currentRound - 1] = outcome;
         updateDuelPills();
@@ -1633,6 +2119,9 @@ window.resetBall = function() {
     ballBody.blocked = false;
     ballBody.inNet = false;
     shotComplete = false;
+    if (netClothPhysics) {
+        netClothPhysics.reset();
+    }
 
     // Reset Goalkeeper & Wall Postures
     gkDiving = false;
@@ -1705,6 +2194,12 @@ window.resetBall = function() {
         gkGroup.position.set(0, -999, 0);
         gkBodyCollider.position.set(0, -999, 0);
         if (gkShadow) gkShadow.position.set(0, -999, 0);
+    }
+
+    if (window.PlayerKinematics) {
+        PlayerKinematics.resetStriker(spotX, spotZ, isPenalty, currentGameMode);
+        PlayerKinematics.resetGoalkeeper(spotX, allowGk, allowWall);
+        PlayerKinematics.resetWall(spotX, spotZ, allowWall);
     }
 
     // Dynamic Camera Framing (Hero Sports Broadcast Angle - Elevated TV broadcast perspective)
@@ -1982,7 +2477,7 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
         }, 16);
     }
 
-    // Trigger AI Goalkeeper Dive & Wall Jump
+    // Trigger Striker Run-Up, AI Goalkeeper Dive & Wall Jump via PlayerKinematics
     const isPenalty = (currentGameMode === 'duel' && currentRound === 1) || 
                       (currentGameMode === 'practice' && practiceSpots[practiceSettings.spotIndex] && practiceSpots[practiceSettings.spotIndex].isPenalty);
     const allowWall = (currentGameMode === 'duel' && !isPenalty) || 
@@ -1990,48 +2485,66 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     const allowGk = (currentGameMode === 'duel') || 
                     (currentGameMode === 'practice' && practiceSettings.keeper);
 
-    if (allowWall) {
-        wallJumping = true;
-        wallJumpTimer = 0;
-    }
-    if (allowGk) {
-        gkDiving = true;
-        gkDiveTimer = 0;
-        gkStartX = gkGroup.position.x;
-        gkStartY = gkGroup.position.y;
-        
-        const diff = (typeof difficultySettings !== 'undefined' && difficultySettings[currentDifficulty]) 
-            ? difficultySettings[currentDifficulty] 
-            : { gkReactionTime: 0.09, gkSkillBase: 0.78, gkDiveDurationMult: 1.0 };
+    const diff = (typeof difficultySettings !== 'undefined' && difficultySettings[currentDifficulty]) 
+        ? difficultySettings[currentDifficulty] 
+        : { gkReactionTime: 0.09, gkSkillBase: 0.78, gkDiveDurationMult: 1.0 };
 
-        gkDiveDuration = Math.min(0.68, Math.max(0.42, flightTime * 0.90)) * (diff.gkDiveDurationMult || 1.0);
-        gkReactionTime = diff.gkReactionTime || 0.09;
-        const speedRatio = Math.min(1.0, actualSpeedKmh / 115);
-        const keeperSkill = Math.max(0.40, (diff.gkSkillBase || 0.78) - speedRatio * 0.18);
-        gkTargetX = Math.max(-3.3, Math.min(3.3, targetWorldX * keeperSkill));
-        const diveDir = (gkTargetX >= gkGroup.position.x) ? 1 : -1;
+    if (window.PlayerKinematics) {
+        PlayerKinematics.startStrikerRunUp(actualSpeedKmh, spinRPM, powerNorm, curlBendMeters);
+        if (allowGk) {
+            PlayerKinematics.startGoalkeeperDive(targetWorldX, targetWorldY, actualSpeedKmh, flightTime, diff);
+            gkDiving = true;
+            gkDiveTimer = 0;
+            gkStartX = gkGroup.position.x;
+            gkStartY = gkGroup.position.y;
+            gkDiveDuration = PlayerKinematics.gkState.diveDuration;
+            gkReactionTime = PlayerKinematics.gkState.reactionTime;
+            gkTargetX = PlayerKinematics.gkState.targetX;
+            gkTargetY = PlayerKinematics.gkState.targetY;
+            gkTargetRotZ = PlayerKinematics.gkState.targetRotZ;
+            gkDiveType = PlayerKinematics.gkState.diveType;
+        }
+        if (allowWall) {
+            PlayerKinematics.startWallJump();
+            wallJumping = true;
+            wallJumpTimer = 0;
+        }
+    } else {
+        if (allowWall) {
+            wallJumping = true;
+            wallJumpTimer = 0;
+        }
+        if (allowGk) {
+            gkDiving = true;
+            gkDiveTimer = 0;
+            gkStartX = gkGroup.position.x;
+            gkStartY = gkGroup.position.y;
+            gkDiveDuration = Math.min(0.68, Math.max(0.42, flightTime * 0.90)) * (diff.gkDiveDurationMult || 1.0);
+            gkReactionTime = diff.gkReactionTime || 0.09;
+            const speedRatio = Math.min(1.0, actualSpeedKmh / 115);
+            const keeperSkill = Math.max(0.40, (diff.gkSkillBase || 0.78) - speedRatio * 0.18);
+            gkTargetX = Math.max(-3.3, Math.min(3.3, targetWorldX * keeperSkill));
+            const diveDir = (gkTargetX >= gkGroup.position.x) ? 1 : -1;
 
-        if (targetWorldY < 0.95 && Math.abs(gkTargetX) > 1.2) {
-            // Low sweeping ground save
-            gkDiveType = 'low_sweep';
-            gkTargetY = 0.28;
-            gkTargetRotZ = diveDir > 0 ? -1.42 : 1.42;
-            setGkPose(diveDir > 0 ? 'dive_right' : 'dive_left');
-        } else if (targetWorldY > 1.65 && Math.abs(gkTargetX) > 1.1) {
-            // Top corner flying save
-            gkDiveType = 'top_corner_flight';
-            gkTargetY = Math.min(2.35, targetWorldY * 0.96);
-            gkTargetRotZ = diveDir > 0 ? -0.92 : 0.92;
-            setGkPose(diveDir > 0 ? 'dive_right' : 'dive_left');
-        } else {
-            // Mid-height parry
-            gkDiveType = 'mid_parry';
-            gkTargetY = Math.max(0.85, Math.min(1.85, targetWorldY * 0.90));
-            gkTargetRotZ = diveDir > 0 ? -0.65 : 0.65;
-            if (Math.abs(gkTargetX) > 0.8) {
+            if (targetWorldY < 0.95 && Math.abs(gkTargetX) > 1.2) {
+                gkDiveType = 'low_sweep';
+                gkTargetY = 0.28;
+                gkTargetRotZ = diveDir > 0 ? -1.42 : 1.42;
+                setGkPose(diveDir > 0 ? 'low_sweep_right' : 'low_sweep_left');
+            } else if (targetWorldY > 1.65 && Math.abs(gkTargetX) > 1.1) {
+                gkDiveType = 'top_corner_flight';
+                gkTargetY = Math.min(2.35, targetWorldY * 0.96);
+                gkTargetRotZ = diveDir > 0 ? -0.92 : 0.92;
                 setGkPose(diveDir > 0 ? 'dive_right' : 'dive_left');
             } else {
-                setGkPose('parry');
+                gkDiveType = 'mid_parry';
+                gkTargetY = Math.max(0.85, Math.min(1.85, targetWorldY * 0.90));
+                gkTargetRotZ = diveDir > 0 ? -0.65 : 0.65;
+                if (Math.abs(gkTargetX) > 0.8) {
+                    setGkPose(diveDir > 0 ? 'dive_right' : 'dive_left');
+                } else {
+                    setGkPose('parry');
+                }
             }
         }
     }
@@ -2196,7 +2709,16 @@ function updateSimulation(dt) {
         }
     });
 
-    // Goalkeeper and Wall Animations in Duel and Practice Modes
+    // Subtle animated perimeter sponsor LED hoardings
+    if (adTex) {
+        adTex.offset.x = (adTex.offset.x + dt * 0.035) % 1.0;
+    }
+
+    // FIFA-Grade Player Kinematics (Striker Curved Approach, Wall Defending & Goalkeeper Parabolic Leap)
+    if (window.PlayerKinematics) {
+        PlayerKinematics.updateStriker(dt, time);
+    }
+
     if (currentGameMode === 'duel' || currentGameMode === 'practice') {
         const isPenalty = (currentGameMode === 'duel' && currentRound === 1) || 
                           (currentGameMode === 'practice' && practiceSpots[practiceSettings.spotIndex] && practiceSpots[practiceSettings.spotIndex].isPenalty);
@@ -2205,170 +2727,14 @@ function updateSimulation(dt) {
         const allowGk = (currentGameMode === 'duel') || 
                         (currentGameMode === 'practice' && practiceSettings.keeper);
 
-
-        // 2. Defensive Wall FIFA Kinematics Update
-        if (allowWall) {
-            if (wallJumping) {
-                wallJumpTimer += dt;
-                wallGroup.position.y = 0;
-
-                let allFinished = true;
-                wallDefenderConfigs.forEach((cfg, idx) => {
-                    const def = wallDefenders[idx];
-                    const shadow = wallShadows[idx];
-                    const body = wallBodies[idx];
-                    const relTime = wallJumpTimer - cfg.delay;
-
-                    let currentH = 0;
-                    let currentLean = 0;
-                    let currentYaw = cfg.inwardYaw * 0.2;
-
-                    if (relTime > 0 && relTime < cfg.duration) {
-                        allFinished = false;
-                        const progress = relTime / cfg.duration;
-                        currentH = Math.sin(progress * Math.PI) * cfg.maxH;
-                        currentLean = Math.sin(progress * Math.PI) * cfg.lean;
-                        currentYaw = cfg.inwardYaw * (1.0 - progress * 0.5);
-                    } else if (relTime >= cfg.duration && relTime < cfg.duration + 0.12) {
-                        allFinished = false;
-                        const landProgress = (relTime - cfg.duration) / 0.12;
-                        currentH = -Math.sin(landProgress * Math.PI) * 0.045;
-                        currentLean = Math.sin(landProgress * Math.PI) * 0.05;
-                    } else if (relTime < 0) {
-                        allFinished = false;
-                        const squatProgress = Math.max(0, 1.0 + relTime / (cfg.delay || 0.05));
-                        currentH = -squatProgress * 0.035;
-                        currentLean = squatProgress * 0.05;
-                    }
-
-                    if (def) {
-                        def.position.y = currentH;
-                        def.rotation.x = currentLean;
-                        def.rotation.y = currentYaw;
-                    }
-                    if (shadow) {
-                        const s = Math.max(0.60, 1.0 - Math.max(0, currentH) * 0.45);
-                        shadow.scale.set(s, s, s);
-                        shadow.material.opacity = Math.max(0.12, 0.75 * (1.0 - Math.max(0, currentH) * 1.35));
-                    }
-                    if (body) {
-                        body.position.y = 0.95 + currentH;
-                    }
-                });
-
-                if (allFinished && wallJumpTimer > 1.0) {
-                    wallJumping = false;
-                    wallDefenderConfigs.forEach((cfg, idx) => {
-                        const def = wallDefenders[idx];
-                        const shadow = wallShadows[idx];
-                        const body = wallBodies[idx];
-                        if (def) { def.position.y = 0; def.rotation.set(0, cfg.inwardYaw * 0.2, 0); }
-                        if (shadow) { shadow.scale.set(1, 1, 1); shadow.material.opacity = 0.75; }
-                        if (body) { body.position.y = 0.95; }
-                    });
-                }
-            } else {
-                // Organic asynchronous idle fidget & regulation wall defense posture
-                wallDefenderConfigs.forEach((cfg, idx) => {
-                    const def = wallDefenders[idx];
-                    const shadow = wallShadows[idx];
-                    const body = wallBodies[idx];
-                    const phase = time * (2.1 + idx * 0.35) + idx * 2.3;
-
-                    if (def) {
-                        def.position.y = Math.sin(phase) * 0.012;
-                        def.rotation.y = cfg.inwardYaw * 0.2 + Math.sin(phase * 0.6) * 0.035;
-                        def.rotation.z = Math.cos(phase * 0.4) * 0.016;
-                        def.rotation.x = 0.04 + Math.sin(phase * 0.8) * 0.018;
-                    }
-                    if (shadow) {
-                        shadow.scale.set(1, 1, 1);
-                        shadow.material.opacity = 0.75;
-                    }
-                    if (body) {
-                        body.position.y = 0.95;
-                    }
-                });
+        if (window.PlayerKinematics) {
+            if (allowWall) {
+                PlayerKinematics.updateWall(dt, time, allowWall);
+            }
+            if (allowGk) {
+                PlayerKinematics.updateGoalkeeper(dt, time, ballMesh, ballInFlight);
             }
         }
-
-        // 3. Goalkeeper FIFA Biomechanics & Real-Time Head IK Tracking
-        if (allowGk) {
-            const diveDir = (gkTargetX >= gkStartX) ? 1 : -1;
-
-            // Real-Time Gaze Tracking: Torso subtly tracks ball trajectory
-            if (ballInFlight && ballMesh) {
-                const dx = ballMesh.position.x - gkGroup.position.x;
-                gkMesh.rotation.y = Math.max(-0.40, Math.min(0.40, dx * 0.15));
-            }
-
-            if (gkDiving) {
-                gkDiveTimer += dt;
-                
-                if (gkDiveTimer < gkReactionTime) {
-                    // Phase 0: Reaction & Plant-Step Load (Knees bend into power squat, arms recoil)
-                    const p0 = gkDiveTimer / gkReactionTime;
-                    gkSpine.position.y = -Math.sin(p0 * Math.PI) * 0.06;
-                    gkSpine.position.x = diveDir * p0 * 0.05;
-                    gkSpine.rotation.z = -diveDir * p0 * 0.08;
-                    gkSpine.rotation.x = 0.16 + p0 * 0.06;
-                    gkMesh.rotation.y = diveDir * p0 * 0.12;
-                } else {
-                    // Phase 1: Explosive Ballistic Airborne Dive with Full Extension
-                    const tau = Math.min(1.0, (gkDiveTimer - gkReactionTime) / gkDiveDuration);
-                    const hProgress = 1.0 - Math.pow(1.0 - tau, 2.2);
-                    gkGroup.position.x = gkStartX + (gkTargetX - gkStartX) * hProgress;
-
-                    if (gkDiveType === 'top_corner_flight') {
-                        const jumpApex = Math.sin(tau * Math.PI * 0.65);
-                        gkGroup.position.y = gkTargetY * jumpApex;
-                    } else if (gkDiveType === 'low_sweep') {
-                        gkGroup.position.y = Math.max(0.12, 0.35 * Math.cos(tau * Math.PI * 0.5));
-                    } else {
-                        const jumpApex = Math.sin(tau * Math.PI * 0.60);
-                        gkGroup.position.y = gkTargetY * jumpApex;
-                    }
-
-                    const rotProgress = Math.sin(Math.min(1.0, tau * 1.25) * Math.PI * 0.5);
-                    gkSpine.rotation.z = gkTargetRotZ * rotProgress;
-                    gkSpine.rotation.x = 0.22 * (1.0 - tau * 0.4);
-                    gkMesh.rotation.y = diveDir * 0.30 * Math.sin(tau * Math.PI);
-                }
-
-                if (gkShadow) {
-                    gkShadow.position.set(gkGroup.position.x, 0.015, gkGroup.position.z);
-                    const elev = Math.max(0, gkGroup.position.y);
-                    const shadowScale = Math.max(0.48, 1.0 - elev * 0.38);
-                    gkShadow.scale.set(shadowScale, shadowScale, shadowScale);
-                    gkShadow.material.opacity = Math.max(0.12, 0.75 * (1.0 - elev * 0.45));
-                }
-
-                const reachExtensionX = diveDir * (Math.sin(Math.abs(gkSpine.rotation.z)) * 0.95 + 0.35);
-                const reachExtensionY = Math.cos(gkSpine.rotation.z) * 0.45;
-                gkBodyCollider.position.set(
-                    gkGroup.position.x + reachExtensionX,
-                    Math.max(0.40, gkGroup.position.y + reachExtensionY + 0.45),
-                    gkGroup.position.z
-                );
-            } else {
-                // Natural athletic goalkeeper ready stance with hands raised & pure white gloves ready
-                const idleBounce = (Math.sin(time * 2.8) * 0.5 + 0.5) * 0.025;
-                const idleSway = Math.sin(time * 1.4) * 0.04;
-                gkSpine.position.y = idleBounce;
-                gkSpine.position.x = idleSway;
-                gkSpine.rotation.z = -idleSway * 0.15;
-                gkSpine.rotation.x = 0.12 + idleBounce * 0.6;
-                if (!ballInFlight) {
-                    gkMesh.rotation.y = idleSway * 0.12;
-                }
-
-                if (gkShadow) {
-                    gkShadow.position.set(gkGroup.position.x, 0.015, gkGroup.position.z);
-                    gkShadow.scale.set(1.0, 1.0, 1.0);
-                    gkShadow.material.opacity = 0.75;
-                }
-                gkBodyCollider.position.set(gkGroup.position.x, 1.15, gkGroup.position.z);
-            }
 
             // Check Goalkeeper Save Block
             if (ballInFlight && !ballBody.scored && !ballBody.saved) {
@@ -2390,7 +2756,6 @@ function updateSimulation(dt) {
                 }
             }
         }
-    }
 
     // Moving Sweeper Bullseye Oscillation (Target Race Mode)
     if (currentGameMode === 'targets') {
@@ -2516,37 +2881,46 @@ function updateSimulation(dt) {
             finishShot('goal', 'GOAL', '', '#22c55e');
         }
 
-        // Heavy Viscous Net Cord Damping (Instant forward and lateral arrest)
-        ballBody.velocity.x *= 0.65;
-        ballBody.velocity.z *= 0.65;
-        ballBody.angularVelocity.scale(0.5, ballBody.angularVelocity);
+        if (netClothPhysics) {
+            netClothPhysics.handleEntrapment(dt, ballBody);
+            if (netClothPhysics.restingOnTurf || ballBody.position.y <= ballRadius + 0.02) {
+                if (Math.hypot(ballBody.velocity.x, ballBody.velocity.z) < 0.05) {
+                    ballInFlight = false;
+                }
+            }
+        } else {
+            // Heavy Viscous Net Cord Damping (Instant forward and lateral arrest)
+            ballBody.velocity.x *= 0.65;
+            ballBody.velocity.z *= 0.65;
+            ballBody.angularVelocity.scale(0.5, ballBody.angularVelocity);
 
-        // Net downward pocket gravity
-        ballBody.velocity.y -= 22.0 * dt;
+            // Net downward pocket gravity
+            ballBody.velocity.y -= 22.0 * dt;
 
-        // Hard Positional Lock: ZERO FORWARD ESCAPE, ZERO REBOUND
-        if (ballBody.velocity.z > 0) {
-            ballBody.velocity.z = 0;
-        }
-        if (ballBody.position.z > -20.25) {
-            ballBody.position.z = -20.25;
-        }
-        if (ballBody.position.z < -21.85) {
-            ballBody.position.z = -21.85;
-            ballBody.velocity.z = 0;
-        }
-        ballBody.position.x = Math.max(-3.50, Math.min(3.50, ballBody.position.x));
-        if (ballBody.position.y > 2.38) {
-            ballBody.position.y = 2.38;
-            ballBody.velocity.y = -1.5;
-        }
+            // Hard Positional Lock: ZERO FORWARD ESCAPE, ZERO REBOUND
+            if (ballBody.velocity.z > 0) {
+                ballBody.velocity.z = 0;
+            }
+            if (ballBody.position.z > -20.25) {
+                ballBody.position.z = -20.25;
+            }
+            if (ballBody.position.z < -21.85) {
+                ballBody.position.z = -21.85;
+                ballBody.velocity.z = 0;
+            }
+            ballBody.position.x = Math.max(-3.50, Math.min(3.50, ballBody.position.x));
+            if (ballBody.position.y > 2.38) {
+                ballBody.position.y = 2.38;
+                ballBody.velocity.y = -1.5;
+            }
 
-        // Rest on turf inside net pocket
-        if (ballBody.position.y <= ballRadius + 0.02) {
-            ballBody.position.y = ballRadius;
-            ballBody.velocity.set(0, 0, 0);
-            ballBody.angularVelocity.set(0, 0, 0);
-            ballInFlight = false;
+            // Rest on turf inside net pocket
+            if (ballBody.position.y <= ballRadius + 0.02) {
+                ballBody.position.y = ballRadius;
+                ballBody.velocity.set(0, 0, 0);
+                ballBody.angularVelocity.set(0, 0, 0);
+                ballInFlight = false;
+            }
         }
     }
 
@@ -2640,5 +3014,6 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     composer.setSize(window.innerWidth, window.innerHeight);
-    fxaaPass.uniforms['resolution'].value.set(1.0 / window.innerWidth, 1.0 / window.innerHeight);
+    const pr = composer._pixelRatio || Math.min(window.devicePixelRatio, 2);
+    fxaaPass.uniforms['resolution'].value.set(1.0 / (window.innerWidth * pr), 1.0 / (window.innerHeight * pr));
 });
