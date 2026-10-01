@@ -28,7 +28,7 @@ test('straight diagonal gestures aim without accidentally adding curl',()=>{
 });
 test('a change of swipe direction gives mirrored left/right curl on every screen scale',()=>{
  const path=[[0,100],[-15,75],[-20,50],[-15,25],[0,0]],right=stroke(path);
- assert.ok(right>.5);assert.equal(stroke(path.map(([x,y])=>[-x,y])),-right);
+ assert.ok(right>.2&&right<=.45);assert.equal(stroke(path.map(([x,y])=>[-x,y])),-right);
  for(const scale of [.5,1,3])assert.ok(Math.abs(stroke(path.map(([x,y])=>[x*scale+100,y*scale+300]))-right)<1e-10);
 });
 test('tiny gestures and slight hand jitter do not add spin',()=>{
@@ -110,4 +110,31 @@ test('high central shots trigger a two-foot vertical jump with grounded landing'
  assert.ok(p.joints[K.J.la*3+1]>.30&&p.joints[K.J.ra*3+1]>.30);
  K.poseAt(k,k.leapLand+.12,p);assert.equal(p.stage,'land');assert.ok(p.joints[K.J.la*3+1]<.101&&p.joints[K.J.ra*3+1]<.101);
  K.poseAt(k,1.5,p);assert.ok(Math.abs(p.y-.83)<1e-8);
+});
+
+test('assisted freehand drawing filters wobble and softens bends without moving the aim',()=>{
+ for(const scale of [.5,1,2]){
+ const make=bend=>{const g=gestures.begin(gestures.create(),100*scale,600*scale);for(let i=1;i<=64;i++){const u=i/64;gestures.move(g,(100+Math.sin(u*Math.PI)*bend)*scale,(600-400*u)*scale);}return g;};
+ const raw=gestures.sample(make(120)),soft=gestures.sample(make(120),65,.45),jitter=gestures.sample(make(4),65,.45);
+ const rawBend=Math.max(...Array.from(raw).filter((_,i)=>i%2===0))-100*scale;
+ const softBend=Math.max(...Array.from(soft).filter((_,i)=>i%2===0))-100*scale;
+ assert.ok(softBend>rawBend*.35&&softBend<rawBend*.46);
+ assert.equal(soft[0],100*scale);assert.equal(soft[1],600*scale);assert.equal(soft[128],100*scale);assert.equal(soft[129],200*scale);
+ for(let i=0;i<65;i++)assert.ok(Math.abs(jitter[i*2]-100*scale)<1e-6);
+ }
+});
+test('centre, left and right starts all reach the selected goal position',()=>{
+ for(const origin of [0,-2.7,2.7])for(const x of [-2.7,0,2.7])for(const curve of [-1,0,1]){
+ const shot=P.createShot(x,1.5,.7,curve,origin),at={};P.sampleShot(shot,0,at);assert.equal(at.x,origin);
+ P.sampleShot(shot,shot.T,at);assert.ok(Math.abs(at.x-x)<1e-9);assert.ok(Math.abs(at.y-1.5)<1e-9);
+ const flight=new P.Flight().launch(shot,K.plan(0,1,3),false);while(!flight.outcome)flight.step();assert.equal(flight.outcome,'goal');
+ }
+});
+test('freehand paths keep an off-centre start and the intended endpoint',()=>{
+ for(const origin of [-2.7,2.7]){
+ const points=new Float64Array(65*3);for(let i=0;i<65;i++){const u=i/64;points[i*3]=origin*(1-u)+Math.sin(u*Math.PI*2)*.45;points[i*3+1]=P.R+(1.2-P.R)*u+Math.sin(u*Math.PI)*.7;points[i*3+2]=11*(1-u);}
+ const shot=P.createPathShot(points),at={};assert.equal(shot.x,origin);P.sampleShot(shot,0,at);assert.equal(at.x,origin);
+ P.sampleShot(shot,shot.T,at);assert.ok(Math.abs(at.x)<1e-9);assert.ok(Math.abs(at.y-1.2)<1e-9);
+ const flight=new P.Flight().launch(shot,K.plan(0,1,3),false);while(!flight.outcome)flight.step();assert.equal(flight.outcome,'goal');
+ }
 });

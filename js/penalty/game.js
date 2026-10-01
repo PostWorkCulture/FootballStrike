@@ -2,7 +2,7 @@
 (function(){
 'use strict';
 const P=FSPhysics,K=FSKeeper,G=FSGestures,$=id=>document.getElementById(id),teams=FSTeams.list;
-const AUTO_NEXT_DELAY=2.2;
+const AUTO_NEXT_DELAY=2.2,SHOT_POSITIONS=[0,-2.7,2.7];
 const defaults={nation:'swe',difficulty:'rookie',difficultyVersion:2,quality:'balanced',audio:true,reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,best:0,cups:0};
 let saved={};try{saved=JSON.parse(localStorage.getItem('football-strike-v2')||'{}')||{};}catch{}
 const settings=Object.assign({},defaults,saved);
@@ -107,26 +107,24 @@ function start(mode,preserveCup=false){
 function nextShot(){
  if(game.phase==='menu'||game.phase==='complete')return;
  game.phase='aim';game.elapsed=0;game.outcome=null;game.shot=null;replayCount=0;
- Object.assign(flight.ball,{x:0,y:.11,z:11,vx:0,vy:0,vz:0,ax:0});K.readyAt(0,flight.pose);
+ game.originX=SHOT_POSITIONS[game.shots%SHOT_POSITIONS.length];world.shotOriginX=game.originX;
+ Object.assign(flight.ball,{x:game.originX,y:.11,z:11,vx:0,vy:0,vz:0,ax:0});K.readyAt(0,flight.pose);
  flight.outcome=null;aim.x=0;aim.y=1.05;input.active=false;input.keyboard=false;setCurve(0);
  game.keeperEnabled=game.mode==='rush'?false:game.mode==='practice'?$('keeper-enabled').checked:true;
  world.keeper.visible=game.keeperEnabled;world.setView('match',true);world.showAim(null,false);
- $('shot-feedback').classList.remove('show');$('after-shot').hidden=true;$('shot-controls').hidden=false;$('shot-help').hidden=false;$('replay-label').hidden=true;
- $('help-title').textContent=game.mode==='rush'?'SWIPE AT THE LIT TARGET':'DRAW THE FLIGHT OF YOUR SHOT';
- $('help-detail').textContent='Arch, bend or dip your gesture · Release to kick';
+ $('shot-feedback').classList.remove('show');$('after-shot').hidden=true;$('match-difficulty').disabled=false;$('keeper-enabled').disabled=false;$('replay-label').hidden=true;
  if(game.mode==='rush'){game.targetIndex=Math.floor(game.random()*4);world.showTargets(game.targetIndex);}else world.showTargets(-1);
  lastHUD=-1;updateHUD();world.renderer.domElement.focus({preventScroll:true});
 }
 $('keeper-enabled').onchange=()=>{if(game.phase==='aim'){game.keeperEnabled=$('keeper-enabled').checked;world.keeper.visible=game.keeperEnabled;}};
 function setCurve(value){
  input.curve=P.clamp(value,-1,1);
- $('curve-value').textContent=Math.abs(input.curve)<.06?'FREE DRAW':input.curve<0?'← LEFT CURL':'RIGHT CURL →';
 }
 function fire(x,y,drawnShot=null){
  if(game.phase!=='aim'||game.paused)return false;
  input.active=false;input.keyboard=false;game.phase='runup';game.elapsed=0;game.outcome=null;
- game.shot=drawnShot&&drawnShot.path?drawnShot:P.createShot(x,y,P.SHOT_POWER,input.curve);game.keeper=P.makeKeeper(game.shot,settings.difficulty,game.random);
- $('shot-controls').hidden=true;$('shot-help').hidden=true;world.showAim(null,false);
+ game.shot=drawnShot&&drawnShot.path?drawnShot:P.createShot(x,y,P.SHOT_POWER,input.curve,game.originX);game.keeper=P.makeKeeper(game.shot,settings.difficulty,game.random);
+ $('match-difficulty').disabled=true;$('keeper-enabled').disabled=true;world.showAim(null,false);
  return true;
 }
 function resolveGestureAim(x,y){
@@ -154,7 +152,7 @@ canvas.addEventListener('pointermove',e=>{
  const samples=e.getCoalescedEvents?e.getCoalescedEvents():[];
  if(samples.length){for(const sample of samples)G.move(stroke,sample.clientX,sample.clientY);}else G.move(stroke,e.clientX,e.clientY);
  input.hasMoved=stroke.distance>10;
- if(input.hasMoved){setCurve(G.curve(stroke));resolveGestureAim(e.clientX,e.clientY);$('curve-value').textContent='FREE DRAW';}
+ if(input.hasMoved){setCurve(G.curve(stroke));resolveGestureAim(e.clientX,e.clientY);}
 });
 canvas.addEventListener('pointerup',e=>{
  if(!input.active||e.pointerId!==input.id)return;
@@ -162,7 +160,7 @@ canvas.addEventListener('pointerup',e=>{
  try{canvas.releasePointerCapture(e.pointerId);}catch{}
  
  if(game.phase!=='aim'||game.paused)return;
- if(stroke.distance<14){cancelGesture();$('help-title').textContent='DRAW A SHOT TOWARDS THE GOAL';return;}
+ if(stroke.distance<14){cancelGesture();return;}
  world.screenPoint(0,0,0,screen);
  if(stroke.dy> -8&&e.clientY>screen.y+15){cancelGesture();return;}
  setCurve(G.curve(stroke));resolveGestureAim(e.clientX,e.clientY);fire(aim.x,aim.y,world.buildDrawnShot(stroke,aim));
@@ -194,16 +192,17 @@ function resolve(){
  if(game.outcome)return;
  game.outcome=flight.outcome;game.shots++;const goal=game.outcome==='goal';if(goal)game.goals++;
  const title=goal?'GOAL.':game.outcome==='saved'?'DENIED.':game.outcome==='post'?'OFF THE WOODWORK.':'JUST WIDE.';
- let detail=Math.round(game.shot.speed)+' km/h · '+(Math.abs(game.shot.curve)>.1?'Curled finish':'Driven shot');
+ const speed=Math.round(game.shot.speed/1.609344)+' mph';
+ let detail=speed+' · '+(Math.abs(game.shot.curve)>.1?'Curled finish':'Driven shot');
  let label='PENALTY '+game.shots;
  if(game.mode==='cup'||game.mode==='shootout'){
  const rivalGoal=game.random()<P.DIFFICULTY[settings.difficulty].rival;game.match.add(goal,rivalGoal);
  detail=game.opponent.name+(rivalGoal?' convert their penalty.':' miss their penalty.');label=game.match.home.length>5?'SUDDEN DEATH':'PENALTY '+game.shots+' / 5';
  }else if(game.mode==='rush'){
  const target=world.targets[game.targetIndex],dist=Math.hypot(flight.ball.x-target.position.x,flight.ball.y-target.position.y);
- const hit=goal&&dist<.46;if(hit){game.combo++;const earned=100+Math.min(4,game.combo-1)*25;game.points+=earned;label='TARGET HIT · +'+earned;detail=game.combo>1?game.combo+' IN A ROW':'Keep finding the corners.';}else{game.combo=0;label='KEEP GOING';detail=goal?'Find the lit ring to score points.':'Aim inside the frame.';}
+ const hit=goal&&dist<.46;if(hit){world.hitTarget(game.targetIndex);sound.tone(620,.22,.3,'triangle');sound.tone(1080,.32,.15);game.combo++;const earned=100+Math.min(4,game.combo-1)*25;game.points+=earned;label='TARGET HIT · +'+earned;detail=game.combo>1?game.combo+' IN A ROW':earned+' points';}else{game.combo=0;label='NO TARGET BONUS';detail=goal?'Goal outside the target.':'No points.';}
  $('feedback-title').textContent=hit?'BULLSEYE.':goal?'IN THE NET.':title;
- }else detail=game.goals+' goals from '+game.shots+' attempts · '+Math.round(game.shot.speed)+' km/h';
+ }else detail=game.goals+' goals from '+game.shots+' attempts · '+speed;
  if(game.mode!=='rush')$('feedback-title').textContent=title;
  $('feedback-kicker').textContent=label;$('feedback-detail').textContent=detail;$('shot-feedback').classList.add('show');
  if(goal){world.hitNet(flight.ball.x,flight.ball.y);sound.crowd(true);if(navigator.vibrate)navigator.vibrate(30);}
@@ -212,8 +211,8 @@ function resolve(){
 }
 function updateHUD(){
  const mode=game.mode;
- if(mode==='rush'){$('match-score').textContent=game.points;$('away-team').textContent=Math.ceil(game.remaining)+'s';$('shot-track').textContent='BEST '+settings.best;$('stage-label').textContent='CORNERS WIN POINTS';}
- else if(mode==='practice'){$('match-score').textContent=game.goals+' / '+game.shots;$('shot-track').textContent='GOALS / ATTEMPTS';$('stage-label').textContent='ELEVEN METRES · NO LIMITS';}
+ if(mode==='rush'){$('match-score').textContent=game.points;$('away-team').textContent=Math.ceil(game.remaining)+'s';$('shot-track').textContent='BEST '+settings.best;$('stage-label').textContent='';}
+ else if(mode==='practice'){$('match-score').textContent=game.goals+' / '+game.shots;$('shot-track').textContent='GOALS / ATTEMPTS';$('stage-label').textContent='';}
  else{
  const score=game.match.score;$('match-score').textContent=score[0]+' : '+score[1];
  const dots=arr=>'<div class="shot-row">'+Array.from({length:Math.max(5,arr.length+(!game.match.done?1:0))},(_,i)=>'<i class="shot-dot '+(i<arr.length?(arr[i]?'goal':'miss'):i===arr.length?'current':'')+'"></i>').slice(-8).join('')+'</div>';
@@ -291,8 +290,8 @@ world.ready.then(results=>{
 });
 // Read-only diagnostics are always available; simulation controls require ?test=1.
 window.FootballStrike={
- version:'2.2.1',get ready(){return game.ready;},
- snapshot:()=>({phase:game.phase,mode:game.mode,nation:settings.nation,difficulty:settings.difficulty,score:game.match?.score,shots:game.shots,goals:game.goals,points:game.points,combo:game.combo,outcome:game.outcome,remaining:game.remaining,paused:game.paused,countryCount:teams.length,actorReady:world.actorReady,ballAssetLoaded:world.ballAssetLoaded,assetErrors:world.assetErrors,drawCalls:world.renderer.info.render.calls,triangles:world.renderer.info.render.triangles,crowd:world.crowdCount,averageFrameMs:renderFrames?totalFrameTime/renderFrames*1000:0,stage:game.stage,view:world.mode==='match'?'first-person':world.mode,strikerVisible:world.striker.visible,gestureCurve:input.curve,shotCurve:game.shot?.curve??0,shotPower:game.shot?.power??P.SHOT_POWER,inputActive:input.active,drawnShot:!!game.shot?.drawn,pathPoints:game.shot?.path?.length/3||0,shotApex:game.shot?.maxY??game.shot?.targetY??0,keeperStage:flight.pose.stage,keeperLoaded:world.keeperReady}),
+ version:'2.2.2',get ready(){return game.ready;},
+ snapshot:()=>({originX:game.originX||0,phase:game.phase,mode:game.mode,nation:settings.nation,difficulty:settings.difficulty,score:game.match?.score,shots:game.shots,goals:game.goals,points:game.points,combo:game.combo,outcome:game.outcome,remaining:game.remaining,paused:game.paused,countryCount:teams.length,actorReady:world.actorReady,ballAssetLoaded:world.ballAssetLoaded,assetErrors:world.assetErrors,drawCalls:world.renderer.info.render.calls,triangles:world.renderer.info.render.triangles,crowd:world.crowdCount,averageFrameMs:renderFrames?totalFrameTime/renderFrames*1000:0,stage:game.stage,view:world.mode==='match'?'first-person':world.mode,strikerVisible:world.striker.visible,gestureCurve:input.curve,shotCurve:game.shot?.curve??0,shotPower:game.shot?.power??P.SHOT_POWER,inputActive:input.active,drawnShot:!!game.shot?.drawn,pathPoints:game.shot?.path?.length/3||0,shotApex:game.shot?.maxY??game.shot?.targetY??0,keeperStage:flight.pose.stage,keeperLoaded:world.keeperReady}),
  project:(x,y,z)=>{const s={};world.screenPoint(x,y,z,s);return s;}
 };
 if(new URLSearchParams(location.search).get('test')==='1'){

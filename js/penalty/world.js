@@ -12,7 +12,7 @@ class World{
  this.renderer.outputEncoding=T.sRGBEncoding;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.95;
  this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;
  container.appendChild(this.renderer.domElement);
- this.mode='home';this.time=0;this.netPulse=0;this.netX=0;this.netY=1;this.aim={x:0,y:1.1};
+ this.mode='home';this.shotOriginX=0;this.time=0;this.netPulse=0;this.netX=0;this.netY=1;this.aim={x:0,y:1.1};
  this.ray=new T.Raycaster();this.plane=new T.Plane(new T.Vector3(0,0,1),0);this.mouse=new T.Vector2();this.aimPoint=new T.Vector3();
  this.cameraGoal=new T.Vector3();this.lookGoal=new T.Vector3();this.look=new T.Vector3(-1,1.2,10);
  this.uniforms={time:{value:0},cheer:{value:0}};this.materialCache=new Map();this.texCache=new Map();this.actorReady=false;this.assetErrors=[];
@@ -150,14 +150,44 @@ class World{
  this.contactShadow=this.mesh(new T.PlaneGeometry(.52,.52),new T.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false}),0,.018,11);this.contactShadow.rotation.x=-Math.PI/2;this.contactShadow.castShadow=false;
  }
  makeTargets(){
- this.targets=[];const rings=new T.MeshBasicMaterial({color:0xd9f870,transparent:true,opacity:.9});
+ this.targets=[];this.targetColours=[0xff4f9a,0x36ddff,0xff913d,0xb082ff];
  const positions=[[-2.65,1.8],[2.65,1.8],[-2.7,.65],[2.7,.65]];
- positions.forEach((p,i)=>{const group=new T.Group();group.position.set(p[0],p[1],.07);
- const ring=new T.Mesh(new T.TorusGeometry(.35,.025,8,40),rings);group.add(ring);
- const core=new T.Mesh(new T.CircleGeometry(.29,32),new T.MeshBasicMaterial({color:0xd9f870,transparent:true,opacity:.14,depthWrite:false}));group.add(core);group.visible=false;this.scene.add(group);this.targets.push(group);});
- this.activeTarget=0;
+ const star=new T.Shape();for(let i=0;i<10;i++){const a=i*Math.PI/5+Math.PI/2,r=i%2?.085:.17,x=Math.cos(a)*r,y=Math.sin(a)*r;if(i)star.lineTo(x,y);else star.moveTo(x,y);}star.closePath();
+ const starGeometry=new T.ShapeGeometry(star);
+ positions.forEach((p,i)=>{
+ const group=new T.Group(),colour=this.targetColours[i];group.position.set(p[0],p[1],.1);
+ const outer=new T.Mesh(new T.TorusGeometry(.38,.038,8,48),new T.MeshBasicMaterial({color:colour}));group.add(outer);
+ const inner=new T.Mesh(new T.TorusGeometry(.265,.013,6,40),new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.8}));inner.position.z=.012;group.add(inner);
+ const core=new T.Mesh(new T.CircleGeometry(.34,32),new T.MeshBasicMaterial({color:colour,transparent:true,opacity:.24,depthWrite:false}));core.position.z=-.012;group.add(core);
+ const badge=new T.Mesh(starGeometry,new T.MeshBasicMaterial({color:0xffffff}));badge.position.z=.025;group.add(badge);
+ group.visible=false;this.scene.add(group);this.targets.push(group);
+ });
+ this.activeTarget=-1;
+ // Reuse one particle pool for every target burst.
+ this.burstAge=-1;this.burstCount=36;this.burstVelocity=new Float32Array(this.burstCount*3);
+ this.targetBurst=new T.Group();this.targetBurst.visible=false;this.scene.add(this.targetBurst);
+ this.burstMaterial=new T.MeshBasicMaterial({color:0xffffff,transparent:true,depthWrite:false});
+ this.burstParticles=new T.InstancedMesh(new T.IcosahedronGeometry(.055,0),this.burstMaterial,this.burstCount);this.burstParticles.frustumCulled=false;this.targetBurst.add(this.burstParticles);
+ for(let i=0;i<this.burstCount;i++){const a=i*2.39996323,speed=1.3+(i%7)*.26;this.burstVelocity[i*3]=Math.cos(a)*speed;this.burstVelocity[i*3+1]=Math.sin(a)*speed+1.1;this.burstVelocity[i*3+2]=.6+(i%5)*.19;}
+ this.burstRing=new T.Mesh(new T.RingGeometry(.32,.39,48),new T.MeshBasicMaterial({color:0xffffff,transparent:true,depthWrite:false,side:T.DoubleSide}));this.targetBurst.add(this.burstRing);
  const lineG=new T.BufferGeometry();lineG.setAttribute('position',new T.BufferAttribute(new Float32Array(33*3),3));
  this.trajectory=new T.Line(lineG,new T.LineDashedMaterial({color:0xdcf8a3,dashSize:.15,gapSize:.13,transparent:true,opacity:.65}));this.trajectory.visible=false;this.scene.add(this.trajectory);
+ }
+ hitTarget(index){
+ const target=this.targets[index];if(!target)return;
+ target.visible=false;this.targetBurst.position.copy(target.position);this.targetBurst.visible=true;this.burstAge=0;
+ this.burstRing.material.color.setHex(this.targetColours[index]);this.burstRing.material.opacity=1;this.burstRing.scale.setScalar(1);
+ this.burstMaterial.opacity=1;
+ for(let i=0;i<this.burstCount;i++){O.position.set(0,0,0);O.rotation.set(0,0,0);O.scale.setScalar(1);O.updateMatrix();this.burstParticles.setMatrixAt(i,O.matrix);this.burstParticles.setColorAt(i,COL.setHex(i%3===0?0xffffff:this.targetColours[(index+i%2)%4]));}
+ this.burstParticles.instanceColor.needsUpdate=true;this.burstParticles.instanceMatrix.needsUpdate=true;
+ }
+ updateTargetBurst(dt){
+ if(this.burstAge<0)return;
+ this.burstAge+=dt;const t=this.burstAge,u=Math.min(1,t/.85);
+ if(u>=1){this.targetBurst.visible=false;this.burstAge=-1;return;}
+ this.burstMaterial.opacity=1-u;this.burstRing.material.opacity=(1-u)*(1-u);this.burstRing.scale.setScalar(1+u*5);
+ for(let i=0;i<this.burstCount;i++){const j=i*3;O.position.set(this.burstVelocity[j]*t,this.burstVelocity[j+1]*t-2.8*t*t,this.burstVelocity[j+2]*t);O.rotation.set(t*(i%4+2),t*(i%5+1),i+t*3);O.scale.setScalar((1-u)*(.8+i%3*.3));O.updateMatrix();this.burstParticles.setMatrixAt(i,O.matrix);}
+ this.burstParticles.instanceMatrix.needsUpdate=true;
  }
  makeActors(){
  this.striker=new T.Group();this.keeper=new T.Group();this.scene.add(this.striker,this.keeper);this.striker.position.set(-.65,0,12.4);
@@ -253,16 +283,17 @@ class World{
  this.cameraGoal.set(8,3.4,5.8);this.lookGoal.set(0,1.1,3);this.camera.fov=45;
  }else{
  const landscape=innerHeight<540&&innerWidth>innerHeight,aspect=innerWidth/innerHeight;
- this.cameraGoal.set(0,1.72,landscape?15.5:14.2);this.lookGoal.set(0,landscape?-.65:-.9,0);
+ const distance=landscape?15.5:14.2;
+ this.cameraGoal.set(this.shotOriginX*distance/11,1.72,distance);this.lookGoal.set(0,landscape?-.65:-.9,0);
  this.camera.fov=landscape?52:Math.max(54,2*Math.atan(.33/aspect)*180/Math.PI);
  this.striker.rotation.y=Math.PI;this.keeper.rotation.y=0;
  }
  this.camera.updateProjectionMatrix();if(instant){this.camera.position.copy(this.cameraGoal);this.look.copy(this.lookGoal);this.camera.lookAt(this.look);this.camera.updateMatrixWorld(true);}
  }
  buildDrawnShot(stroke,aim){
- const samples=FSGestures.sample(stroke,65),points=new Float64Array(65*3),first={x:0,y:0},last={x:0,y:0};
- this.camera.updateMatrixWorld(true);this.screenPoint(0,P.R,11,first);this.screenPoint(aim.x,aim.y,0,last);
- V.set(0,P.R,11).applyMatrix4(this.camera.matrixWorldInverse);const d0=-V.z;
+ const samples=FSGestures.sample(stroke,65,.45),points=new Float64Array(65*3),first={x:0,y:0},last={x:0,y:0};
+ this.camera.updateMatrixWorld(true);this.screenPoint(this.shotOriginX,P.R,11,first);this.screenPoint(aim.x,aim.y,0,last);
+ V.set(this.shotOriginX,P.R,11).applyMatrix4(this.camera.matrixWorldInverse);const d0=-V.z;
  V.set(aim.x,aim.y,0).applyMatrix4(this.camera.matrixWorldInverse);const d1=-V.z;
  for(let i=0;i<65;i++){
  const q=i/64,s=q*d0/((1-q)*d1+q*d0),z=11*(1-s);
@@ -271,13 +302,13 @@ class World{
  this.mouse.set(x/innerWidth*2-1,-y/innerHeight*2+1);this.ray.setFromCamera(this.mouse,this.camera);this.plane.constant=-z;this.ray.ray.intersectPlane(this.plane,this.aimPoint);
  points[i*3]=P.clamp(this.aimPoint.x,-8,8);points[i*3+1]=P.clamp(this.aimPoint.y,P.R,7);points[i*3+2]=z;
  }
- this.plane.constant=0;points[0]=0;points[1]=P.R;points[2]=11;points[192]=aim.x;points[193]=aim.y;points[194]=0;
+ this.plane.constant=0;points[0]=this.shotOriginX;points[1]=P.R;points[2]=11;points[192]=aim.x;points[193]=aim.y;points[194]=0;
  const shot=P.createPathShot(points);shot.curve=FSGestures.curve(stroke);return shot;
  }
  screenPoint(x,y,z,out){V.set(x,y,z).project(this.camera);out.x=(V.x*.5+.5)*innerWidth;out.y=(-V.y*.5+.5)*innerHeight;return out;}
  screenToAim(x,y,out){this.mouse.set(x/innerWidth*2-1,-y/innerHeight*2+1);this.ray.setFromCamera(this.mouse,this.camera);this.ray.ray.intersectPlane(this.plane,this.aimPoint);out.x=P.clamp(this.aimPoint.x,-5.5,5.5);out.y=P.clamp(this.aimPoint.y,.11,4.5);return out;}
  showAim(shot,show){this.trajectory.visible=show;if(!show)return;const a=this.trajectory.geometry.attributes.position.array;for(let i=0;i<=32;i++){const t=shot.T*i/32;a[i*3]=shot.vx*t+.5*shot.ax*t*t;a[i*3+1]=.11+shot.vy*t-.5*P.G*t*t;a[i*3+2]=11+shot.vz*t;}this.trajectory.geometry.attributes.position.needsUpdate=true;this.trajectory.computeLineDistances();}
- showTargets(index){this.activeTarget=index;for(let i=0;i<this.targets.length;i++)this.targets[i].visible=i===index;}
+ showTargets(index){if(index<0){this.targetBurst.visible=false;this.burstAge=-1;}this.activeTarget=index;for(let i=0;i<this.targets.length;i++)this.targets[i].visible=i===index;}
  hitNet(x,y){this.netPulse=1;this.netX=x;this.netY=y;this.uniforms.cheer.value=1;}
  poseActor(rig,time,kind,phase,progress,pose){
  if(!rig)return;
@@ -316,11 +347,14 @@ class World{
  this.striker.position.set(.105,0,11.4);if(state.phase==='aim')this.striker.position.set(-.6,0,12.6);
  this.poseActor(this.strikerRig,this.time,'striker',state.outcome==='goal'&&state.elapsed>1?'celebrate':state.phase,state.elapsed);
  }
+ const angle=Math.atan2(this.shotOriginX,11),c=Math.cos(angle),s=Math.sin(angle),x=this.striker.position.x,z=this.striker.position.z-11;
+ this.striker.position.set(this.shotOriginX+x*c+z*s,this.striker.position.y,11-x*s+z*c);this.striker.rotation.y=Math.PI+angle;
  }
  this.contactShadow.position.set(this.ball.position.x,.019,this.ball.position.z);const height=this.ball.position.y;
  this.contactShadow.scale.setScalar(1+height*.2);this.contactShadow.material.opacity=Math.max(.12,1-height*.25);
  if(this.netPulse>0){this.netPulse=Math.max(0,this.netPulse-dt*.7);const a=this.net.geometry.attributes.position.array,base=this.netBase;for(let i=0;i<a.length;i+=3){const d=Math.hypot(base[i]-this.netX,base[i+1]-this.netY);const anchored=base[i+1]<.02||Math.abs(base[i])>3.63||base[i+2]>-.01;a[i+2]=base[i+2]-(anchored?0:Math.exp(-d*1.6)*Math.sin((1-this.netPulse)*15-d*2)*this.netPulse*.35);}this.net.geometry.attributes.position.needsUpdate=true;}
- if(this.activeTarget>=0){const target=this.targets[this.activeTarget];if(target)target.rotation.z+=dt*.12;}
+ if(this.activeTarget>=0){const target=this.targets[this.activeTarget];if(target){target.rotation.z+=dt*.32;target.scale.setScalar(1+Math.sin(this.time*4)*.035);}}
+ this.updateTargetBurst(dt);
  this.renderer.render(this.scene,this.camera);
  }
 }

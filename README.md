@@ -5,7 +5,7 @@ Three.js penalty football with Blender-authored articulated players and a stitch
 ## Play modes
 - **Nations Cup:** three knockout rounds against CPU rivals.
 - **Shootout:** five penalties per side, early resolution and paired sudden death. Rival penalties are simulated.
-- **Target Rush:** 45 seconds, corner targets, streak bonuses and a saved personal best.
+- **Target Rush:** 45 seconds, colourful star targets that burst on contact, streak bonuses and a saved personal best.
 - **Training:** unlimited penalties, optional goalkeeper and unlimited freehand shots.
 
 Choose Sweden, England, Norway, Brazil, Italy, France, Germany, Argentina, Spain, Portugal, Netherlands or Mexico. The twelve home-strip recreations have distinct palettes and patterns; exact official crests and final pattern matching remain outstanding. See [kit references](docs/KIT_REFERENCES.md).
@@ -21,13 +21,17 @@ npm run build:assets
 ```
 
 ## Controls
-Shooting uses a first-person eye-level view. Draw the full flight of your shot with a mouse, finger or pen, finish at your target and release. The ball follows the complete shape: straight, bent, arched or S-shaped. The drawing is invisible; a small reticle shows the endpoint. Shots have a fixed pace independent of drawing speed.
+Shooting uses a first-person eye-level view. Draw the full flight of your shot with a mouse, finger or pen, finish at your target and release. The ball follows the complete shape: straight, bent, arched or S-shaped. The drawing and aiming marker are invisible. Bend strength is softened by 55%, with a small dead zone to absorb hand wobble, while the endpoint stays where you aim. Shots have a fixed pace independent of drawing speed.
+
+Shooting positions cycle through the centre, left and right, with the first-person camera following the ball.
+
+Difficulty sits at the top left during play. Shot speed is displayed in mph, and the pitch is free of instructional overlays.
 
 The next penalty starts automatically after the result pause and the goalkeeper’s recovery. Replay suspends the transition until playback ends; completed matches open the results screen automatically.
 
 Keyboard: arrows aim, Space shoots, Q/E adjust curl, Escape pauses. The game pauses when the tab is hidden. Cancelled touch gestures, extra fingers and screen rotation cannot launch an accidental shot.
 
-Choose **Easy**, **Normal** or **Hard** from the home menu or before a penalty. Easy is the initial setting. The levels change reaction time, dive speed, reach, accuracy, wrong-way guesses and rival scoring. In the checked-in seeded 3,000-shot calibration, save rates are approximately 15%, 27.5% and 40%; these are simulation measurements, not predicted player success rates.
+Choose **Easy**, **Normal** or **Hard** from the home menu or before a penalty. Easy is the initial setting. The levels change reaction time, dive speed, reach, accuracy, wrong-way guesses and rival scoring. In the checked-in seeded 3,000-shot calibration, save rates are approximately 15.1%, 27.6% and 39.8%; these are simulation measurements, not predicted player success rates.
 
 ## Goalkeeper
 The goalkeeper uses a dedicated Blender skinned model. Its joint animation includes a bent-knee set, a planted step and push-off, separate low/mid/high dives, hands leading the reach, side landing, a supporting hand, kneeling recovery and stepping back into position. Central saves use an upright block; high central shots trigger a vertical jump and parry. Collision capsules follow the visible gloves and limbs; the keeper commits to an imperfect read of the early shot direction. Replays reproduce the full motion.

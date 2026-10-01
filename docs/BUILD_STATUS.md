@@ -38,3 +38,12 @@ Read verification/report.json for the actual browser test outcome. No claim of s
 - Removed the Next Penalty button. Goals, saves, misses and woodwork hits advance automatically after a short result pause and complete goalkeeper recovery.
 - Replay and pause suspend progression. Final shootout and cup penalties open match results automatically; Target Rush retains its faster pacing.
 - Browser verification covers each outcome, recovery timing, replay, pause, full matches, phone touch and automatic advancement with the real animation clock.
+
+
+## Forgiving controls and clear pitch (2.2.2)
+- Reduced freehand bend strength by 55%, filtered small stroke deviations and reduced keyboard curl acceleration. Deliberate arches and S bends retain their direction and aimed endpoint.
+- Removed the yellow aiming marker and visible shooting instructions. Moved difficulty and the training keeper switch to the top left.
+- Converted displayed shot speed from km/h to mph; physical speed and simulation units are unchanged.
+
+- Shooting positions alternate centre, left and right, with matching ball physics, gesture projection, camera and replay-player placement.
+- Target Rush uses four colourful star targets, with a pooled confetti burst, expanding ring and short hit sound when scored.

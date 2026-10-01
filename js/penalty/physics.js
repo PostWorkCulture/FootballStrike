@@ -10,18 +10,18 @@ const DIFFICULTY={
  elite:{label:'Hard',description:'Faster reactions, tighter angles',reaction:.015,moveSpeed:4.5,reach:3.3,error:.65,wrongWay:.17,rival:.74}
 };
 function rng(seed){let s=seed>>>0;return ()=>{s=(Math.imul(1664525,s)+1013904223)>>>0;return s/4294967296;};}
-function createShot(x,y,power,curve){
+function createShot(x,y,power,curve,originX=0){
 power=clamp(power,.15,1);curve=clamp(curve,-1,1);x=clamp(x,-5.5,5.5);y=clamp(y,R,4.5);
-const speed=19+power*15,T=11/speed,ax=curve*14;
-const vx=(x-.5*ax*T*T)/T,vy=(y-R+.5*G*T*T)/T;
-return {x:0,y:R,z:11,vx,vy,vz:-speed,ax,T,power,curve,targetX:x,targetY:y,speed:Math.hypot(vx,vy,speed)*3.6};
+const speed=19+power*15,T=11/speed,ax=curve*6;
+const vx=(x-originX-.5*ax*T*T)/T,vy=(y-R+.5*G*T*T)/T;
+return {x:originX,y:R,z:11,vx,vy,vz:-speed,ax,T,power,curve,targetX:x,targetY:y,speed:Math.hypot(vx,vy,speed)*3.6};
 }
 function keeperAt(k,t,out){return K.poseAt(k,t,out);}
 function makeKeeper(shot,difficulty,random){
  const d=DIFFICULTY[difficulty]||DIFFICULTY.pro;
  // The keeper commits to an imperfect read, rather than tracking every later bend.
  let readX=shot.targetX,readY=shot.targetY;
- if(shot.path){const q={};sampleShot(shot,shot.T*.22,q);const depth=Math.max(.06,(11-q.z)/11);readX=mix(shot.targetX,clamp(q.x/depth,-4,4),.35);readY=mix(shot.targetY,clamp(q.y, .2,2.5),.25);}
+ if(shot.path){const q={};sampleShot(shot,shot.T*.22,q);const depth=Math.max(.06,(11-q.z)/11);readX=mix(shot.targetX,clamp(shot.x+(q.x-shot.x)/depth,-4,4),.35);readY=mix(shot.targetY,clamp(q.y, .2,2.5),.25);}
  const guess=random()<d.wrongWay?-Math.sign(readX||1):Math.sign(readX||1);
  return K.plan(clamp(guess*Math.abs(readX)+(random()-.5)*d.error*2,-d.reach,d.reach),clamp(readY+(random()-.5)*d.error*1.3,.25,2.4),d.reaction,d.moveSpeed);
 }
@@ -34,10 +34,10 @@ function createPathShot(points){
  for(let i=0;i<count;i++){path[i*3+1]=Math.max(R,path[i*3+1]);maxY=Math.max(maxY,path[i*3+1]);if(i){length+=Math.hypot(path[i*3]-path[(i-1)*3],path[i*3+1]-path[(i-1)*3+1],path[i*3+2]-path[(i-1)*3+2]);times[i]=length;}}
  for(let i=1;i<count;i++)times[i]/=length;
  const end=(count-1)*3,speed=29.5,T=length/speed;
- return {x:0,y:R,z:11,vx:0,vy:0,vz:-speed,ax:0,T,power:SHOT_POWER,curve:0,targetX:path[end],targetY:path[end+1],speed:speed*3.6,path,times,maxY,length,drawn:true};
+ return {x:path[0],y:path[1],z:path[2],vx:0,vy:0,vz:-speed,ax:0,T,power:SHOT_POWER,curve:0,targetX:path[end],targetY:path[end+1],speed:speed*3.6,path,times,maxY,length,drawn:true};
 }
 function sampleShot(shot,t,out){
- if(!shot.path){out.x=shot.vx*t+.5*shot.ax*t*t;out.y=R+shot.vy*t-.5*G*t*t;out.z=11+shot.vz*t;return out;}
+ if(!shot.path){out.x=shot.x+shot.vx*t+.5*shot.ax*t*t;out.y=R+shot.vy*t-.5*G*t*t;out.z=11+shot.vz*t;return out;}
  const points=shot.path,times=shot.times,count=times.length,s=t/shot.T;
  if(s>=1){
  const i=(count-1)*3,j=i-3,dt=(1-times[count-2])*shot.T,extra=t-shot.T;

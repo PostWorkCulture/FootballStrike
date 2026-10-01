@@ -19,9 +19,11 @@ let browser;
  await page.waitForFunction(()=>window.FootballStrike?.ready,{timeout:90000});
  report.home=await page.evaluate(()=>FootballStrike.snapshot());
  await page.click('[data-mode="practice"]');
- await page.evaluate(()=>{FootballStrike.test.setKeeper(false);FootballStrike.test.fire(2.7,1.8,.8);FootballStrike.test.step(5);});
+ report.shot=await page.evaluate(()=>{FootballStrike.test.setKeeper(false);FootballStrike.test.fire(2.7,1.8,.8);FootballStrike.test.step(1);return {feedback:document.getElementById('feedback-detail').textContent,speed:FootballStrike.test.getShot().speed};});
+ await page.evaluate(()=>FootballStrike.test.step(4));
+ report.ui=await page.evaluate(()=>{const r=document.getElementById('match-settings').getBoundingClientRect();return {aimMarker:!!document.getElementById('aim-reticle'),instructions:!!document.getElementById('shot-help'),controlsLeft:r.left,controlsTop:r.top};});
  report.match=await page.evaluate(()=>FootballStrike.snapshot());
- report.passed=report.home.countryCount===12&&report.home.actorReady&&report.home.keeperLoaded&&report.match.goals===1&&report.match.shots===1&&report.match.phase==='aim'&&report.match.view==='first-person'&&!report.match.strikerVisible&&report.match.shotPower===.7&&report.errors.length===0;
+ report.passed=report.home.countryCount===12&&report.home.actorReady&&report.home.keeperLoaded&&report.match.goals===1&&report.match.shots===1&&report.match.phase==='aim'&&report.match.originX===-2.7&&!report.ui.aimMarker&&!report.ui.instructions&&report.ui.controlsLeft<40&&report.ui.controlsTop<130&&report.shot.feedback.includes(Math.round(report.shot.speed/1.609344)+' mph')&&report.match.view==='first-person'&&!report.match.strikerVisible&&report.match.shotPower===.7&&report.errors.length===0;
  if(!report.passed)throw Error('Public preview did not pass its loading, scoring and automatic progression checks');
  console.log('PREVIEW_VERIFIED '+url);
 })().catch(e=>{report.failure=e.message;console.error('Preview unavailable: '+e.message);}).finally(async()=>{
