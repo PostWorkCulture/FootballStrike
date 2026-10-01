@@ -1,6 +1,7 @@
 {
   "checks": [
     "Blender assets load and WebGL scene renders",
+    "home shows licensed football photos, ordered modes and an explicit country selector",
     "all 12 countries select and update the 3D kit",
     "Easy, Normal and Hard are visible, and Easy is the initial setting",
     "difficulty can change before a penalty and remains synchronised",
@@ -9,6 +10,8 @@
     "replay pauses automatic progression, then returns to the next penalty without counting twice",
     "difficulty is at the top left and the ball has no instruction overlay",
     "mouse swipe shoots, and pause freezes the simulation",
+    "pause actions align and Home is available from gameplay, pause and settings",
+    "a goal visibly bulges the net and a resting ball keeps its exact orientation",
     "mouse direction controls curl; straight strokes and different speeds keep the same shot pace",
     "free drawing retains a vertical arch and both turns of an S shot without a line",
     "goals, misses, woodwork and saves advance automatically without counting twice",
@@ -20,6 +23,7 @@
     "colourful Target Rush targets burst on hit, award points and expire correctly",
     "Nations Cup advances through all three rounds and records a trophy",
     "settings persist and performance mode works",
+    "phone country control and home photos remain visible",
     "mobile menu and nation grid fit the viewport",
     "touch swipe scores a straight penalty on a phone without scrolling",
     "a phone penalty resets automatically for the next touch shot",
@@ -41,6 +45,8 @@
     "03-goal-desktop.jpg",
     "10-replay.jpg",
     "04-match-desktop.jpg",
+    "19-pause-desktop.jpg",
+    "20-net-impact.jpg",
     "05-match-result.jpg",
     "14-target-ready.jpg",
     "15-target-burst.jpg",
@@ -48,6 +54,7 @@
     "07-nations-mobile.jpg",
     "08-match-mobile.jpg",
     "09-match-landscape.jpg",
+    "21-pause-landscape.jpg",
     "12-tablet-portrait.jpg",
     "13-tablet-landscape.jpg",
     "16-angle-centre.jpg",
@@ -55,7 +62,7 @@
     "18-angle-right.jpg",
     "00-original-game.jpg"
   ],
-  "started": "2026-10-01T18:03:17.929Z",
+  "started": "2026-10-01T18:31:08.576Z",
   "passed": true,
   "render": {
     "originX": 0,
@@ -77,7 +84,7 @@
     "drawCalls": 77,
     "triangles": 984456,
     "crowd": 8133,
-    "averageFrameMs": 642.5799999999989,
+    "averageFrameMs": 804.5200000000001,
     "stage": 0,
     "view": "home",
     "strikerVisible": true,
@@ -91,5 +98,5 @@
     "keeperStage": "set",
     "keeperLoaded": true
   },
-  "finished": "2026-10-01T18:11:19.422Z"
+  "finished": "2026-10-01T18:41:38.363Z"
 }
