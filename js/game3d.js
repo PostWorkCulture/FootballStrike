@@ -956,7 +956,14 @@ gkGroup.add(gkSpine);
 const gkMesh = new THREE.Group();
 gkSpine.add(gkMesh);
 
-charGltfLoader.load('assets/goalkeeper_pro_3d.glb', (gltf) => {
+const gkPoseModels = {
+    idle: null,
+    dive_right: null,
+    dive_left: null,
+    parry: null
+};
+
+function setupGkPoseModel(gltf, poseKey) {
     const model = gltf.scene;
     model.scale.set(1.30, 1.30, 1.30);
     model.traverse(node => {
@@ -971,8 +978,25 @@ charGltfLoader.load('assets/goalkeeper_pro_3d.glb', (gltf) => {
             }
         }
     });
+    model.visible = (poseKey === 'idle');
     gkMesh.add(model);
-});
+    gkPoseModels[poseKey] = model;
+}
+
+charGltfLoader.load('assets/goalkeeper_pro_3d.glb', (gltf) => setupGkPoseModel(gltf, 'idle'));
+charGltfLoader.load('assets/goalkeeper_dive_right.glb', (gltf) => setupGkPoseModel(gltf, 'dive_right'));
+charGltfLoader.load('assets/goalkeeper_dive_left.glb', (gltf) => setupGkPoseModel(gltf, 'dive_left'));
+charGltfLoader.load('assets/goalkeeper_parry.glb', (gltf) => setupGkPoseModel(gltf, 'parry'));
+
+function setGkPose(poseKey) {
+    for (const k in gkPoseModels) {
+        if (gkPoseModels[k]) {
+            gkPoseModels[k].visible = (k === poseKey);
+        }
+    }
+}
+window.setGkPose = setGkPose;
+window.gkPoseModels = gkPoseModels;
 
 // Ground Contact Shadow under Goalkeeper (Decoupled to Ground Plane)
 const gkShadowGeo = new THREE.PlaneGeometry(1.85, 1.10);
@@ -1092,29 +1116,129 @@ window.gkSpine = gkSpine;
 window.gkMesh = gkMesh;
 window.gkBodyCollider = gkBodyCollider;
 // ============================================================================
-// 9. TARGET RACE TARGETS & SHATTER EFFECTS
+// ============================================================================
+// 9. TARGET RACE TARGETS & SHATTER EFFECTS (Vibrant Red & White Bullseyes)
 // ============================================================================
 const targetSlotConfigs = [
-    { x: -2.8, y: 1.85, z: -19.9, isMoving: false, radius: 0.44 }, // Top Left Corner
-    { x: 2.8, y: 1.85, z: -19.9, isMoving: false, radius: 0.44 },  // Top Right Corner
-    { x: 0, y: 1.25, z: -19.9, isMoving: true, radius: 0.52 },     // Center Moving Sweeper
-    { x: -2.6, y: 0.45, z: -19.9, isMoving: false, radius: 0.44 }, // Bottom Left Corner
-    { x: 2.6, y: 0.45, z: -19.9, isMoving: false, radius: 0.44 }   // Bottom Right Corner
+    { x: -2.85, y: 1.95, z: -19.9, isMoving: false, radius: 0.44 }, // Top Left Corner
+    { x: 2.85, y: 1.95, z: -19.9, isMoving: false, radius: 0.44 },  // Top Right Corner
+    { x: 0, y: 2.10, z: -19.9, isMoving: true, radius: 0.46 },     // Center Sweeper (Elevated clear of Keeper)
+    { x: -2.65, y: 0.50, z: -19.9, isMoving: false, radius: 0.44 }, // Bottom Left Corner
+    { x: 2.65, y: 0.50, z: -19.9, isMoving: false, radius: 0.44 }   // Bottom Right Corner
 ];
+
+function createRedWhiteBullseyeTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    const cx = 256;
+    const cy = 256;
+    const maxR = 244;
+
+    // Dark Gunmetal Metallic Outer Rim
+    ctx.beginPath();
+    ctx.arc(cx, cy, 254, 0, Math.PI * 2);
+    ctx.fillStyle = '#0f172a';
+    ctx.fill();
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = '#475569';
+    ctx.stroke();
+
+    // Concentric Red and White Circles
+    // Ring 1 (Outermost): Bold Crimson Red (#dc2626)
+    ctx.beginPath();
+    ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+    ctx.fillStyle = '#dc2626';
+    ctx.fill();
+
+    // Ring 2: Pure Crisp White (#ffffff)
+    ctx.beginPath();
+    ctx.arc(cx, cy, maxR * 0.72, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    // Ring 3: Crimson Red (#dc2626)
+    ctx.beginPath();
+    ctx.arc(cx, cy, maxR * 0.46, 0, Math.PI * 2);
+    ctx.fillStyle = '#dc2626';
+    ctx.fill();
+
+    // Ring 4: Pure Crisp White (#ffffff)
+    ctx.beginPath();
+    ctx.arc(cx, cy, maxR * 0.24, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    // Center Bullseye: Vibrant Scarlet Red (#ef4444)
+    ctx.beginPath();
+    ctx.arc(cx, cy, maxR * 0.12, 0, Math.PI * 2);
+    ctx.fillStyle = '#ef4444';
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#facc15';
+    ctx.stroke();
+
+    // Clear Point Values printed on rings
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 24px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('25', cx, cy - maxR * 0.85);
+    ctx.fillText('25', cx, cy + maxR * 0.85);
+
+    ctx.fillStyle = '#dc2626';
+    ctx.font = '900 24px system-ui, sans-serif';
+    ctx.fillText('50', cx, cy - maxR * 0.58);
+    ctx.fillText('50', cx, cy + maxR * 0.58);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 22px system-ui, sans-serif';
+    ctx.fillText('100', cx, cy);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    return tex;
+}
+
+const redWhiteTargetTex = createRedWhiteBullseyeTexture();
 
 function createTargetMeshAndBody(c) {
     const group = new THREE.Group();
-    // Bullseye Ring 1 (Gold Inner Core)
-    const ring1 = new THREE.Mesh(new THREE.CylinderGeometry(c.radius * 0.35, c.radius * 0.35, 0.04, 32), new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3 }));
-    ring1.rotation.x = Math.PI / 2; group.add(ring1);
 
-    // Bullseye Ring 2 (Cyan Middle Ring)
-    const ring2 = new THREE.Mesh(new THREE.CylinderGeometry(c.radius * 0.70, c.radius * 0.70, 0.03, 32), new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.4 }));
-    ring2.rotation.x = Math.PI / 2; ring2.position.z = -0.005; group.add(ring2);
+    // Single crisp textured disc target (Zero Z-fighting)
+    const discGeo = new THREE.CylinderGeometry(c.radius, c.radius, 0.04, 32);
+    const faceMat = new THREE.MeshStandardMaterial({
+        map: redWhiteTargetTex,
+        roughness: 0.25,
+        metalness: 0.05
+    });
+    const rimMat = new THREE.MeshStandardMaterial({
+        color: 0x334155,
+        roughness: 0.40,
+        metalness: 0.60
+    });
+    const disc = new THREE.Mesh(discGeo, [rimMat, faceMat, faceMat]);
+    disc.rotation.x = Math.PI / 2;
+    disc.castShadow = true;
+    disc.receiveShadow = true;
+    group.add(disc);
 
-    // Bullseye Ring 3 (Navy Outer Rim)
-    const ring3 = new THREE.Mesh(new THREE.CylinderGeometry(c.radius, c.radius, 0.02, 32), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.5 }));
-    ring3.rotation.x = Math.PI / 2; ring3.position.z = -0.01; group.add(ring3);
+    // Crossbar Mounting Cables (Suspended firmly from the crossbar)
+    const goalCrossbarY = 2.44;
+    const hangLen = Math.max(0.12, goalCrossbarY - c.y);
+    const cableMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.8, roughness: 0.3 });
+    const cableGeo = new THREE.CylinderGeometry(0.006, 0.006, hangLen, 8);
+    
+    const cableL = new THREE.Mesh(cableGeo, cableMat);
+    cableL.position.set(-c.radius * 0.55, hangLen * 0.5, 0);
+    group.add(cableL);
+
+    const cableR = new THREE.Mesh(cableGeo, cableMat);
+    cableR.position.set(c.radius * 0.55, hangLen * 0.5, 0);
+    group.add(cableR);
 
     group.position.set(c.x, c.y, c.z);
     scene.add(group);
@@ -1149,27 +1273,72 @@ function spawnRandomTarget() {
     }
 }
 
-// Particle Glass FX
-function createShatterFX(x, y, z, color = 0x38bdf8) {
+// Particle Glass FX (Dynamic Red and White Shards)
+function createShatterFX(x, y, z) {
     const geo = new THREE.BoxGeometry(0.08, 0.08, 0.08);
-    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.2 });
-    for (let i = 0; i < 35; i++) {
+    const matRed = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.2 });
+    const matWhite = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
+    for (let i = 0; i < 40; i++) {
+        const mat = (i % 2 === 0) ? matRed : matWhite;
         const p = new THREE.Mesh(geo, mat);
         p.position.set(x, y, z);
         scene.add(p);
         particles.push({
             mesh: p,
-            vx: (Math.random() - 0.5) * 12,
-            vy: Math.random() * 9 + 2,
-            vz: (Math.random() - 0.5) * 12,
-            life: 0.9
+            vx: (Math.random() - 0.5) * 14,
+            vy: Math.random() * 10 + 2,
+            vz: (Math.random() - 0.5) * 14,
+            life: 0.95
         });
     }
 }
 
 // ============================================================================
-// 10. GAMEPLAY FLOW, TELEMETRY, PRACTICE ARENA & MATCH OUTCOMES
+// 10. DIFFICULTY SETTINGS, PRACTICE ARENA & GAMEPLAY FLOW
 // ============================================================================
+let currentDifficulty = 'semipro';
+const difficultySettings = {
+    amateur: {
+        name: 'Amateur',
+        gkReactionTime: 0.16,
+        gkSkillBase: 0.58,
+        gkDiveDurationMult: 1.20,
+        wallJumpMaxH: 0.28,
+        targetRaceSeconds: 60,
+        targetSpeedMult: 1.0
+    },
+    semipro: {
+        name: 'Semi-Pro',
+        gkReactionTime: 0.09,
+        gkSkillBase: 0.78,
+        gkDiveDurationMult: 1.0,
+        wallJumpMaxH: 0.48,
+        targetRaceSeconds: 45,
+        targetSpeedMult: 1.5
+    },
+    worldclass: {
+        name: 'World Class',
+        gkReactionTime: 0.04,
+        gkSkillBase: 0.94,
+        gkDiveDurationMult: 0.85,
+        wallJumpMaxH: 0.62,
+        targetRaceSeconds: 35,
+        targetSpeedMult: 2.2
+    }
+};
+
+window.setDifficulty = function(diffKey) {
+    if (!difficultySettings[diffKey]) return;
+    currentDifficulty = diffKey;
+    const selectEl = document.getElementById('difficulty-select');
+    if (selectEl && selectEl.value !== diffKey) selectEl.value = diffKey;
+
+    const diff = difficultySettings[currentDifficulty];
+    wallDefenderConfigs.forEach(cfg => {
+        cfg.maxH = diff.wallJumpMaxH * (cfg.id === 1 ? 1.05 : 0.95);
+    });
+};
+
 let shotOutcomeTimer = null;
 
 const practiceSpots = [
@@ -1187,19 +1356,23 @@ let practiceSettings = {
     spotIndex: 0
 };
 
+window.togglePracticeMenu = function() {
+    const panel = document.getElementById('practice-menu-panel');
+    const arrow = document.getElementById('practice-menu-arrow');
+    if (!panel) return;
+    const isShown = panel.style.display !== 'none';
+    panel.style.display = isShown ? 'none' : 'flex';
+    if (arrow) arrow.innerText = isShown ? '▾' : '▴';
+};
+
 window.togglePracticeOption = function(type) {
     if (practiceSettings[type] === undefined) return;
     practiceSettings[type] = !practiceSettings[type];
     
     const btn = document.getElementById(`toggle-${type}-btn`);
     if (btn) {
-        if (practiceSettings[type]) {
-            btn.classList.add('active');
-            btn.innerText = (type === 'targets' ? '🎯 Targets: ON' : (type === 'wall' ? '🛡️ Wall: ON' : '🧤 Keeper: ON'));
-        } else {
-            btn.classList.remove('active');
-            btn.innerText = (type === 'targets' ? '🎯 Targets: OFF' : (type === 'wall' ? '🛡️ Wall: OFF' : '🧤 Keeper: OFF'));
-        }
+        btn.innerText = practiceSettings[type] ? 'ON' : 'OFF';
+        btn.classList.toggle('active', practiceSettings[type]);
     }
 
     if (type === 'targets') {
@@ -1244,7 +1417,7 @@ window.cyclePracticeSpot = function() {
     const spot = practiceSpots[practiceSettings.spotIndex];
     const btn = document.getElementById('practice-spot-btn');
     if (btn) {
-        btn.innerText = `📍 Spot: ${spot.name}`;
+        btn.innerText = spot.name.split(' ')[0];
     }
     resetBall();
 };
@@ -1471,6 +1644,7 @@ window.resetBall = function() {
     gkSpine.position.set(0, 0, 0);
     gkSpine.rotation.set(0, 0, 0);
     gkMesh.rotation.set(0, 0, 0);
+    setGkPose('idle');
 
     wallJumping = false;
     wallJumpTimer = 0;
@@ -1825,10 +1999,15 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
         gkDiveTimer = 0;
         gkStartX = gkGroup.position.x;
         gkStartY = gkGroup.position.y;
-        gkDiveDuration = Math.min(0.68, Math.max(0.42, flightTime * 0.90));
-        gkReactionTime = 0.08;
+        
+        const diff = (typeof difficultySettings !== 'undefined' && difficultySettings[currentDifficulty]) 
+            ? difficultySettings[currentDifficulty] 
+            : { gkReactionTime: 0.09, gkSkillBase: 0.78, gkDiveDurationMult: 1.0 };
+
+        gkDiveDuration = Math.min(0.68, Math.max(0.42, flightTime * 0.90)) * (diff.gkDiveDurationMult || 1.0);
+        gkReactionTime = diff.gkReactionTime || 0.09;
         const speedRatio = Math.min(1.0, actualSpeedKmh / 115);
-        const keeperSkill = 0.82 - speedRatio * 0.18;
+        const keeperSkill = Math.max(0.40, (diff.gkSkillBase || 0.78) - speedRatio * 0.18);
         gkTargetX = Math.max(-3.3, Math.min(3.3, targetWorldX * keeperSkill));
         const diveDir = (gkTargetX >= gkGroup.position.x) ? 1 : -1;
 
@@ -1837,16 +2016,23 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
             gkDiveType = 'low_sweep';
             gkTargetY = 0.28;
             gkTargetRotZ = diveDir > 0 ? -1.42 : 1.42;
+            setGkPose(diveDir > 0 ? 'dive_right' : 'dive_left');
         } else if (targetWorldY > 1.65 && Math.abs(gkTargetX) > 1.1) {
             // Top corner flying save
             gkDiveType = 'top_corner_flight';
             gkTargetY = Math.min(2.35, targetWorldY * 0.96);
             gkTargetRotZ = diveDir > 0 ? -0.92 : 0.92;
+            setGkPose(diveDir > 0 ? 'dive_right' : 'dive_left');
         } else {
             // Mid-height parry
             gkDiveType = 'mid_parry';
             gkTargetY = Math.max(0.85, Math.min(1.85, targetWorldY * 0.90));
             gkTargetRotZ = diveDir > 0 ? -0.65 : 0.65;
+            if (Math.abs(gkTargetX) > 0.8) {
+                setGkPose(diveDir > 0 ? 'dive_right' : 'dive_left');
+            } else {
+                setGkPose('parry');
+            }
         }
     }
 
@@ -1957,14 +2143,6 @@ window.addEventListener('pointerup', (e) => {
         }
 
         window.executeShot(targetScreenX, targetScreenY, speedKmh, spinRPM, powerNorm, curlBendMeters);
-
-        // Fade out swipe hint after first shot
-        const hintBar = document.getElementById('hint-bar');
-        if (hintBar && hintBar.style.opacity !== '0') {
-            hintBar.style.transition = 'opacity 0.8s ease';
-            hintBar.style.opacity = '0';
-            setTimeout(() => { hintBar.style.display = 'none'; }, 800);
-        }
     }
     swipeSamples = [];
 });
@@ -2165,7 +2343,7 @@ function updateSimulation(dt) {
                     gkShadow.material.opacity = Math.max(0.12, 0.75 * (1.0 - elev * 0.45));
                 }
 
-                const reachExtensionX = diveDir * Math.sin(Math.abs(gkSpine.rotation.z)) * 0.85;
+                const reachExtensionX = diveDir * (Math.sin(Math.abs(gkSpine.rotation.z)) * 0.95 + 0.35);
                 const reachExtensionY = Math.cos(gkSpine.rotation.z) * 0.45;
                 gkBodyCollider.position.set(
                     gkGroup.position.x + reachExtensionX,
@@ -2195,7 +2373,7 @@ function updateSimulation(dt) {
             // Check Goalkeeper Save Block
             if (ballInFlight && !ballBody.scored && !ballBody.saved) {
                 const distGk = ballMesh.position.distanceTo(gkBodyCollider.position);
-                if (distGk < 1.15 && Math.abs(ballMesh.position.z - (-19.6)) < 0.80) {
+                if (distGk < 1.25 && Math.abs(ballMesh.position.z - (-19.6)) < 0.85) {
                     ballBody.saved = true;
                     streak = 0;
                     updateHUD();
@@ -2216,9 +2394,13 @@ function updateSimulation(dt) {
 
     // Moving Sweeper Bullseye Oscillation (Target Race Mode)
     if (currentGameMode === 'targets') {
+        const diff = (typeof difficultySettings !== 'undefined' && difficultySettings[currentDifficulty]) 
+            ? difficultySettings[currentDifficulty] 
+            : { targetSpeedMult: 1.0 };
+        const sweepSpeed = 2.2 * diff.targetSpeedMult;
         activeTargets.forEach(t => {
             if (t.isMoving && t.active) {
-                const moveX = t.originX + Math.sin(time * 2.2) * 1.6;
+                const moveX = t.originX + Math.sin(time * sweepSpeed) * 1.6;
                 t.mesh.position.x = moveX;
                 t.body.position.x = moveX;
             }
@@ -2263,17 +2445,27 @@ function updateSimulation(dt) {
             if (dist < (t.config.radius + ballRadius * 0.85)) {
                 t.active = false;
                 const ringAccuracy = dist / (t.config.radius + ballRadius);
-                let bannerTxt = 'TARGET HIT';
-                if (ringAccuracy < 0.40) { bannerTxt = 'BULLSEYE'; }
-                else if (ringAccuracy < 0.70) { bannerTxt = 'GREAT SHOT'; }
+                let bannerTxt = 'OUTER RING! +25';
+                let pts = 25;
+                let bannerCol = '#ffffff';
+                if (ringAccuracy < 0.35) {
+                    bannerTxt = 'BULLSEYE! +100';
+                    pts = 100;
+                    bannerCol = '#dc2626';
+                } else if (ringAccuracy < 0.68) {
+                    bannerTxt = 'INNER RING! +50';
+                    pts = 50;
+                    bannerCol = '#fbbf24';
+                }
 
                 targetsShattered++;
+                score += pts;
                 updateHUD();
 
                 sfx.playShatter();
                 sfx.playCheer();
                 createShatterFX(t.mesh.position.x, t.mesh.position.y, t.mesh.position.z);
-                showBanner(bannerTxt, '', '#38bdf8');
+                showBanner(bannerTxt, pts === 100 ? 'PINPOINT STRIKE' : '', bannerCol);
 
                 scene.remove(t.mesh);
                 world.removeBody(t.body);

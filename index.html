@@ -162,8 +162,6 @@
             display: none; /* Completely removed gimmick points */
         }
 
-        /* Swipe Instruction & Controls */
-        #hint-bar { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 10px 24px; font-size: 14px; font-weight: 600; color: #e2e8f0; text-align: center; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); pointer-events: none !important; z-index: 20; }
         #swipe-trail { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 
         /* Action Buttons */
@@ -184,29 +182,96 @@
         .mode-card p { font-size: 13px; color: #94a3b8; margin: 0 0 20px 0; line-height: 1.5; }
         .mode-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 8px; text-transform: uppercase; }
 
-        .practice-toggle-btn {
-            background: rgba(255, 255, 255, 0.08);
-            color: #e2e8f0;
+        /* Sleek Dropdown Menus (Compact Screen Footprint) */
+        .hud-difficulty-card {
+            background: #09090b;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 6px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            pointer-events: auto !important;
+        }
+        .hud-select {
+            background: #18181b;
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            cursor: pointer;
+            outline: none;
+            letter-spacing: 0.5px;
+        }
+        .hud-select:hover {
+            border-color: #38bdf8;
+            background: #27272a;
+        }
+        .practice-dropdown-btn {
+            background: #09090b;
+            color: #f8fafc;
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 10px;
             padding: 8px 14px;
             font-size: 12px;
-            font-weight: 700;
+            font-weight: 800;
+            letter-spacing: 0.5px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.6);
             transition: all 0.15s ease;
-            user-select: none;
             pointer-events: auto !important;
         }
-        .practice-toggle-btn:hover {
-            background: rgba(56, 189, 248, 0.2);
+        .practice-dropdown-btn:hover {
             border-color: #38bdf8;
             color: #38bdf8;
         }
-        .practice-toggle-btn.active {
+        .practice-menu-panel {
+            position: absolute;
+            top: 42px;
+            left: 0;
+            width: 220px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.85);
+            pointer-events: auto !important;
+            background: rgba(9, 9, 11, 0.94);
+        }
+        .drill-opt-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+        .drill-toggle-pill {
+            background: rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            pointer-events: auto !important;
+        }
+        .drill-toggle-pill.active {
             background: rgba(16, 185, 129, 0.25);
             border-color: #10b981;
             color: #34d399;
-            box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
         }
     </style>
     <script src="js/three.min.js"></script>
@@ -254,6 +319,16 @@
                 </div>
             </div>
 
+            <!-- Difficulty Selector Card -->
+            <div class="hud-difficulty-card">
+                <span style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">DIFFICULTY</span>
+                <select id="difficulty-select" class="hud-select" onchange="setDifficulty(this.value)">
+                    <option value="amateur">AMATEUR</option>
+                    <option value="semipro" selected>SEMI-PRO</option>
+                    <option value="worldclass">WORLD CLASS</option>
+                </select>
+            </div>
+
             <!-- Central Round Indicator (Solid Black) -->
             <div id="round-tracker" class="hud-tracker-card">
                 <span id="tracker-label" style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">ROUND</span>
@@ -288,24 +363,38 @@
             </div>
         </div>
 
-        <!-- Practice Mode Toolbar -->
-        <div id="practice-toolbar" class="hud-glass" style="display: none; position: absolute; top: 88px; left: 18px; padding: 10px 16px; align-items: center; gap: 10px; z-index: 25;">
-            <button id="toggle-targets-btn" class="practice-toggle-btn active" onclick="togglePracticeOption('targets')">🎯 Targets: ON</button>
-            <button id="toggle-wall-btn" class="practice-toggle-btn active" onclick="togglePracticeOption('wall')">🛡️ Wall: ON</button>
-            <button id="toggle-keeper-btn" class="practice-toggle-btn active" onclick="togglePracticeOption('keeper')">🧤 Keeper: ON</button>
-            <button id="practice-spot-btn" class="practice-toggle-btn" onclick="cyclePracticeSpot()">📍 Spot: Center</button>
-            <button id="reset-ball-btn" class="practice-toggle-btn" style="background: rgba(239, 68, 68, 0.2); border-color: #ef4444;" onclick="resetBall()">🔄 Reset Ball</button>
+        <!-- Practice Mode Dropdown Toolbar (Compact Minimal Footprint) -->
+        <div id="practice-toolbar" style="display: none; position: absolute; top: 88px; left: 18px; z-index: 25;">
+            <button id="practice-menu-btn" class="practice-dropdown-btn" onclick="togglePracticeMenu()">
+                <span>⚙️ DRILL OPTIONS</span>
+                <span id="practice-menu-arrow">▾</span>
+            </button>
+            <div id="practice-menu-panel" class="practice-menu-panel" style="display: none;">
+                <div class="drill-opt-row">
+                    <span>🎯 Targets</span>
+                    <button id="toggle-targets-btn" class="drill-toggle-pill active" onclick="togglePracticeOption('targets')">ON</button>
+                </div>
+                <div class="drill-opt-row">
+                    <span>🛡️ Defensive Wall</span>
+                    <button id="toggle-wall-btn" class="drill-toggle-pill active" onclick="togglePracticeOption('wall')">ON</button>
+                </div>
+                <div class="drill-opt-row">
+                    <span>🧤 Goalkeeper</span>
+                    <button id="toggle-keeper-btn" class="drill-toggle-pill active" onclick="togglePracticeOption('keeper')">ON</button>
+                </div>
+                <div class="drill-opt-row">
+                    <span>📍 Spot</span>
+                    <button id="practice-spot-btn" class="drill-toggle-pill" onclick="cyclePracticeSpot()">Center</button>
+                </div>
+                <div style="height: 1px; background: rgba(255,255,255,0.12); margin: 4px 0;"></div>
+                <button class="btn-action w-full" style="padding: 6px; font-size: 11px; background: rgba(239, 68, 68, 0.25); border-color: #ef4444;" onclick="resetBall()">🔄 Reset Ball</button>
+            </div>
         </div>
 
         <!-- Dynamic Impact Banner (Positioned Directly Above Goal Crossbar) -->
         <div id="banner">
             <span id="banner-main">GOAL</span>
             <span id="banner-sub"></span>
-        </div>
-
-        <!-- Swipe Guide Hint -->
-        <div class="hud-glass" id="hint-bar">
-            Swipe forward to shoot • Curve your stroke to bend the ball around the keeper
         </div>
     </div>
 
