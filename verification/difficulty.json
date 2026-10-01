@@ -4,23 +4,23 @@
     "rookie": {
       "label": "Easy",
       "shots": 3000,
-      "goals": 2493,
-      "saves": 507,
-      "saveRate": 0.169
+      "goals": 2545,
+      "saves": 455,
+      "saveRate": 0.15166666666666667
     },
     "pro": {
       "label": "Normal",
       "shots": 3000,
-      "goals": 1879,
-      "saves": 1121,
-      "saveRate": 0.37366666666666665
+      "goals": 2191,
+      "saves": 809,
+      "saveRate": 0.26966666666666667
     },
     "elite": {
       "label": "Hard",
       "shots": 3000,
-      "goals": 1190,
-      "saves": 1810,
-      "saveRate": 0.6033333333333334
+      "goals": 1843,
+      "saves": 1157,
+      "saveRate": 0.38566666666666666
     }
   }
 }

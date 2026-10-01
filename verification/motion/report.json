@@ -1,0 +1,223 @@
+{
+  "passed": true,
+  "frames": [
+    {
+      "file": "low-left-0.jpg",
+      "name": "low-left",
+      "time": 0,
+      "stage": "set"
+    },
+    {
+      "file": "low-left-1.jpg",
+      "name": "low-left",
+      "time": 0.19,
+      "stage": "plant"
+    },
+    {
+      "file": "low-left-2.jpg",
+      "name": "low-left",
+      "time": 0.33999999999999997,
+      "stage": "dive"
+    },
+    {
+      "file": "low-left-3.jpg",
+      "name": "low-left",
+      "time": 0.47,
+      "stage": "dive"
+    },
+    {
+      "file": "low-left-4.jpg",
+      "name": "low-left",
+      "time": 0.5449104898331129,
+      "stage": "dive"
+    },
+    {
+      "file": "low-left-5.jpg",
+      "name": "low-left",
+      "time": 0.7099104898331129,
+      "stage": "land"
+    },
+    {
+      "file": "low-left-6.jpg",
+      "name": "low-left",
+      "time": 0.9699104898331129,
+      "stage": "kneel"
+    },
+    {
+      "file": "low-left-7.jpg",
+      "name": "low-left",
+      "time": 1.4099104898331127,
+      "stage": "rise"
+    },
+    {
+      "file": "low-left-8.jpg",
+      "name": "low-left",
+      "time": 2.4099104898331127,
+      "stage": "set"
+    },
+    {
+      "file": "mid-right-0.jpg",
+      "name": "mid-right",
+      "time": 0,
+      "stage": "set"
+    },
+    {
+      "file": "mid-right-1.jpg",
+      "name": "mid-right",
+      "time": 0.19,
+      "stage": "plant"
+    },
+    {
+      "file": "mid-right-2.jpg",
+      "name": "mid-right",
+      "time": 0.33999999999999997,
+      "stage": "dive"
+    },
+    {
+      "file": "mid-right-3.jpg",
+      "name": "mid-right",
+      "time": 0.47,
+      "stage": "dive"
+    },
+    {
+      "file": "mid-right-4.jpg",
+      "name": "mid-right",
+      "time": 0.7379871972556744,
+      "stage": "dive"
+    },
+    {
+      "file": "mid-right-5.jpg",
+      "name": "mid-right",
+      "time": 0.9029871972556744,
+      "stage": "land"
+    },
+    {
+      "file": "mid-right-6.jpg",
+      "name": "mid-right",
+      "time": 1.1629871972556745,
+      "stage": "kneel"
+    },
+    {
+      "file": "mid-right-7.jpg",
+      "name": "mid-right",
+      "time": 1.6029871972556742,
+      "stage": "rise"
+    },
+    {
+      "file": "mid-right-8.jpg",
+      "name": "mid-right",
+      "time": 2.9029871972556744,
+      "stage": "set"
+    },
+    {
+      "file": "high-left-0.jpg",
+      "name": "high-left",
+      "time": 0,
+      "stage": "set"
+    },
+    {
+      "file": "high-left-1.jpg",
+      "name": "high-left",
+      "time": 0.19,
+      "stage": "plant"
+    },
+    {
+      "file": "high-left-2.jpg",
+      "name": "high-left",
+      "time": 0.33999999999999997,
+      "stage": "dive"
+    },
+    {
+      "file": "high-left-3.jpg",
+      "name": "high-left",
+      "time": 0.47,
+      "stage": "dive"
+    },
+    {
+      "file": "high-left-4.jpg",
+      "name": "high-left",
+      "time": 0.8975458026405542,
+      "stage": "dive"
+    },
+    {
+      "file": "high-left-5.jpg",
+      "name": "high-left",
+      "time": 1.062545802640554,
+      "stage": "land"
+    },
+    {
+      "file": "high-left-6.jpg",
+      "name": "high-left",
+      "time": 1.3225458026405543,
+      "stage": "kneel"
+    },
+    {
+      "file": "high-left-7.jpg",
+      "name": "high-left",
+      "time": 1.762545802640554,
+      "stage": "rise"
+    },
+    {
+      "file": "high-left-8.jpg",
+      "name": "high-left",
+      "time": 3.362545802640554,
+      "stage": "shuffle"
+    },
+    {
+      "file": "central-0.jpg",
+      "name": "central",
+      "time": 0,
+      "stage": "set"
+    },
+    {
+      "file": "central-1.jpg",
+      "name": "central",
+      "time": 0.12,
+      "stage": "set"
+    },
+    {
+      "file": "central-2.jpg",
+      "name": "central",
+      "time": 0.2,
+      "stage": "block"
+    },
+    {
+      "file": "central-3.jpg",
+      "name": "central",
+      "time": 0.28,
+      "stage": "block"
+    },
+    {
+      "file": "central-4.jpg",
+      "name": "central",
+      "time": 0.36,
+      "stage": "block"
+    },
+    {
+      "file": "central-5.jpg",
+      "name": "central",
+      "time": 0.5,
+      "stage": "block"
+    },
+    {
+      "file": "central-6.jpg",
+      "name": "central",
+      "time": 0.7,
+      "stage": "block"
+    },
+    {
+      "file": "central-7.jpg",
+      "name": "central",
+      "time": 1,
+      "stage": "block"
+    },
+    {
+      "file": "central-8.jpg",
+      "name": "central",
+      "time": 1.5,
+      "stage": "set"
+    }
+  ],
+  "errors": [],
+  "maxBoneError": 1.0194271911183026e-15
+}
