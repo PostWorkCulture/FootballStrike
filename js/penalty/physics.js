@@ -1,12 +1,13 @@
 /* Deterministic 120 Hz penalty simulation. Coordinates: goal z=0, ball z=11. */
 (function(root){
 'use strict';
+const K=root.FSKeeper||(typeof require==='function'?require('./keeper.js'):null);
 const R=.11,G=9.81,STEP=1/120,SHOT_POWER=.7,KICK_DELAY=.18;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const DIFFICULTY={
- rookie:{label:'Easy',description:'More time to beat the keeper',reaction:.23,duration:.42,reach:1.95,error:1.15,wrongWay:.28,rival:.48},
- pro:{label:'Normal',description:'A balanced challenge',reaction:.16,duration:.36,reach:2.45,error:.85,wrongWay:.20,rival:.62},
- elite:{label:'Hard',description:'Faster reactions, tighter angles',reaction:.12,duration:.34,reach:2.7,error:.75,wrongWay:.17,rival:.74}
+ rookie:{label:'Easy',description:'More time to beat the keeper',reaction:.17,moveSpeed:3.0,reach:2.8,error:1.15,wrongWay:.28,rival:.48},
+ pro:{label:'Normal',description:'A balanced challenge',reaction:.08,moveSpeed:3.7,reach:3.1,error:.85,wrongWay:.20,rival:.62},
+ elite:{label:'Hard',description:'Faster reactions, tighter angles',reaction:.015,moveSpeed:4.5,reach:3.3,error:.65,wrongWay:.17,rival:.74}
 };
 function rng(seed){let s=seed>>>0;return ()=>{s=(Math.imul(1664525,s)+1013904223)>>>0;return s/4294967296;};}
 function createShot(x,y,power,curve){
@@ -15,43 +16,70 @@ const speed=19+power*15,T=11/speed,ax=curve*14;
 const vx=(x-.5*ax*T*T)/T,vy=(y-R+.5*G*T*T)/T;
 return {x:0,y:R,z:11,vx,vy,vz:-speed,ax,T,power,curve,targetX:x,targetY:y,speed:Math.hypot(vx,vy,speed)*3.6};
 }
-function keeperAt(k,t,out){
-const a=clamp((t-k.reaction)/(k.duration||.36),0,1),u=a*a*(3-2*a);
-out.x=k.x*u;out.y=1+Math.max(0,k.y-1)*u-.65*u*(k.y<.8?1:0);
-out.roll=-Math.sign(k.x)*1.12*u*clamp(Math.abs(k.x)/1.7,0,1);out.extension=.33+.58*u;
-return out;
-}
+function keeperAt(k,t,out){return K.poseAt(k,t,out);}
 function makeKeeper(shot,difficulty,random){
-const d=DIFFICULTY[difficulty]||DIFFICULTY.pro;
-// Commit to a fallible read. Every level can guess wrong, and curl costs reaction time.
-const guess=random()<d.wrongWay?-Math.sign(shot.targetX||1):Math.sign(shot.targetX||1);
-return {reaction:d.reaction+Math.abs(shot.curve)*.035,duration:d.duration,x:clamp(guess*Math.abs(shot.targetX)+(random()-.5)*d.error*2,-d.reach,d.reach),y:clamp(shot.targetY+(random()-.5)*d.error*1.3,.35,2.1)};
+ const d=DIFFICULTY[difficulty]||DIFFICULTY.pro;
+ // The keeper commits to an imperfect read, rather than tracking every later bend.
+ let readX=shot.targetX,readY=shot.targetY;
+ if(shot.path){const q={};sampleShot(shot,shot.T*.22,q);const depth=Math.max(.06,(11-q.z)/11);readX=mix(shot.targetX,clamp(q.x/depth,-4,4),.35);readY=mix(shot.targetY,clamp(q.y, .2,2.5),.25);}
+ const guess=random()<d.wrongWay?-Math.sign(readX||1):Math.sign(readX||1);
+ return K.plan(clamp(guess*Math.abs(readX)+(random()-.5)*d.error*2,-d.reach,d.reach),clamp(readY+(random()-.5)*d.error*1.3,.25,2.4),d.reaction,d.moveSpeed);
+}
+const mix=(a,b,t)=>a+(b-a)*t;
+function createPathShot(points){
+ const path=new Float64Array(points),count=path.length/3;
+ // Two small smoothing passes remove pointer jitter without removing the drawn bends.
+ for(let pass=0;pass<2;pass++){const copy=path.slice();for(let i=1;i<count-1;i++)for(let c=0;c<2;c++)path[i*3+c]=copy[(i-1)*3+c]*.18+copy[i*3+c]*.64+copy[(i+1)*3+c]*.18;}
+ const times=new Float64Array(count);let length=0,maxY=0;
+ for(let i=0;i<count;i++){path[i*3+1]=Math.max(R,path[i*3+1]);maxY=Math.max(maxY,path[i*3+1]);if(i){length+=Math.hypot(path[i*3]-path[(i-1)*3],path[i*3+1]-path[(i-1)*3+1],path[i*3+2]-path[(i-1)*3+2]);times[i]=length;}}
+ for(let i=1;i<count;i++)times[i]/=length;
+ const end=(count-1)*3,speed=29.5,T=length/speed;
+ return {x:0,y:R,z:11,vx:0,vy:0,vz:-speed,ax:0,T,power:SHOT_POWER,curve:0,targetX:path[end],targetY:path[end+1],speed:speed*3.6,path,times,maxY,length,drawn:true};
+}
+function sampleShot(shot,t,out){
+ if(!shot.path){out.x=shot.vx*t+.5*shot.ax*t*t;out.y=R+shot.vy*t-.5*G*t*t;out.z=11+shot.vz*t;return out;}
+ const points=shot.path,times=shot.times,count=times.length,s=t/shot.T;
+ if(s>=1){
+ const i=(count-1)*3,j=i-3,dt=(1-times[count-2])*shot.T,extra=t-shot.T;
+ out.x=points[i]+(points[i]-points[j])/dt*extra;out.y=points[i+1]+(points[i+1]-points[j+1])/dt*extra-.5*G*extra*extra;out.z=points[i+2]+(points[i+2]-points[j+2])/dt*extra;return out;
+ }
+ let low=0,high=count-1;while(high-low>1){const mid=(low+high)>>1;if(times[mid]<=s)low=mid;else high=mid;}
+ const u=clamp((s-times[low])/(times[high]-times[low]||1),0,1);
+ for(let c=0;c<3;c++){
+ const p0=points[Math.max(0,low-1)*3+c],p1=points[low*3+c],p2=points[high*3+c],p3=points[Math.min(count-1,high+1)*3+c];
+ const value=c===2?mix(p1,p2,u):.5*((2*p1)+(-p0+p2)*u+(2*p0-5*p1+4*p2-p3)*u*u+(-p0+3*p1-3*p2+p3)*u*u*u);
+ if(c===0)out.x=value;else if(c===1)out.y=Math.max(R,value);else out.z=value;
+ }
+ return out;
 }
 function pointSegmentDistance(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,n=dx*dx+dy*dy;const t=n?clamp(((px-ax)*dx+(py-ay)*dy)/n,0,1):0;return Math.hypot(px-ax-dx*t,py-ay-dy*t);}
 class Flight{
- constructor(){this.ball={x:0,y:R,z:11,vx:0,vy:0,vz:0,ax:0};this.keeper={reaction:1,x:0,y:1};this.pose={x:0,y:1,roll:0,extension:.33};this.time=0;this.outcome=null;this.keeperEnabled=true;this.netHit=0;}
- launch(shot,keeper,enabled=true){Object.assign(this.ball,shot);Object.assign(this.keeper,keeper);this.keeperEnabled=enabled;this.time=0;this.outcome=null;this.netHit=0;this.frameHit=false;return this;}
+ constructor(){this.ball={x:0,y:R,z:11,vx:0,vy:0,vz:0,ax:0};this.keeper=K.plan(0,1,1);this.pose=K.createPose();this.hitPose=K.createPose();this.pathSample={};this.time=0;this.outcome=null;this.keeperEnabled=true;this.netHit=0;}
+ launch(shot,keeper,enabled=true){Object.assign(this.ball,shot);this.keeper=keeper.kind?{...keeper}:K.plan(keeper.x,keeper.y,keeper.reaction);this.shot=shot;this.caught=false;this.savePart=null;this.keeperEnabled=enabled;this.time=0;this.outcome=null;this.netHit=0;this.frameHit=false;return this;}
  step(dt=STEP){
  const b=this.ball;const px=b.x,py=b.y,pz=b.z;this.time+=dt;
  keeperAt(this.keeper,this.time,this.pose);
+ if(this.caught){const a=this.pose.joints,l=K.J.lf*3,r=K.J.rf*3;b.x=(a[l]+a[r])/2;b.y=(a[l+1]+a[r+1])/2;b.z=(a[l+2]+a[r+2])/2+.06;b.vx=b.vy=b.vz=b.ax=0;return;}
  if(this.outcome==='goal'){
  b.vx*=Math.exp(-5*dt);b.vz*=Math.exp(-7*dt);b.vy-=G*dt;
  b.x=clamp(b.x+b.vx*dt,-3.45,3.45);b.y=Math.max(R,b.y+b.vy*dt);
  const backNet=-1.8+b.y/2.44*1.3+R;b.z=Math.max(backNet,b.z+b.vz*dt);
  if(b.y===R)b.vy=0;return;
  }
- b.x+=b.vx*dt+.5*b.ax*dt*dt;b.y+=b.vy*dt-.5*G*dt*dt;b.z+=b.vz*dt;b.vx+=b.ax*dt;b.vy-=G*dt;
+ if(this.shot.path&&!this.outcome){sampleShot(this.shot,this.time,this.pathSample);b.x=this.pathSample.x;b.y=this.pathSample.y;b.z=this.pathSample.z;b.vx=(b.x-px)/dt;b.vy=(b.y-py)/dt;b.vz=(b.z-pz)/dt;}
+ else{b.x+=b.vx*dt+.5*b.ax*dt*dt;b.y+=b.vy*dt-.5*G*dt*dt;b.z+=b.vz*dt;b.vx+=b.ax*dt;b.vy-=G*dt;}
  if(b.y<R){b.y=R;b.vy=Math.abs(b.vy)*.42;b.vx*=.985;b.vz*=.985;}
  if(this.outcome){if(b.z>15||b.z<-12){b.vx*=.97;b.vz*=.97;}return;}
- // Swept intersection at keeper's plane. The same pose drives rendering and collision.
- if(this.keeperEnabled&&pz>.48&&b.z<=.48){
- const u=(pz-.48)/(pz-b.z),x=px+(b.x-px)*u,y=py+(b.y-py)*u;
- const k=this.pose,dir=Math.sign(this.keeper.x||1);
- const handX=k.x+dir*k.extension,handY=k.y+.3;
- const body=pointSegmentDistance(x,y,k.x,k.y-.4,k.x-dir*.32,k.y+.22)<.34+R;
- const arm=pointSegmentDistance(x,y,k.x,k.y+.15,handX,handY)<.13+R;
- const hand=Math.hypot(x-handX,y-handY)<.18+R;
- if(body||arm||hand){this.outcome='saved';b.z=.5;b.vz=Math.abs(b.vz)*.28;b.vx=dir*4;b.vy=2.8;b.ax=0;return;}
+ // Sweep against the actual animated gloves, limbs, head and torso.
+ if(this.keeperEnabled&&pz>-.6&&b.z<1.4){
+ for(let n=1;n<=4;n++){
+ const u=n/4,x=mix(px,b.x,u),y=mix(py,b.y,u),z=mix(pz,b.z,u),at=this.time-dt+dt*u;
+ keeperAt(this.keeper,at,this.hitPose);const part=K.contact(this.hitPose,x,y,z,R);
+ if(part){
+ this.outcome='saved';this.savePart=part;this.keeper.saveAt=at;this.caught=part==='glove'&&this.keeper.kind==='centre';this.keeper.caught=this.caught;
+ b.x=x;b.y=y;b.z=z;b.vz=Math.abs(b.vz)*.28;b.vx=this.keeper.dir*(3.5+Math.abs(b.vx)*.25);b.vy=Math.min(3.5,.65+Math.abs(b.vy)*.2);b.ax=0;return;
+ }
+ }
  }
  // Test the full swept segment against both uprights and the crossbar before crossing.
  if(pz>0&&b.z<=0){
@@ -82,6 +110,6 @@ class Shootout{
  }
  get score(){return [this.home.filter(Boolean).length,this.away.filter(Boolean).length];}
 }
-root.FSPhysics={R,G,STEP,SHOT_POWER,KICK_DELAY,clamp,rng,createShot,makeKeeper,keeperAt,Flight,Shootout,DIFFICULTY};
+root.FSPhysics={R,G,STEP,SHOT_POWER,KICK_DELAY,clamp,rng,createShot,createPathShot,sampleShot,makeKeeper,keeperAt,Flight,Shootout,DIFFICULTY};
 if(typeof module!=='undefined')module.exports=root.FSPhysics;
 })(typeof window!=='undefined'?window:globalThis);

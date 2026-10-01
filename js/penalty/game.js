@@ -1,7 +1,7 @@
 /* Application state, input, match lifecycle, replay and stadium sound. */
 (function(){
 'use strict';
-const P=FSPhysics,G=FSGestures,$=id=>document.getElementById(id),teams=FSTeams.list;
+const P=FSPhysics,K=FSKeeper,G=FSGestures,$=id=>document.getElementById(id),teams=FSTeams.list;
 const defaults={nation:'swe',difficulty:'rookie',difficultyVersion:2,quality:'balanced',audio:true,reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,best:0,cups:0};
 let saved={};try{saved=JSON.parse(localStorage.getItem('football-strike-v2')||'{}')||{};}catch{}
 const settings=Object.assign({},defaults,saved);
@@ -106,33 +106,33 @@ function start(mode,preserveCup=false){
 function nextShot(){
  if(game.phase==='menu'||game.phase==='complete')return;
  game.phase='aim';game.elapsed=0;game.outcome=null;game.shot=null;replayCount=0;
- Object.assign(flight.ball,{x:0,y:.11,z:11,vx:0,vy:0,vz:0,ax:0});Object.assign(flight.pose,{x:0,y:1,roll:0,extension:.33});
- flight.outcome=null;aim.x=0;aim.y=1.05;input.active=false;input.keyboard=false;setCurve(0);$('gesture-trail').hidden=true;
+ Object.assign(flight.ball,{x:0,y:.11,z:11,vx:0,vy:0,vz:0,ax:0});K.readyAt(0,flight.pose);
+ flight.outcome=null;aim.x=0;aim.y=1.05;input.active=false;input.keyboard=false;setCurve(0);
  game.keeperEnabled=game.mode==='rush'?false:game.mode==='practice'?$('keeper-enabled').checked:true;
  world.keeper.visible=game.keeperEnabled;world.setView('match',true);world.showAim(null,false);
- $('shot-feedback').classList.remove('show');$('after-shot').hidden=true;$('shot-controls').hidden=false;$('shot-help').hidden=false;$('aim-reticle').hidden=true;$('replay-label').hidden=true;$('swipe-hint').hidden=game.shots>0;
- $('help-title').textContent=game.mode==='rush'?'SWIPE AT THE LIT TARGET':'SWIPE TOWARDS THE GOAL';
- $('help-detail').textContent='Finish left or right to curl · Release to shoot';
+ $('shot-feedback').classList.remove('show');$('after-shot').hidden=true;$('shot-controls').hidden=false;$('shot-help').hidden=false;$('aim-reticle').hidden=true;$('replay-label').hidden=true;
+ $('help-title').textContent=game.mode==='rush'?'SWIPE AT THE LIT TARGET':'DRAW THE FLIGHT OF YOUR SHOT';
+ $('help-detail').textContent='Arch, bend or dip your gesture · Release to kick';
  if(game.mode==='rush'){game.targetIndex=Math.floor(game.random()*4);world.showTargets(game.targetIndex);}else world.showTargets(-1);
  lastHUD=-1;updateHUD();world.renderer.domElement.focus({preventScroll:true});
 }
 $('keeper-enabled').onchange=()=>{if(game.phase==='aim'){game.keeperEnabled=$('keeper-enabled').checked;world.keeper.visible=game.keeperEnabled;}};
 function setCurve(value){
  input.curve=P.clamp(value,-1,1);
- $('curve-value').textContent=Math.abs(input.curve)<.06?'STRAIGHT':input.curve<0?'← LEFT CURL':'RIGHT CURL →';
+ $('curve-value').textContent=Math.abs(input.curve)<.06?'FREE DRAW':input.curve<0?'← LEFT CURL':'RIGHT CURL →';
 }
-function fire(x,y){
+function fire(x,y,drawnShot=null){
  if(game.phase!=='aim'||game.paused)return false;
  input.active=false;input.keyboard=false;game.phase='runup';game.elapsed=0;game.outcome=null;
- game.shot=P.createShot(x,y,P.SHOT_POWER,input.curve);game.keeper=P.makeKeeper(game.shot,settings.difficulty,game.random);
- $('aim-reticle').hidden=true;$('gesture-trail').hidden=true;$('swipe-hint').hidden=true;$('shot-controls').hidden=true;$('shot-help').hidden=true;world.showAim(null,false);
+ game.shot=drawnShot&&drawnShot.path?drawnShot:P.createShot(x,y,P.SHOT_POWER,input.curve);game.keeper=P.makeKeeper(game.shot,settings.difficulty,game.random);
+ $('aim-reticle').hidden=true;$('shot-controls').hidden=true;$('shot-help').hidden=true;world.showAim(null,false);
  return true;
 }
 function drawAim(){
  world.screenPoint(aim.x,aim.y,.03,screen);
  if(Math.abs(lastReticleX-screen.x)>.2||Math.abs(lastReticleY-screen.y)>.2){$('aim-reticle').style.left=screen.x+'px';$('aim-reticle').style.top=screen.y+'px';lastReticleX=screen.x;lastReticleY=screen.y;}
- $('aim-reticle').hidden=false;$('swipe-hint').hidden=true;
- if(game.mode==='practice')world.showAim(P.createShot(aim.x,aim.y,P.SHOT_POWER,input.curve),true);
+ $('aim-reticle').hidden=false;
+ world.showAim(null,false);
 }
 function resolveGestureAim(x,y){
  world.screenToAim(x,y,aim);world.screenPoint(0,0,0,screen);
@@ -141,16 +141,12 @@ function resolveGestureAim(x,y){
  aim.x=P.clamp(stroke.dx/Math.max(45,-stroke.dy)*3.2,-5.5,5.5);
  }
 }
-function drawStroke(){
- let points='';for(let i=0;i<stroke.count;i++)points+=stroke.points[i*2]+','+stroke.points[i*2+1]+' ';
- $('gesture-line').setAttribute('points',points);$('gesture-trail').hidden=false;
-}
 function cancelGesture(id){
  if(id!==undefined&&id!==input.id)return;
  input.active=false;input.keyboard=false;input.id=null;
- $('gesture-trail').hidden=true;$('aim-reticle').hidden=true;world.showAim(null,false);if(game.phase==='aim'||game.phase==='menu')setCurve(0);
+ $('aim-reticle').hidden=true;world.showAim(null,false);if(game.phase==='aim'||game.phase==='menu')setCurve(0);
 }
-const canvas=world.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','First-person penalty pitch. Swipe towards the goal, finishing left or right to curl. Arrow keys aim. Space shoots.');
+const canvas=world.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','First-person penalty pitch. Draw the full flight of your shot. Arch, bend or dip, then release. Arrow keys aim. Space shoots.');
 canvas.addEventListener('pointerdown',e=>{
  if(game.phase!=='aim'||game.paused||e.button>0||e.isPrimary===false||input.active)return;
  e.preventDefault();sound.init();canvas.focus({preventScroll:true});
@@ -163,18 +159,18 @@ canvas.addEventListener('pointermove',e=>{
  const samples=e.getCoalescedEvents?e.getCoalescedEvents():[];
  if(samples.length){for(const sample of samples)G.move(stroke,sample.clientX,sample.clientY);}else G.move(stroke,e.clientX,e.clientY);
  input.hasMoved=stroke.distance>10;
- if(input.hasMoved){setCurve(G.curve(stroke));resolveGestureAim(e.clientX,e.clientY);drawStroke();drawAim();}
+ if(input.hasMoved){setCurve(G.curve(stroke));resolveGestureAim(e.clientX,e.clientY);$('curve-value').textContent='FREE DRAW';drawAim();}
 });
 canvas.addEventListener('pointerup',e=>{
  if(!input.active||e.pointerId!==input.id)return;
  e.preventDefault();G.move(stroke,e.clientX,e.clientY);input.active=false;input.id=null;
  try{canvas.releasePointerCapture(e.pointerId);}catch{}
- $('gesture-trail').hidden=true;
+ 
  if(game.phase!=='aim'||game.paused)return;
- if(stroke.distance<14){cancelGesture();$('help-title').textContent='SWIPE UP TOWARDS THE GOAL';return;}
+ if(stroke.distance<14){cancelGesture();$('help-title').textContent='DRAW A SHOT TOWARDS THE GOAL';return;}
  world.screenPoint(0,0,0,screen);
  if(stroke.dy> -8&&e.clientY>screen.y+15){cancelGesture();return;}
- setCurve(G.curve(stroke));resolveGestureAim(e.clientX,e.clientY);fire(aim.x,aim.y);
+ setCurve(G.curve(stroke));resolveGestureAim(e.clientX,e.clientY);fire(aim.x,aim.y,world.buildDrawnShot(stroke,aim));
 });
 canvas.addEventListener('pointercancel',e=>cancelGesture(e.pointerId));
 canvas.addEventListener('lostpointercapture',e=>{if(input.active)cancelGesture(e.pointerId);});
@@ -267,26 +263,27 @@ function fixedStep(dt){
  if(game.mode==='rush'&&game.phase!=='replay'){game.remaining=Math.max(0,game.remaining-dt);const seconds=Math.ceil(game.remaining);if(seconds!==lastHUD){lastHUD=seconds;updateHUD();}if(game.remaining===0&&game.phase==='aim'){finishMatch();return;}}
  game.elapsed+=dt;
  if(game.phase==='runup'){
+ P.keeperAt(game.keeper,game.elapsed-P.KICK_DELAY,flight.pose);
  if(game.elapsed>=P.KICK_DELAY){game.phase='flight';game.elapsed=0;flight.launch(game.shot,game.keeper,game.keeperEnabled);sound.kick();recordFrame();}
  }else if(game.phase==='flight'){
  flight.step(dt);recordFrame();if(flight.outcome)resolve();
  }else if(game.phase==='result'){
- flight.step(dt);if(game.elapsed<1.2)recordFrame();
+ flight.step(dt);if(flight.time<Math.max(1.65,game.keeper?.endTime+.25||0))recordFrame();
  if(game.mode==='rush'&&game.elapsed>.75){if(game.remaining<=0)finishMatch();else nextShot();}
- else if(game.mode!=='rush'&&game.elapsed>.85&&$('after-shot').hidden){
+ else if(game.mode!=='rush'&&game.elapsed>.85&&(!game.keeperEnabled||flight.time>=game.keeper.endTime)&&$('after-shot').hidden){
  $('after-shot').hidden=false;$('next-shot').innerHTML=(game.match.done&&(game.mode==='cup'||game.mode==='shootout')?'VIEW RESULT':'NEXT PENALTY')+' <span>→</span>';
  }
  }else if(game.phase==='replay'){
  replayTime+=dt*.45;const frame=Math.min(replayCount-1,Math.floor(replayTime/P.STEP)),i=frame*9;
- flight.ball.x=replay[i];flight.ball.y=replay[i+1];flight.ball.z=replay[i+2];flight.pose.x=replay[i+3];flight.pose.y=replay[i+4];flight.pose.roll=replay[i+5];flight.pose.extension=replay[i+6];
+ flight.ball.x=replay[i];flight.ball.y=replay[i+1];flight.ball.z=replay[i+2];P.keeperAt(flight.keeper,replay[i+7],flight.pose);
  if(frame>=replayCount-1)leaveReplay();
  }
 }
 function frame(now){
  const raw=(now-last)/1000;last=now;const dt=Math.min(Math.max(raw,0),.05);
- if(!game.paused){accumulator+=dt;while(accumulator>=P.STEP){fixedStep(P.STEP);accumulator-=P.STEP;}}
+ if(!game.paused&&!game.testFrozen){accumulator+=dt;while(accumulator>=P.STEP){fixedStep(P.STEP);accumulator-=P.STEP;}}
  renderState.phase=game.phase;renderState.elapsed=game.elapsed;renderState.keeperEnabled=game.keeperEnabled;renderState.outcome=game.outcome;renderState.speed=game.shot?.speed/3.6||0;renderState.curve=game.shot?.curve??input.curve;
- world.update(game.paused?0:dt,game.phase==='menu'?null:renderState);
+ if(!game.testFrozen)world.update(game.paused?0:dt,game.phase==='menu'?null:renderState);
  if(!document.hidden){renderFrames++;totalFrameTime+=raw;}
  requestAnimationFrame(frame);
 }
@@ -299,11 +296,20 @@ world.ready.then(results=>{
 });
 // Read-only diagnostics are always available; simulation controls require ?test=1.
 window.FootballStrike={
- version:'2.1.0',get ready(){return game.ready;},
- snapshot:()=>({phase:game.phase,mode:game.mode,nation:settings.nation,difficulty:settings.difficulty,score:game.match?.score,shots:game.shots,goals:game.goals,points:game.points,combo:game.combo,outcome:game.outcome,remaining:game.remaining,paused:game.paused,countryCount:teams.length,actorReady:world.actorReady,ballAssetLoaded:world.ballAssetLoaded,assetErrors:world.assetErrors,drawCalls:world.renderer.info.render.calls,triangles:world.renderer.info.render.triangles,crowd:world.crowdCount,averageFrameMs:renderFrames?totalFrameTime/renderFrames*1000:0,stage:game.stage,view:world.mode==='match'?'first-person':world.mode,strikerVisible:world.striker.visible,gestureCurve:input.curve,shotCurve:game.shot?.curve??0,shotPower:game.shot?.power??P.SHOT_POWER,inputActive:input.active}),
+ version:'2.2.0',get ready(){return game.ready;},
+ snapshot:()=>({phase:game.phase,mode:game.mode,nation:settings.nation,difficulty:settings.difficulty,score:game.match?.score,shots:game.shots,goals:game.goals,points:game.points,combo:game.combo,outcome:game.outcome,remaining:game.remaining,paused:game.paused,countryCount:teams.length,actorReady:world.actorReady,ballAssetLoaded:world.ballAssetLoaded,assetErrors:world.assetErrors,drawCalls:world.renderer.info.render.calls,triangles:world.renderer.info.render.triangles,crowd:world.crowdCount,averageFrameMs:renderFrames?totalFrameTime/renderFrames*1000:0,stage:game.stage,view:world.mode==='match'?'first-person':world.mode,strikerVisible:world.striker.visible,gestureCurve:input.curve,shotCurve:game.shot?.curve??0,shotPower:game.shot?.power??P.SHOT_POWER,inputActive:input.active,drawnShot:!!game.shot?.drawn,pathPoints:game.shot?.path?.length/3||0,shotApex:game.shot?.maxY??game.shot?.targetY??0,keeperStage:flight.pose.stage,keeperLoaded:world.keeperReady}),
  project:(x,y,z)=>{const s={};world.screenPoint(x,y,z,s);return s;}
 };
 if(new URLSearchParams(location.search).get('test')==='1'){
- window.FootballStrike.test={start,fire,step:seconds=>{for(let n=0;n<Math.ceil(seconds/P.STEP);n++)fixedStep(P.STEP);},setDifficulty,setCurve,setSeed:seed=>{game.random=P.rng(seed);},setKeeper:enabled=>{game.keeperEnabled=enabled;$('keeper-enabled').checked=enabled;},next:nextShot,setTime:t=>{game.remaining=t;},getPhysics:()=>({ball:{...flight.ball},keeper:{...flight.pose}}),setAim:(x,y)=>{aim.x=x;aim.y=y;},world};
+ window.FootballStrike.test={
+ freeze:enabled=>{game.testFrozen=enabled;},
+ inspectKeeper:(x,y,t,close=true)=>{
+ game.testFrozen=true;game.phase='flight';const k=K.plan(x,y,.12);K.poseAt(k,t,flight.pose);
+ world.setView('match',true);if(close){world.camera.position.set(0,1.55,6.8);world.cameraGoal.copy(world.camera.position);world.look.set(0,.98,0);world.lookGoal.copy(world.look);world.camera.fov=47;world.camera.updateProjectionMatrix();}
+ world.striker.visible=false;world.update(0,{phase:'flight',elapsed:t,ball:{x:0,y:P.R,z:11},keeperEnabled:true,keeperPose:flight.pose,speed:0,curve:0});
+ const joints=flight.pose.joints;let maxError=0;const v=new THREE.Vector3();
+ for(const b of world.keeperRig.bones){b.bone.getWorldPosition(v);maxError=Math.max(maxError,Math.hypot(v.x-joints[b.start*3],v.y-joints[b.start*3+1],v.z-joints[b.start*3+2]));}
+ return {plan:k,pose:{...flight.pose,joints:Array.from(joints)},boneError:maxError,skinMeshes:world.keeperRig.meshes};
+ },start,fire,step:seconds=>{for(let n=0;n<Math.ceil(seconds/P.STEP);n++)fixedStep(P.STEP);},setDifficulty,setCurve,setSeed:seed=>{game.random=P.rng(seed);},setKeeper:enabled=>{game.keeperEnabled=enabled;$('keeper-enabled').checked=enabled;},next:nextShot,setTime:t=>{game.remaining=t;},getPhysics:()=>({ball:{x:flight.ball.x,y:flight.ball.y,z:flight.ball.z,vx:flight.ball.vx,vy:flight.ball.vy,vz:flight.ball.vz},keeper:{...flight.pose,joints:Array.from(flight.pose.joints)},savePart:flight.savePart,caught:flight.caught}),getShot:()=>game.shot,setAim:(x,y)=>{aim.x=x;aim.y=y;},world};
 }
 })();

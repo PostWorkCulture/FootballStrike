@@ -11,7 +11,8 @@ function move(s,x,y){
  // Twice the signed area between the stroke and its straight start/end chord.
  // A leftward bow followed by a rightward finish produces rightward spin.
  s.area+=s.dx*dy-s.dy*dx;s.length+=segment;s.x=x;s.y=y;s.dx=dx;s.dy=dy;s.distance=Math.hypot(dx,dy);
- const i=Math.min(s.count,255);s.points[i*2]=x;s.points[i*2+1]=y;s.count=Math.min(256,s.count+1);return s;
+ if(s.count===256){for(let i=1;i<128;i++){s.points[i*2]=s.points[i*4];s.points[i*2+1]=s.points[i*4+1];}s.count=128;}
+ const i=s.count++;s.points[i*2]=x;s.points[i*2+1]=y;return s;
 }
 function curve(s){
  if(s.distance<24)return 0;
@@ -20,4 +21,20 @@ function curve(s){
 }
 root.FSGestures={create,begin,move,curve};
 if(typeof module!=='undefined')module.exports=root.FSGestures;
+})(typeof window!=='undefined'?window:globalThis);
+
+/* Resample the entire freehand stroke by travelled distance, not event timing.
+   No reduction to a single curl parameter: arches and S-curves retain their shape. */
+(function(root){
+'use strict';const G=root.FSGestures;
+G.sample=function(s,count=65){
+ const out=new Float64Array(count*2),distances=new Float64Array(s.count);let total=0;
+ for(let i=1;i<s.count;i++){total+=Math.hypot(s.points[i*2]-s.points[(i-1)*2],s.points[i*2+1]-s.points[(i-1)*2+1]);distances[i]=total;}
+ let cursor=1;
+ for(let i=0;i<count;i++){const d=total*i/(count-1);while(cursor<s.count-1&&distances[cursor]<d)cursor++;
+ const before=Math.max(0,cursor-1),span=distances[cursor]-distances[before],u=span?(d-distances[before])/span:0;
+ out[i*2]=s.points[before*2]+(s.points[cursor*2]-s.points[before*2])*u;out[i*2+1]=s.points[before*2+1]+(s.points[cursor*2+1]-s.points[before*2+1])*u;
+ }
+ return out;
+};
 })(typeof window!=='undefined'?window:globalThis);

@@ -18,7 +18,7 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await page.goto('http://127.0.0.1:8080/?test=1',{waitUntil:'networkidle0',timeout:90000});
  await page.waitForFunction(()=>window.FootballStrike?.ready||!document.getElementById('error-screen').hidden,{timeout:90000});
  assert.equal(await page.evaluate(()=>window.FootballStrike?.ready),true,await page.$eval('#error-text',e=>e.textContent));
- await check('Blender assets load and WebGL scene renders',async()=>{const s=await snap();assert.equal(s.actorReady,true);assert.equal(s.ballAssetLoaded,true);assert.deepEqual(s.assetErrors,[]);assert.ok(s.triangles>5000);assert.ok(s.crowd>3000);report.render=s;});
+ await check('Blender assets load and WebGL scene renders',async()=>{const s=await snap();assert.equal(s.actorReady,true);assert.equal(s.keeperLoaded,true);assert.equal(s.ballAssetLoaded,true);assert.deepEqual(s.assetErrors,[]);assert.ok(s.triangles>5000);assert.ok(s.crowd>3000);report.render=s;});
  await screenshot('01-home-desktop');
  await check('all 12 countries select and update the 3D kit',async()=>{
  await page.click('#nav-nations');const ids=await page.$$eval('.nation-card',els=>els.map(e=>e.dataset.id));assert.equal(ids.length,12);
@@ -40,7 +40,7 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await page.click('[data-mode="practice"]');
  const view=await snap();assert.equal(view.view,'first-person');assert.equal(view.strikerVisible,false);
  assert.ok(await page.evaluate(()=>Math.abs(FootballStrike.test.world.camera.position.y-1.72)<.01));
- assert.equal(await page.$('#power-fill'),null);assert.equal(await page.$('#curve'),null);
+ assert.equal(await page.$('#gesture-trail'),null);assert.equal(await page.$('#power-fill'),null);assert.equal(await page.$('#curve'),null);
  await screenshot('11-keeper-ready');await page.evaluate(()=>FootballStrike.test.setKeeper(false));await page.evaluate(()=>FootballStrike.test.fire(2.7,1.8,.7));
  assert.equal((await snap()).phase,'runup');const b=await page.evaluate(()=>FootballStrike.test.getPhysics().ball);assert.equal(b.z,11);
  });
@@ -122,7 +122,7 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  assert.equal((await snap()).strikerVisible,false);
  }
  await check('touch swipe scores a straight penalty on a phone without scrolling',async()=>{
- await checkFraming();await touchStroke();assert.equal((await snap()).shots,1);assert.equal((await snap()).goals,1);assert.equal((await snap()).shotCurve,0);
+ await checkFraming();await touchStroke();assert.equal((await snap()).shots,1);assert.equal((await snap()).goals,1);assert.equal((await snap()).shotCurve,0);assert.equal((await snap()).drawnShot,true);assert.equal((await snap()).pathPoints,65);
  assert.equal(await page.evaluate(()=>scrollY),0);
  });
  await check('cancelled touch and screen rotation do not launch accidental penalties',async()=>{

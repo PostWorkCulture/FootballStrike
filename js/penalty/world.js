@@ -1,9 +1,9 @@
 /* Three.js stadium, Blender model presentation and allocation-free match rendering. */
 (function(root){
 'use strict';
-const T=THREE,P=FSPhysics;
+const T=THREE,P=FSPhysics,K=FSKeeper;
 const POSE_NODES=['Hips','Torso','Head','LeftArm','RightArm','LeftForearm','RightForearm','LeftLeg','RightLeg','LeftShin','RightShin'];
-const V=new T.Vector3(),V2=new T.Vector3(),Q=new T.Quaternion(),UP=new T.Vector3(0,1,0),O=new T.Object3D(),COL=new T.Color();
+const V=new T.Vector3(),V2=new T.Vector3(),Q=new T.Quaternion(),Q2=new T.Quaternion(),Q3=new T.Quaternion(),UP=new T.Vector3(0,1,0),O=new T.Object3D(),COL=new T.Color();
 class World{
  constructor(container,settings){
  this.settings=settings;this.container=container;this.scene=new T.Scene();this.scene.fog=new T.FogExp2(0x223845,.004);
@@ -160,32 +160,46 @@ class World{
  this.trajectory=new T.Line(lineG,new T.LineDashedMaterial({color:0xdcf8a3,dashSize:.15,gapSize:.13,transparent:true,opacity:.65}));this.trajectory.visible=false;this.scene.add(this.trajectory);
  }
  makeActors(){
- this.striker=new T.Group();this.keeper=new T.Group();this.scene.add(this.striker,this.keeper);this.striker.position.set(-.65,0,12.4);this.keeper.position.set(0,0,.48);
+ this.striker=new T.Group();this.keeper=new T.Group();this.scene.add(this.striker,this.keeper);this.striker.position.set(-.65,0,12.4);
  const loader=new T.GLTFLoader();
  this.actorPromise=new Promise(resolve=>loader.load('assets/international/footballer.glb',g=>{
- this.striker.add(g.scene);this.keeper.add(g.scene.clone(true));
- this.strikerRig=this.prepareActor(this.striker,false);this.keeperRig=this.prepareActor(this.keeper,true);
+ this.striker.add(g.scene);this.strikerRig=this.prepareActor(this.striker);
  this.actorReady=true;this.setTeam(this.team||FSTeams.list[0]);this.setView(this.mode,true);resolve(true);
- },undefined,e=>{this.assetErrors.push('footballer.glb');resolve(false);}));
- this.ready=Promise.all([this.actorPromise,this.ballPromise]);
+ },undefined,()=>{this.assetErrors.push('footballer.glb');resolve(false);}));
+ this.keeperPromise=new Promise(resolve=>loader.load('assets/international/keeper.glb',g=>{
+ this.keeper.add(g.scene);this.keeperRig=this.prepareKeeper(this.keeper);this.keeperReady=true;
+ this.idleKeeper=K.createPose();K.readyAt(0,this.idleKeeper);this.poseKeeper(this.idleKeeper);resolve(true);
+ },undefined,()=>{this.assetErrors.push('keeper.glb');resolve(false);}));
+ this.ready=Promise.all([this.actorPromise,this.ballPromise,this.keeperPromise]);
  }
- prepareActor(group,isKeeper){
+ prepareActor(group){
  const rig={nodes:{},materials:{},base:{}};
  group.traverse(o=>{
  rig.nodes[o.name]=o;rig.base[o.name]={x:o.rotation.x,y:o.rotation.y,z:o.rotation.z,px:o.position.x,py:o.position.y,pz:o.position.z};
  if(o.isMesh){o.castShadow=true;o.receiveShadow=true;
- const name=o.material.name;if(!rig.materials[name])rig.materials[name]=o.material.clone();
- o.material=rig.materials[name];
+ const name=o.material.name;if(!rig.materials[name])rig.materials[name]=o.material.clone();o.material=rig.materials[name];
  }
- });
- if(isKeeper){
- for(const name of ['Shirt','Sleeves','Shorts','Socks'])if(rig.materials[name])rig.materials[name].color.set(name==='Shorts'?0x13252a:0xf39668).convertSRGBToLinear();
- if(rig.materials.Skin)rig.materials.Skin.color.set(0xaf7d5e).convertSRGBToLinear();
- for(const side of ['Left','Right']){
- const hand=rig.nodes[side+'Hand'];if(hand){hand.material=this.mat(0xe0e5d2,.83);hand.scale.multiplyScalar(1.4);}
+ });return rig;
  }
+ prepareKeeper(group){
+ const nodes={},bones=[];let meshes=0;group.updateMatrixWorld(true);
+ group.traverse(o=>{if(o.isBone)nodes[o.name]=o;if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false;if(o.isSkinnedMesh)meshes++;}});
+ for(const [name,start,end] of K.BONES){
+ const bone=nodes[name];if(!bone)throw Error('Missing goalkeeper bone: '+name);
+ const rest=new T.Vector3().fromArray(K.REST[end]).sub(new T.Vector3().fromArray(K.REST[start])).normalize();
+ bones.push({bone,start,end,rest,rotation:bone.getWorldQuaternion(new T.Quaternion())});
+ }return {nodes,bones,meshes};
  }
- return rig;
+ poseKeeper(pose){
+ if(!this.keeperReady)return;const a=pose.joints;
+ // Desired world joints are shared with collision. Convert them through each bone's parent.
+ for(const b of this.keeperRig.bones){
+ V.fromArray(a,b.start*3);b.bone.parent.worldToLocal(V);b.bone.position.copy(V);
+ V.fromArray(a,b.end*3);V2.fromArray(a,b.start*3);V.sub(V2).normalize();
+ Q.setFromUnitVectors(b.rest,V).multiply(b.rotation);
+ b.bone.parent.getWorldQuaternion(Q2);Q3.copy(Q2).invert().multiply(Q);b.bone.quaternion.copy(Q3);
+ b.bone.updateMatrixWorld(true);
+ }
  }
  kitTexture(team){
  if(this.texCache.has(team.id))return this.texCache.get(team.id);
@@ -245,6 +259,21 @@ class World{
  }
  this.camera.updateProjectionMatrix();if(instant){this.camera.position.copy(this.cameraGoal);this.look.copy(this.lookGoal);this.camera.lookAt(this.look);this.camera.updateMatrixWorld(true);}
  }
+ buildDrawnShot(stroke,aim){
+ const samples=FSGestures.sample(stroke,65),points=new Float64Array(65*3),first={x:0,y:0},last={x:0,y:0};
+ this.camera.updateMatrixWorld(true);this.screenPoint(0,P.R,11,first);this.screenPoint(aim.x,aim.y,0,last);
+ V.set(0,P.R,11).applyMatrix4(this.camera.matrixWorldInverse);const d0=-V.z;
+ V.set(aim.x,aim.y,0).applyMatrix4(this.camera.matrixWorldInverse);const d1=-V.z;
+ for(let i=0;i<65;i++){
+ const q=i/64,s=q*d0/((1-q)*d1+q*d0),z=11*(1-s);
+ const x=samples[i*2]+(first.x-stroke.startX)*(1-q)+(last.x-stroke.x)*q;
+ const y=samples[i*2+1]+(first.y-stroke.startY)*(1-q)+(last.y-stroke.y)*q;
+ this.mouse.set(x/innerWidth*2-1,-y/innerHeight*2+1);this.ray.setFromCamera(this.mouse,this.camera);this.plane.constant=-z;this.ray.ray.intersectPlane(this.plane,this.aimPoint);
+ points[i*3]=P.clamp(this.aimPoint.x,-8,8);points[i*3+1]=P.clamp(this.aimPoint.y,P.R,7);points[i*3+2]=z;
+ }
+ this.plane.constant=0;points[0]=0;points[1]=P.R;points[2]=11;points[192]=aim.x;points[193]=aim.y;points[194]=0;
+ const shot=P.createPathShot(points);shot.curve=FSGestures.curve(stroke);return shot;
+ }
  screenPoint(x,y,z,out){V.set(x,y,z).project(this.camera);out.x=(V.x*.5+.5)*innerWidth;out.y=(-V.y*.5+.5)*innerHeight;return out;}
  screenToAim(x,y,out){this.mouse.set(x/innerWidth*2-1,-y/innerHeight*2+1);this.ray.setFromCamera(this.mouse,this.camera);this.ray.ray.intersectPlane(this.plane,this.aimPoint);out.x=P.clamp(this.aimPoint.x,-5.5,5.5);out.y=P.clamp(this.aimPoint.y,.11,4.5);return out;}
  showAim(shot,show){this.trajectory.visible=show;if(!show)return;const a=this.trajectory.geometry.attributes.position.array;for(let i=0;i<=32;i++){const t=shot.T*i/32;a[i*3]=shot.vx*t+.5*shot.ax*t*t;a[i*3+1]=.11+shot.vy*t-.5*P.G*t*t;a[i*3+2]=11+shot.vz*t;}this.trajectory.geometry.attributes.position.needsUpdate=true;this.trajectory.computeLineDistances();}
@@ -257,12 +286,6 @@ class World{
  const v=n[name];if(v){v.rotation.set(b[name].x,b[name].y,b[name].z);v.position.set(b[name].px,b[name].py,b[name].pz);}
  }
  const hips=n.Hips,torso=n.Torso;
- if(kind==='keeper'&&pose){
- const u=P.clamp(Math.abs(pose.roll)/1.12,0,1);hips.position.y=.93;torso.rotation.z=pose.roll*.18;
- n.LeftArm.rotation.z=.22+u*1.4;n.RightArm.rotation.z=-.22-u*1.4;n.LeftForearm.rotation.x=-.28;n.RightForearm.rotation.x=-.28;
- n.LeftLeg.rotation.x=-.12-u*.2;n.RightLeg.rotation.x=.13+u*.15;n.LeftShin.rotation.x=.2+u*.3;n.RightShin.rotation.x=.2;
- return;
- }
  const breathe=Math.sin(time*2)*.008;if(hips)hips.position.y+=breathe;if(torso)torso.rotation.x=.02;
  n.LeftArm.rotation.z=.09;n.RightArm.rotation.z=-.09;n.LeftForearm.rotation.x=-.26;n.RightForearm.rotation.x=-.2;n.LeftArm.rotation.x=.04;n.RightArm.rotation.x=-.06;
  if(phase==='runup'){
@@ -285,9 +308,7 @@ class World{
  const b=state.ball;this.ball.position.set(b.x,b.y,b.z);
  if(state.phase==='flight'||state.phase==='result'||state.phase==='replay'){this.ball.rotation.x-=dt*(state.speed||22);this.ball.rotation.y+=dt*(state.curve||0)*18;}
  this.keeper.visible=state.keeperEnabled;
- const k=state.keeperPose,u=P.clamp(Math.abs(k.roll)/1.12,0,1);
- this.keeper.position.set(k.x+Math.sin(k.roll),k.y-Math.cos(k.roll),.48);this.keeper.rotation.z=k.roll;
- this.poseActor(this.keeperRig,this.time,'keeper',state.phase,state.elapsed,k);
+ if(state.phase==='aim'&&this.keeperReady){K.readyAt(this.time,this.idleKeeper);this.poseKeeper(this.idleKeeper);}else this.poseKeeper(state.keeperPose);
  if(state.phase==='runup'){
  const p=P.clamp(state.elapsed/.62,0,1);this.striker.position.set(-.6+.705*p,Math.abs(Math.sin(p*Math.PI*5))*.008,12.6-1.2*p);
  this.poseActor(this.strikerRig,this.time,'striker','runup',p);

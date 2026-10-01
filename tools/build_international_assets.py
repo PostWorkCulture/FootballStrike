@@ -130,3 +130,7 @@ bpy.ops.export_scene.gltf(filepath=os.path.join(OUT,'match-ball.glb'),export_for
 manifest={'generator':'Blender '+bpy.app.version_string,'player':'footballer.glb','ball':'match-ball.glb','player_source':'footballer.blend','notes':'Original articulated meshes with separate country kit material channels.'}
 with open(os.path.join(OUT,'manifest.json'),'w') as f:json.dump(manifest,f,indent=2)
 print('ASSETS_BUILT '+json.dumps(manifest))
+
+# Build the dedicated anatomical goalkeeper in the same Blender process.
+keeper_script=os.path.join(os.path.dirname(__file__),'build_keeper_assets.py')
+exec(compile(open(keeper_script,encoding='utf-8').read(),keeper_script,'exec'),{'__file__':keeper_script,'__name__':'__main__'})

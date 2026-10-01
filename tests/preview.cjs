@@ -1,6 +1,6 @@
 // Read-only check of the public feature-commit preview. Does not deploy or change Pages.
 const fs=require('node:fs'),path=require('node:path'),puppeteer=require('puppeteer');
-const sha=process.env.GITHUB_SHA;if(!/^[a-f0-9]{40}$/.test(sha||''))throw Error('A full GitHub commit SHA is required');
+const sha=process.env.PREVIEW_SHA||process.env.GITHUB_SHA;if(!/^[a-f0-9]{40}$/.test(sha||''))throw Error('A full GitHub commit SHA is required');
 const url='https://raw.githack.com/PostWorkCulture/FootballStrike/'+sha+'/index.html';
 const report={url,commit:sha,passed:false,checked:new Date().toISOString(),errors:[]};
 let browser;
@@ -21,7 +21,7 @@ let browser;
  await page.click('[data-mode="practice"]');
  await page.evaluate(()=>{FootballStrike.test.setKeeper(false);FootballStrike.test.fire(2.7,1.8,.8);FootballStrike.test.step(2);});
  report.match=await page.evaluate(()=>FootballStrike.snapshot());
- report.passed=report.home.countryCount===12&&report.home.actorReady&&report.match.goals===1&&report.match.view==='first-person'&&!report.match.strikerVisible&&report.match.shotPower===.7&&report.errors.length===0;
+ report.passed=report.home.countryCount===12&&report.home.actorReady&&report.home.keeperLoaded&&report.match.goals===1&&report.match.view==='first-person'&&!report.match.strikerVisible&&report.match.shotPower===.7&&report.errors.length===0;
  if(!report.passed)throw Error('Public preview did not pass its loading and scoring checks');
  console.log('PREVIEW_VERIFIED '+url);
 })().catch(e=>{report.failure=e.message;console.error('Preview unavailable: '+e.message);}).finally(async()=>{

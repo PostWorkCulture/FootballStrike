@@ -28,7 +28,7 @@ jobs:
       - name: Install Blender
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y blender python3-numpy
+          sudo apt-get install -y blender python3-numpy python3-pil
       - name: Build original 3D assets
         env:
           PYTHONPATH: /usr/lib/python3/dist-packages
@@ -36,13 +36,17 @@ jobs:
           blender --background --python-exit-code 1 --python tools/build_international_assets.py
           test -s assets/international/footballer.glb
           test -s assets/international/match-ball.glb
+          test -s assets/international/keeper.glb
+      - name: Capture goalkeeper motion and check skin alignment
+        id: motion
+        continue-on-error: true
+        run: |
+          node tests/motion.cjs
+          /usr/bin/python3 tools/motion_sheets.py
       - name: Verify desktop and mobile flows
         id: browser
         continue-on-error: true
         run: npm run verify
-      - name: Check public feature preview
-        if: steps.browser.outcome == 'success' && github.event_name == 'push'
-        run: node tests/preview.cjs
       - name: Upload verification evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -62,6 +66,15 @@ jobs:
             git commit -m "Build Blender assets and record browser verification [skip ci]"
             git push origin HEAD:codex/international-penalty-overhaul
           fi
+      - name: Check public feature preview
+        if: steps.browser.outcome == 'success' && steps.motion.outcome == 'success' && github.event_name == 'push'
+        run: |
+          PREVIEW_SHA=$(git rev-parse HEAD) node tests/preview.cjs
+          git add verification/public-preview.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Record public feature preview check [skip ci]"
+            git push origin HEAD:codex/international-penalty-overhaul
+          fi
       - name: Require browser verification
-        if: steps.browser.outcome != 'success'
+        if: steps.browser.outcome != 'success' || steps.motion.outcome != 'success'
         run: exit 1

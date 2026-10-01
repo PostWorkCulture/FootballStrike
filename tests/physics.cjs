@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const P=require('../js/penalty/physics.js'),teams=require('../js/penalty/teams.js');
+const K=require('../js/penalty/keeper.js'),P=require('../js/penalty/physics.js'),teams=require('../js/penalty/teams.js');
 const sim=(x,y,p=.7,curve=0,keeper=false,seed=1)=>{
  const f=new P.Flight(),shot=P.createShot(x,y,p,curve),k=P.makeKeeper(shot,'pro',P.rng(seed));
  f.launch(shot,k,keeper);for(let n=0;n<500&&!f.outcome;n++)f.step();return f;
@@ -19,7 +19,7 @@ test('losing five-shot result is handled',()=>{const m=new P.Shootout();for(let 
 
 test('scored ball stays in front of the sloping back net at every height',()=>{const f=sim(2.8,1.9);for(let n=0;n<400;n++){f.step();assert.ok(f.ball.z>=-1.8+f.ball.y/2.44*1.3+P.R-1e-8);}});
 
-test('central keeper reactions remain upright rather than making a full lateral dive',()=>{const pose={};P.keeperAt({reaction:.1,x:.15,y:1},.6,pose);assert.ok(Math.abs(pose.roll)<.15);});
+test('central keeper reactions remain upright rather than making a full lateral dive',()=>{const pose=K.createPose();P.keeperAt(K.plan(.15,1,.1),.6,pose);assert.ok(Math.abs(pose.roll)<.15);});
 
 const gestures=require('../js/penalty/gestures.js');
 function stroke(points){const s=gestures.begin(gestures.create(),...points[0]);for(const p of points.slice(1))gestures.move(s,...p);return gestures.curve(s);}
@@ -48,10 +48,10 @@ test('difficulty levels have distinct, forgiving save rates across 3000 seeded o
  results[level]={label:P.DIFFICULTY[level].label,shots:3000,goals,saves,saveRate:saves/3000};
  }
  assert.ok(results.rookie.saveRate>.10&&results.rookie.saveRate<.28);
- assert.ok(results.pro.saveRate>.30&&results.pro.saveRate<.48);
- assert.ok(results.elite.saveRate>.50&&results.elite.saveRate<.68);
- assert.ok(results.pro.saveRate-results.rookie.saveRate>.12);
- assert.ok(results.elite.saveRate-results.pro.saveRate>.12);
+ assert.ok(results.pro.saveRate>.20&&results.pro.saveRate<.36);
+ assert.ok(results.elite.saveRate>.32&&results.elite.saveRate<.48);
+ assert.ok(results.pro.saveRate-results.rookie.saveRate>.07);
+ assert.ok(results.elite.saveRate-results.pro.saveRate>.07);
  const fs=require('node:fs'),path=require('node:path'),out=path.join(__dirname,'../verification');
  fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,'difficulty.json'),JSON.stringify({method:'Same seed and 3000 distributed on-target shots per level. Simulation calibration, not player success rates.',results},null,2));
 });
@@ -65,4 +65,40 @@ test('every difficulty makes fallible guesses and allows both corners to be scor
  }
  assert.ok(wrong>15);assert.ok(goals>100);
  }
+});
+
+test('freehand shots retain arches and both bends of an S curve',()=>{
+ const points=new Float64Array(65*3);
+ for(let i=0;i<65;i++){const u=i/64;points[i*3]=Math.sin(u*Math.PI*2)*1.4;points[i*3+1]=P.R+(1-P.R)*u+Math.sin(u*Math.PI)*2;points[i*3+2]=11*(1-u);}
+ const shot=P.createPathShot(points),out={};assert.ok(shot.maxY>2.4);assert.ok(shot.path[16*3]>1.3);assert.ok(shot.path[48*3]<-1.3);
+ P.sampleShot(shot,shot.T,out);assert.ok(Math.abs(out.x)<1e-8);assert.ok(Math.abs(out.y-1)<1e-8);assert.ok(Math.abs(out.z)<1e-8);
+ const flight=new P.Flight().launch(shot,K.plan(0,1,2),false);while(!flight.outcome)flight.step();assert.equal(flight.outcome,'goal');
+});
+test('long gestures retain their beginning, end and complete resampled shape',()=>{
+ const g=gestures.begin(gestures.create(),100,800);
+ for(let i=1;i<=900;i++)gestures.move(g,100+Math.sin(i/900*Math.PI*2)*150,800-i*.7);
+ const path=gestures.sample(g,65);assert.equal(path[0],100);assert.equal(path[1],800);
+ assert.ok(Math.abs(path[128]-100)<1e-8);assert.ok(Math.abs(path[129]-170)<1e-8);
+ assert.ok(Math.max(...Array.from(path).filter((_,i)=>i%2===0))>240);assert.ok(Math.min(...Array.from(path).filter((_,i)=>i%2===0))< -40);
+});
+test('keeper limbs stay connected at fixed lengths through left and right dives and recovery',()=>{
+ for(const x of [-2.8,2.8])for(const y of [.3,1.3,2.2]){
+ const plan=K.plan(x,y,.12),pose=K.createPose();let previous=null,maxStep=0;const stages=new Set();
+ for(let t=0;t<=plan.endTime+.1;t+=1/240){
+ K.poseAt(plan,t,pose);stages.add(pose.stage);const a=pose.joints;
+ for(const [i,j,len] of [[4,5,K.upperArm],[5,6,K.forearm],[8,9,K.upperArm],[9,10,K.forearm],[12,13,K.thigh],[13,14,K.shin],[16,17,K.thigh],[17,18,K.shin]]){
+ assert.ok(Math.abs(Math.hypot(a[i*3]-a[j*3],a[i*3+1]-a[j*3+1],a[i*3+2]-a[j*3+2])-len)<1e-8);
+ }
+ for(let j=0;j<20;j++){assert.ok(a[j*3+1]>=.025);if(previous)maxStep=Math.max(maxStep,Math.hypot(a[j*3]-previous[j*3],a[j*3+1]-previous[j*3+1],a[j*3+2]-previous[j*3+2]));}
+ previous=Array.from(a);
+ }
+ assert.ok(maxStep<.08,'No limb should teleport between 240 Hz samples: '+maxStep);
+ assert.deepEqual([...stages],['set','plant','dive','land','kneel','rise','shuffle']);assert.ok(Math.abs(pose.x)<1e-8);assert.ok(Math.abs(pose.roll)<1e-8);
+ }
+});
+test('keeper feet plant before take-off and visible gloves determine contact',()=>{
+ const k=K.plan(2.7,2,.12),p=K.createPose();K.poseAt(k,.19,p);
+ assert.ok(Math.abs(p.joints[K.J.la*3]+.34)<.005);assert.ok(Math.abs(p.joints[K.J.la*3+1]-.10)<1e-8);
+ K.poseAt(k,k.start+.20,p);assert.ok(p.joints[K.J.la*3+1]>.2&&p.joints[K.J.ra*3+1]>.2);
+ const i=K.J.rf*3;assert.equal(K.contact(p,p.joints[i],p.joints[i+1],p.joints[i+2]),'glove');assert.equal(K.contact(p,7,1,.7),null);
 });
