@@ -13,8 +13,7 @@ Choose Sweden, England, Norway, Brazil, Italy, France, Germany, Argentina, Spain
 ## Run
 Node.js 22:
 ```sh
-npm install
-npm start
+node tools/serve.cjs
 ```
 Open http://localhost:8080. Assets are generated in the feature-branch CI and checked in after verification. If absent, install Blender and run:
 ```sh
@@ -29,7 +28,7 @@ Drag from the ball towards the goal, then release. Faster swipes add power. The 
 npm test
 npm run verify
 ```
-Deterministic physics tests cover scoring, posts, keeper saves, full-ball goal-line crossing, reproducibility and shootout rules. Puppeteer checks the actual UI on desktop, mobile and landscape. Results and screenshots are written to `verification/`. Performance readings from software-rendered CI are diagnostic, not a physical-device FPS guarantee.
+Run `npm ci` first to install the browser test dependencies. Deterministic physics tests cover scoring, posts, keeper saves, full-ball goal-line crossing, reproducibility and shootout rules. Puppeteer checks the actual UI on desktop, mobile and landscape. Results and screenshots are written to `verification/`. Performance readings from software-rendered CI are diagnostic, not a physical-device FPS guarantee.
 
 ## Architecture
 - `js/penalty/physics.js`: deterministic fixed-step ball and shootout rules.
@@ -38,4 +37,4 @@ Deterministic physics tests cover scoring, posts, keeper saves, full-ball goal-l
 - `tools/build_international_assets.py`: reproducible Blender source for GLB players and ball.
 - `legacy.html`: original game retained for comparison and rollback.
 
-The original GitHub Pages deployment stays on main until the overhaul is reviewed and merged. This is a single-player build; it does not implement online multiplayer.
+The original GitHub Pages deployment stays on main until the overhaul is reviewed and merged. Once merged, deployments run the physics and browser suites before publishing. This is a single-player build; it does not implement online multiplayer.

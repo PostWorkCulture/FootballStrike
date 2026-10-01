@@ -6,6 +6,7 @@ import bpy, math, os, json
 from mathutils import Vector
 OUT=os.path.abspath(os.path.join(os.path.dirname(__file__),'..','assets','international'))
 os.makedirs(OUT,exist_ok=True)
+bpy.context.preferences.filepaths.save_version=0
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)
 def cv(v): return (v[0],-v[2],v[1])

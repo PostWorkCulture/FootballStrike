@@ -65,6 +65,7 @@ class World{
  makeStadium(){
  const steel=this.mat(0x263a42,.45),concrete=this.mat(0x253744,.95),dark=this.mat(0x172a33,.8),trim=this.mat(0xc1c6bd,.55);
  const adTex=this.texture(2048,128,(c,w,h)=>{c.fillStyle='#10252d';c.fillRect(0,0,w,h);c.fillStyle='#d9f870';c.font='700 35px Arial';c.textAlign='center';for(let i=0;i<4;i++){c.fillText(i%2?'OWN THE MOMENT':'FOOTBALL / STRIKE',256+i*512,78);c.fillRect(495+i*512,28,3,72);}});
+ adTex.wrapS=T.RepeatWrapping;adTex.repeat.set(4,1);
  const adMat=new T.MeshBasicMaterial({map:adTex});this.box(0,.62,-6.4,76,1.05,.25,dark);
  const board=this.mesh(new T.PlaneGeometry(76,1.05),adMat,0,.67,-6.25);board.castShadow=false;
  for(const side of [-1,1]){const b=this.mesh(new T.PlaneGeometry(112,1.05),adMat,side*37,.65,47);b.rotation.y=side>0?-Math.PI/2:Math.PI/2;b.castShadow=false;}
