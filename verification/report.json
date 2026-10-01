@@ -10,7 +10,7 @@
     "quit and restart clear shot and match state",
     "five-shot match or sudden death reaches a result and restarts",
     "keyboard aiming and Space release fire a penalty",
-    "Target Rush expires once and cannot take another shot",
+    "Target Rush awards accurate hits, expires once and blocks further shots",
     "Nations Cup advances through all three rounds and records a trophy",
     "settings persist and performance mode works",
     "mobile menu and nation grid fit the viewport",
@@ -22,15 +22,18 @@
   "screenshots": [
     "01-home-desktop.jpg",
     "02-nations-desktop.jpg",
+    "11-keeper-ready.jpg",
     "03-goal-desktop.jpg",
+    "10-replay.jpg",
     "04-match-desktop.jpg",
     "05-match-result.jpg",
     "06-home-mobile.jpg",
     "07-nations-mobile.jpg",
     "08-match-mobile.jpg",
-    "09-match-landscape.jpg"
+    "09-match-landscape.jpg",
+    "00-original-game.jpg"
   ],
-  "started": "2026-10-01T12:46:54.527Z",
+  "started": "2026-10-01T12:53:23.744Z",
   "passed": true,
   "render": {
     "phase": "menu",
@@ -39,6 +42,8 @@
     "difficulty": "pro",
     "shots": 0,
     "goals": 0,
+    "points": 0,
+    "combo": 0,
     "outcome": null,
     "remaining": 45,
     "paused": false,
@@ -46,11 +51,11 @@
     "actorReady": true,
     "ballAssetLoaded": true,
     "assetErrors": [],
-    "drawCalls": 78,
-    "triangles": 1681628,
+    "drawCalls": 77,
+    "triangles": 984456,
     "crowd": 8133,
-    "averageFrameMs": 941.9199999999987,
+    "averageFrameMs": 923.0399999999997,
     "stage": 0
   },
-  "finished": "2026-10-01T12:50:55.033Z"
+  "finished": "2026-10-01T12:57:05.275Z"
 }
