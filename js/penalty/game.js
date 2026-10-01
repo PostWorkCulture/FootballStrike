@@ -38,7 +38,7 @@ const renderState={phase:'aim',ball:flight.ball,keeperPose:flight.pose,keeperEna
 const replay=new Float32Array(600*9);let replayCount=0,replayTime=0,accumulator=0,last=performance.now(),lastHUD=-1,renderFrames=0,totalFrameTime=0;
 const stroke=G.create();
 const input={active:false,id:null,startX:0,startY:0,keyboard:false,curve:0,hasMoved:false};
-let focusBeforeDialog=null;let lastReticleX=-999,lastReticleY=-999;
+let focusBeforeDialog=null;
 function nationMarkup(t){return FSTeams.flag(t.id)+'<span>'+t.code+'</span>';}
 function setNation(id){
  settings.nation=id;const t=FSTeams.get(id);world.setTeam(t);persist();
@@ -70,7 +70,7 @@ function menu(nations=false){
  for(const id of ['pause-dialog','result-dialog'])if($(id).open)$(id).close();
  world.setView(nations?'nations':'home',true);world.showTargets(-1);world.showAim(null,false);
  $('rush-record').innerHTML='BEST: '+settings.best+' <span>→</span>';$('career-record').textContent=settings.cups+' CUP WIN'+(settings.cups===1?'':'S');
- $('shot-feedback').classList.remove('show');$('aim-reticle').hidden=true;
+ $('shot-feedback').classList.remove('show');
 }
 $('nav-play').onclick=()=>menu(false);$('nav-nations').onclick=()=>menu(true);$('selected-nation').onclick=()=>menu(true);$('nation-confirm').onclick=()=>menu(false);
 document.querySelector('.brand').onclick=e=>{e.preventDefault();menu(false);};
@@ -79,7 +79,7 @@ $('settings-open').onclick=openSettings;
 $('settings-dialog').addEventListener('close',()=>focusBeforeDialog?.focus());
 function pause(){
  if(game.phase==='menu'||game.phase==='complete'||game.paused)return;
- cancelGesture();game.paused=true;input.active=false;input.keyboard=false;world.showAim(null,false);$('aim-reticle').hidden=true;$('pause-dialog').showModal();
+ cancelGesture();game.paused=true;input.active=false;input.keyboard=false;world.showAim(null,false);$('pause-dialog').showModal();
 }
 function resume(){game.paused=false;accumulator=0;last=performance.now();$('pause-dialog').close();}
 $('pause-open').onclick=pause;$('resume').onclick=resume;
@@ -111,7 +111,7 @@ function nextShot(){
  flight.outcome=null;aim.x=0;aim.y=1.05;input.active=false;input.keyboard=false;setCurve(0);
  game.keeperEnabled=game.mode==='rush'?false:game.mode==='practice'?$('keeper-enabled').checked:true;
  world.keeper.visible=game.keeperEnabled;world.setView('match',true);world.showAim(null,false);
- $('shot-feedback').classList.remove('show');$('after-shot').hidden=true;$('shot-controls').hidden=false;$('shot-help').hidden=false;$('aim-reticle').hidden=true;$('replay-label').hidden=true;
+ $('shot-feedback').classList.remove('show');$('after-shot').hidden=true;$('shot-controls').hidden=false;$('shot-help').hidden=false;$('replay-label').hidden=true;
  $('help-title').textContent=game.mode==='rush'?'SWIPE AT THE LIT TARGET':'DRAW THE FLIGHT OF YOUR SHOT';
  $('help-detail').textContent='Arch, bend or dip your gesture · Release to kick';
  if(game.mode==='rush'){game.targetIndex=Math.floor(game.random()*4);world.showTargets(game.targetIndex);}else world.showTargets(-1);
@@ -126,14 +126,8 @@ function fire(x,y,drawnShot=null){
  if(game.phase!=='aim'||game.paused)return false;
  input.active=false;input.keyboard=false;game.phase='runup';game.elapsed=0;game.outcome=null;
  game.shot=drawnShot&&drawnShot.path?drawnShot:P.createShot(x,y,P.SHOT_POWER,input.curve);game.keeper=P.makeKeeper(game.shot,settings.difficulty,game.random);
- $('aim-reticle').hidden=true;$('shot-controls').hidden=true;$('shot-help').hidden=true;world.showAim(null,false);
+ $('shot-controls').hidden=true;$('shot-help').hidden=true;world.showAim(null,false);
  return true;
-}
-function drawAim(){
- world.screenPoint(aim.x,aim.y,.03,screen);
- if(Math.abs(lastReticleX-screen.x)>.2||Math.abs(lastReticleY-screen.y)>.2){$('aim-reticle').style.left=screen.x+'px';$('aim-reticle').style.top=screen.y+'px';lastReticleX=screen.x;lastReticleY=screen.y;}
- $('aim-reticle').hidden=false;
- world.showAim(null,false);
 }
 function resolveGestureAim(x,y){
  world.screenToAim(x,y,aim);world.screenPoint(0,0,0,screen);
@@ -145,7 +139,7 @@ function resolveGestureAim(x,y){
 function cancelGesture(id){
  if(id!==undefined&&id!==input.id)return;
  input.active=false;input.keyboard=false;input.id=null;
- $('aim-reticle').hidden=true;world.showAim(null,false);if(game.phase==='aim'||game.phase==='menu')setCurve(0);
+ world.showAim(null,false);if(game.phase==='aim'||game.phase==='menu')setCurve(0);
 }
 const canvas=world.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','First-person penalty pitch. Draw the full flight of your shot. Arch, bend or dip, then release. Arrow keys aim. Space shoots.');
 canvas.addEventListener('pointerdown',e=>{
@@ -160,7 +154,7 @@ canvas.addEventListener('pointermove',e=>{
  const samples=e.getCoalescedEvents?e.getCoalescedEvents():[];
  if(samples.length){for(const sample of samples)G.move(stroke,sample.clientX,sample.clientY);}else G.move(stroke,e.clientX,e.clientY);
  input.hasMoved=stroke.distance>10;
- if(input.hasMoved){setCurve(G.curve(stroke));resolveGestureAim(e.clientX,e.clientY);$('curve-value').textContent='FREE DRAW';drawAim();}
+ if(input.hasMoved){setCurve(G.curve(stroke));resolveGestureAim(e.clientX,e.clientY);$('curve-value').textContent='FREE DRAW';}
 });
 canvas.addEventListener('pointerup',e=>{
  if(!input.active||e.pointerId!==input.id)return;
@@ -187,7 +181,7 @@ window.addEventListener('keydown',e=>{
  if(e.code==='ArrowDown')aim.y=P.clamp(aim.y-.12,.11,4.5);
  if(e.code==='KeyQ')setCurve(input.curve-.1);if(e.code==='KeyE')setCurve(input.curve+.1);
  if(e.code==='Space'&&!e.repeat&&!input.keyboard){input.keyboard=true;sound.init();}
- drawAim();
+ 
 });
 window.addEventListener('keyup',e=>{if(e.code==='Space'&&input.keyboard){e.preventDefault();input.keyboard=false;fire(aim.x,aim.y);}});
 window.addEventListener('blur',()=>{cancelGesture();pause();});
