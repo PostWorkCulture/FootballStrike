@@ -30,7 +30,8 @@ class Flight{
  keeperAt(this.keeper,this.time,this.pose);
  if(this.outcome==='goal'){
  b.vx*=Math.exp(-5*dt);b.vz*=Math.exp(-7*dt);b.vy-=G*dt;
- b.x=clamp(b.x+b.vx*dt,-3.45,3.45);b.z=Math.max(-1.75,b.z+b.vz*dt);b.y=Math.max(R,b.y+b.vy*dt);
+ b.x=clamp(b.x+b.vx*dt,-3.45,3.45);b.y=Math.max(R,b.y+b.vy*dt);
+ const backNet=-1.8+b.y/2.44*1.3+R;b.z=Math.max(backNet,b.z+b.vz*dt);
  if(b.y===R)b.vy=0;return;
  }
  b.x+=b.vx*dt+.5*b.ax*dt*dt;b.y+=b.vy*dt-.5*G*dt*dt;b.z+=b.vz*dt;b.vx+=b.ax*dt;b.vy-=G*dt;

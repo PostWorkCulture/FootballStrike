@@ -16,7 +16,8 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  const step=s=>page.evaluate(t=>FootballStrike.test.step(t),s);
  const screenshot=async name=>{const bytes=await page.screenshot({path:path.join(output,name+'.jpg'),type:'jpeg',quality:84});fs.writeFileSync(path.join(output,name+'.base64.txt'),Buffer.from(bytes).toString('base64'));report.screenshots.push(name+'.jpg');};
  await page.goto('http://127.0.0.1:8080/?test=1',{waitUntil:'networkidle0',timeout:90000});
- await page.waitForFunction(()=>window.FootballStrike?.ready,{timeout:90000});
+ await page.waitForFunction(()=>window.FootballStrike?.ready||!document.getElementById('error-screen').hidden,{timeout:90000});
+ assert.equal(await page.evaluate(()=>window.FootballStrike?.ready),true,await page.$eval('#error-text',e=>e.textContent));
  await check('Blender assets load and WebGL scene renders',async()=>{const s=await snap();assert.equal(s.actorReady,true);assert.equal(s.ballAssetLoaded,true);assert.deepEqual(s.assetErrors,[]);assert.ok(s.triangles>5000);assert.ok(s.crowd>3000);report.render=s;});
  await screenshot('01-home-desktop');
  await check('all 12 countries select and update the 3D kit',async()=>{
@@ -34,6 +35,7 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await check('replay returns without counting the goal twice',async()=>{
  await page.click('#replay');assert.equal((await snap()).phase,'replay');await step(14);assert.equal((await snap()).phase,'result');assert.equal((await snap()).shots,1);
  });await page.click('#next-shot');await screenshot('04-match-desktop');
+ await check('the ball is clearly above the bottom controls',async()=>{const ball=await page.evaluate(()=>FootballStrike.project(0,.11,11)),top=await page.$eval('#shot-controls',e=>e.getBoundingClientRect().top);assert.ok(ball.y<top-35);});
  await check('mouse swipe shoots, and pause freezes the simulation',async()=>{
  await page.evaluate(()=>FootballStrike.test.setKeeper(false));
  const ball=await page.evaluate(()=>FootballStrike.project(0,.11,11)),target=await page.evaluate(()=>FootballStrike.project(-2.6,1.6,0));
@@ -51,6 +53,16 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  });
  await check('Target Rush expires once and cannot take another shot',async()=>{
  await page.click('#pause-open');await page.click('#quit');await page.click('[data-mode="rush"]');await page.evaluate(()=>FootballStrike.test.setTime(.15));await step(1);assert.equal((await snap()).phase,'complete');assert.equal(await page.evaluate(()=>FootballStrike.test.fire(0,1,.6)),false);await page.click('#result-menu');
+ });
+ await check('Nations Cup advances through all three rounds and records a trophy',async()=>{
+ await page.click('[data-mode="cup"]');await page.evaluate(()=>FootballStrike.test.setSeed(7321));
+ for(let round=0;round<3;round++){
+ assert.equal((await snap()).stage,round);
+ for(let n=0;n<35;n++){await page.evaluate(()=>{FootballStrike.test.setKeeper(false);FootballStrike.test.fire(2.7,1.7,.8);});await step(2);const label=await page.$eval('#next-shot',e=>e.textContent);await page.click('#next-shot');if(label.includes('RESULT'))break;}
+ assert.equal((await snap()).phase,'complete');assert.ok((await page.$eval('#result-title',e=>e.textContent)).match(/through|Champions/));
+ if(round<2)await page.click('#result-next');
+ }
+ assert.ok(await page.evaluate(()=>JSON.parse(localStorage.getItem('football-strike-v2')).cups>=1));await page.click('#result-menu');
  });
  await check('settings persist and performance mode works',async()=>{
  await page.click('#settings-open');await page.select('#quality-setting','low');await page.click('#audio-setting');await page.click('#motion-setting');await page.click('#settings-dialog .primary');

@@ -14,7 +14,7 @@ def material(name,col,rough=.7):
  p=m.node_tree.nodes.get('Principled BSDF');p.inputs['Base Color'].default_value=(*col,1);p.inputs['Roughness'].default_value=rough
  return m
 mats={k:material(k,c,r) for k,c,r in [
- ('Shirt',(.9,.76,.06),.82),('Shorts',(.02,.08,.2),.82),('Socks',(.92,.78,.06),.88),
+ ('Shirt',(.9,.76,.06),.82),('Sleeves',(.9,.76,.06),.82),('Shorts',(.02,.08,.2),.82),('Socks',(.92,.78,.06),.88),
  ('Skin',(.67,.42,.25),.65),('Hair',(.08,.045,.025),.9),('Boots',(.035,.045,.05),.4),
  ('Trim',(.04,.14,.3),.7),('Eyes',(.91,.89,.8),.45),('Iris',(.025,.028,.032),.6),
  ('Lips',(.36,.17,.13),.8),('Studs',(.6,.65,.66),.38),('Gloves',(.85,.94,.9),.85)]}
@@ -67,11 +67,11 @@ sphere('Mouth',(0,.020,.082),(.035,.005,.006),'Lips',head)
 sphere('Chin',(0,-.015,.061),(.045,.019,.03),'Skin',head)
 for side,label in [(-1,'Left'),(1,'Right')]:
  shoulder=empty(label+'Arm',(side*.235,.424,0),torso)
- sphere(label+'Sleeve',(side*.047,-.063,0),(.098,.13,.097),'Shirt',shoulder)
- sphere(label+'UpperArm',(side*.045,-.18,0),(.067,.17,.07),'Skin',shoulder)
- fore=empty(label+'Forearm',(side*.065,-.29,0),shoulder)
+ sleeve=form(label+'Sleeve',[(.02,.078,.088,0),(-.08,.087,.083,0),(-.165,.075,.071,0)],'Sleeves',shoulder,24);sleeve.location.x=side*.035
+ upper=form(label+'UpperArm',[(-.13,.064,.069,0),(-.21,.07,.071,0),(-.3,.052,.058,0)],'Skin',shoulder,24);upper.location.x=side*.035
+ fore=empty(label+'Forearm',(side*.035,-.29,0),shoulder)
  sphere(label+'Elbow',(0,0,0),(.058,.062,.06),'Skin',fore)
- sphere(label+'ForearmMesh',(0,-.122,.015),(.053,.142,.055),'Skin',fore)
+ form(label+'ForearmMesh',[(0,.053,.058,0),(-.07,.057,.063,.009),(-.16,.045,.049,.016),(-.24,.033,.037,.021)],'Skin',fore,24)
  sphere(label+'Hand',(0,-.27,.025),(.052,.07,.026),'Skin',fore)
  sphere(label+'Thumb',(-side*.046,-.246,.027),(.019,.04,.025),'Skin',fore)
  leg=empty(label+'Leg',(side*.105,0,0),hips)

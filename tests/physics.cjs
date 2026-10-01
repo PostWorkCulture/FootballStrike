@@ -16,3 +16,5 @@ test('net containment retains the ball after a goal',()=>{const f=sim(2.8,1.7);f
 test('shootout ends early when the lead is uncatchable',()=>{const m=new P.Shootout();m.add(true,false);m.add(true,false);assert.equal(m.done,false);m.add(true,false);assert.equal(m.done,true);assert.equal(m.winner,'home');assert.equal(m.add(false,true),false);});
 test('sudden death resolves only after equal numbers of penalties',()=>{const m=new P.Shootout();for(let n=0;n<5;n++)m.add(true,true);assert.equal(m.done,false);m.add(false,false);assert.equal(m.done,false);m.add(true,false);assert.equal(m.winner,'home');assert.equal(m.home.length,7);});
 test('losing five-shot result is handled',()=>{const m=new P.Shootout();for(let n=0;n<3;n++)m.add(false,true);assert.equal(m.winner,'away');});
+
+test('scored ball stays in front of the sloping back net at every height',()=>{const f=sim(2.8,1.9);for(let n=0;n<400;n++){f.step();assert.ok(f.ball.z>=-1.8+f.ball.y/2.44*1.3+P.R-1e-8);}});
