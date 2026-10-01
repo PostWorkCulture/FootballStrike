@@ -4,16 +4,17 @@ const root=path.resolve(__dirname,'..'),output=path.join(root,'verification');fs
 const mime={'.js':'text/javascript','.css':'text/css','.html':'text/html','.glb':'model/gltf-binary','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg'};
 const server=http.createServer((req,res)=>{let p=path.resolve(root,'.'+decodeURIComponent(new URL(req.url,'http://localhost').pathname));if(!p.startsWith(root+path.sep)&&p!==root){res.writeHead(403);return res.end();}if(fs.existsSync(p)&&fs.statSync(p).isDirectory())p=path.join(p,'index.html');if(!fs.existsSync(p)){res.writeHead(404);return res.end('Not found');}res.setHeader('Content-Type',mime[path.extname(p)]||'application/octet-stream');fs.createReadStream(p).pipe(res);});
 const report={checks:[],errors:[],screenshots:[],started:new Date().toISOString(),passed:false};
-let browser;
+let browser,activePage;
 async function check(name,fn){await fn();report.checks.push(name);console.log('PASS '+name);}
 (async()=>{
  await new Promise(r=>server.listen(8080,'127.0.0.1',r));
  browser=await puppeteer.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
- const page=await browser.newPage();await page.setViewport({width:1440,height:900,deviceScaleFactor:1});
+ const page=await browser.newPage();activePage=page;await page.setViewport({width:1440,height:900,deviceScaleFactor:1});
+ page.on('response',r=>{if(r.status()>=400)report.errors.push(r.status()+' '+r.url());});
  page.on('pageerror',e=>report.errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&!m.text().includes('fonts.googleapis'))report.errors.push(m.text());});
  const snap=()=>page.evaluate(()=>FootballStrike.snapshot());
  const step=s=>page.evaluate(t=>FootballStrike.test.step(t),s);
- const screenshot=async name=>{await page.screenshot({path:path.join(output,name+'.jpg'),type:'jpeg',quality:84});report.screenshots.push(name+'.jpg');};
+ const screenshot=async name=>{const bytes=await page.screenshot({path:path.join(output,name+'.jpg'),type:'jpeg',quality:84});fs.writeFileSync(path.join(output,name+'.base64.txt'),Buffer.from(bytes).toString('base64'));report.screenshots.push(name+'.jpg');};
  await page.goto('http://127.0.0.1:8080/?test=1',{waitUntil:'networkidle0',timeout:90000});
  await page.waitForFunction(()=>window.FootballStrike?.ready,{timeout:90000});
  await check('Blender assets load and WebGL scene renders',async()=>{const s=await snap();assert.equal(s.actorReady,true);assert.equal(s.ballAssetLoaded,true);assert.deepEqual(s.assetErrors,[]);assert.ok(s.triangles>5000);assert.ok(s.crowd>3000);report.render=s;});
@@ -74,6 +75,7 @@ async function check(name,fn){await fn();report.checks.push(name);console.log('P
  await check('no JavaScript or WebGL shader errors',async()=>assert.deepEqual(report.errors,[]));
  report.passed=true;
 })().catch(e=>{report.failure=e.stack;console.error(e);process.exitCode=1;}).finally(async()=>{
+ if(activePage&&!report.passed){try{const bytes=await activePage.screenshot({path:path.join(output,'failure.jpg'),type:'jpeg',quality:80});fs.writeFileSync(path.join(output,'failure.base64.txt'),Buffer.from(bytes).toString('base64'));report.browserState=await activePage.evaluate(()=>({error:document.getElementById('error-text')?.textContent,ready:window.FootballStrike?.ready,state:window.FootballStrike?.snapshot()}));}catch{}}
  report.finished=new Date().toISOString();fs.writeFileSync(path.join(output,'report.json'),JSON.stringify(report,null,2));
  if(browser)await browser.close();server.close();
 });

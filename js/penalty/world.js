@@ -2,6 +2,7 @@
 (function(root){
 'use strict';
 const T=THREE,P=FSPhysics;
+const POSE_NODES=['Hips','Torso','Head','LeftArm','RightArm','LeftForearm','RightForearm','LeftLeg','RightLeg','LeftShin','RightShin'];
 const V=new T.Vector3(),V2=new T.Vector3(),Q=new T.Quaternion(),UP=new T.Vector3(0,1,0),O=new T.Object3D(),COL=new T.Color();
 class World{
  constructor(container,settings){
@@ -15,7 +16,7 @@ class World{
  this.ray=new T.Raycaster();this.plane=new T.Plane(new T.Vector3(0,0,1),0);this.mouse=new T.Vector2();this.aimPoint=new T.Vector3();
  this.cameraGoal=new T.Vector3();this.lookGoal=new T.Vector3();this.look=new T.Vector3(-1,1.2,10);
  this.uniforms={time:{value:0},cheer:{value:0}};this.materialCache=new Map();this.texCache=new Map();this.actorReady=false;this.assetErrors=[];
- this.makeLight();this.makeSky();this.makePitch();this.makeStadium();this.makeGoal();this.makeBall();this.makeTargets();this.makeActors();
+ this.makeLight();this.makeSky();this.makePitch();this.makeStadium();this.makeGoal();this.batchStadium();this.makeBall();this.makeTargets();this.makeActors();
  this.setQuality(settings.quality||'balanced');this.resize();this.setView('home',true);
  }
  mat(c,rough=.8){return new T.MeshStandardMaterial({color:c,roughness:rough,metalness:0});}
@@ -103,6 +104,20 @@ class World{
  const screenTex=this.texture(1024,384,(c,w,h)=>{c.fillStyle='#092029';c.fillRect(0,0,w,h);c.fillStyle='#d9f870';c.textAlign='center';c.font='bold 80px Arial';c.fillText('FOOTBALL STRIKE',w/2,146);c.fillStyle='#dce8e4';c.font='32px Arial';c.fillText('I N T E R N A T I O N A L',w/2,218);c.fillStyle='#709a9b';c.font='24px Arial';c.fillText('THE MOMENT IS YOURS',w/2,300);});
  this.box(0,14.2,-34,13,5.1,.5,dark);this.mesh(new T.PlaneGeometry(12.6,4.7),new T.MeshBasicMaterial({map:screenTex}),0,14.2,-33.72);
  for(const side of [-1,1]){this.beam([side*34,0,0],[side*34,1.5,0],.022,trim);const flag=this.mesh(new T.PlaneGeometry(.42,.28),new T.MeshBasicMaterial({color:0xe4ff80,side:T.DoubleSide}),side*34+.19,1.35,0);flag.rotation.y=.2;}
+ }
+ batchStadium(){
+ // Bake static architecture per material. Spectators remain instanced and independently animated.
+ this.scene.updateMatrixWorld(true);const batches=new Map(),objects=[];
+ this.scene.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh&&o.material.side!==T.BackSide){objects.push(o);const key=o.material.uuid+':'+o.castShadow+':'+o.receiveShadow;if(!batches.has(key))batches.set(key,{material:o.material,cast:o.castShadow,receive:o.receiveShadow,parts:[]});batches.get(key).parts.push(o);}});
+ for(const b of batches.values()){
+ if(b.parts.length<2)continue;
+ let count=0;const transformed=[];
+ for(const part of b.parts){let g=part.geometry.index?part.geometry.toNonIndexed():part.geometry.clone();g.applyMatrix4(part.matrixWorld);count+=g.attributes.position.count;transformed.push(g);}
+ const geometry=new T.BufferGeometry();
+ for(const [name,size] of [['position',3],['normal',3],['uv',2]]){const data=new Float32Array(count*size);let offset=0;for(const g of transformed){const attribute=g.attributes[name];if(attribute)data.set(attribute.array,offset);offset+=g.attributes.position.count*size;}geometry.setAttribute(name,new T.BufferAttribute(data,size));}
+ geometry.computeBoundingSphere();const mesh=new T.Mesh(geometry,b.material);mesh.castShadow=b.cast;mesh.receiveShadow=b.receive;this.scene.add(mesh);
+ for(const part of b.parts)part.parent.remove(part);for(const g of transformed)g.dispose();
+ }
  }
  makeGoal(){
  const m=this.mat(0xf3f4ea,.3);
@@ -226,7 +241,7 @@ class World{
  poseActor(rig,time,kind,phase,progress,pose){
  if(!rig)return;
  const n=rig.nodes,b=rig.base;
- for(const name of ['Hips','Torso','Head','LeftArm','RightArm','LeftForearm','RightForearm','LeftLeg','RightLeg','LeftShin','RightShin']){
+ for(const name of POSE_NODES){
  const v=n[name];if(v){v.rotation.set(b[name].x,b[name].y,b[name].z);v.position.set(b[name].px,b[name].py,b[name].pz);}
  }
  const hips=n.Hips,torso=n.Torso;

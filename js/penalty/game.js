@@ -105,7 +105,7 @@ function nextShot(){
  $('help-detail').textContent='Release to shoot · A faster swipe adds power';
  $('power-fill').style.width='65%';
  if(game.mode==='rush'){game.targetIndex=Math.floor(game.random()*4);world.showTargets(game.targetIndex);}else world.showTargets(-1);
- lastHUD=-1;updateHUD();
+ lastHUD=-1;updateHUD();world.renderer.domElement.focus({preventScroll:true});
 }
 $('keeper-enabled').onchange=()=>{if(game.phase==='aim'){game.keeperEnabled=$('keeper-enabled').checked;world.keeper.visible=game.keeperEnabled;}};
 function setCurve(value){input.curve=P.clamp(value,-1,1);$('curve').value=input.curve;$('curve-value').textContent=Math.abs(input.curve)<.06?'STRAIGHT':(input.curve<0?'← LEFT ':'RIGHT → ')+Math.round(Math.abs(input.curve)*100)+'%';}
@@ -123,7 +123,7 @@ function drawAim(){
  $('aim-reticle').hidden=false;$('swipe-hint').hidden=true;$('power-fill').style.width=Math.round(input.power*100)+'%';
  if(game.mode==='practice')world.showAim(P.createShot(aim.x,aim.y,input.power,input.curve),true);
 }
-const canvas=world.renderer.domElement;
+const canvas=world.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','Penalty pitch. Arrow keys aim. Hold and release Space to shoot.');
 canvas.addEventListener('pointerdown',e=>{
  if(game.phase!=='aim'||game.paused||e.button>0)return;
  sound.init();input.active=true;input.id=e.pointerId;input.startX=e.clientX;input.startY=e.clientY;input.startTime=performance.now();input.lastX=e.clientX;input.lastY=e.clientY;input.hasMoved=false;input.keyboard=false;
@@ -241,9 +241,9 @@ function fixedStep(dt){
  }else if(game.phase==='flight'){
  flight.step(dt);recordFrame();if(flight.outcome)resolve();
  }else if(game.phase==='result'){
- flight.step(dt);recordFrame();
+ flight.step(dt);if(game.elapsed<1.2)recordFrame();
  if(game.mode==='rush'&&game.elapsed>.75){if(game.remaining<=0)finishMatch();else nextShot();}
- else if(game.mode!=='rush'&&game.elapsed>.85){
+ else if(game.mode!=='rush'&&game.elapsed>.85&&$('after-shot').hidden){
  $('after-shot').hidden=false;$('next-shot').innerHTML=(game.match.done&&(game.mode==='cup'||game.mode==='shootout')?'VIEW RESULT':'NEXT PENALTY')+' <span>→</span>';
  }
  }else if(game.phase==='replay'){

@@ -28,9 +28,14 @@ jobs:
       - name: Install Blender
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y blender
+          sudo apt-get install -y blender python3-numpy
       - name: Build original 3D assets
-        run: blender --background --python tools/build_international_assets.py
+        env:
+          PYTHONPATH: /usr/lib/python3/dist-packages
+        run: |
+          blender --background --python-exit-code 1 --python tools/build_international_assets.py
+          test -s assets/international/footballer.glb
+          test -s assets/international/match-ball.glb
       - name: Verify desktop and mobile flows
         id: browser
         continue-on-error: true
