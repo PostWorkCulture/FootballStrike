@@ -1,0 +1,108 @@
+name: Verify international penalty game
+on:
+  push:
+    branches: ["codex/international-penalty-overhaul"]
+    paths-ignore: ["verification/**", "assets/international/**"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: international-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install browser dependencies
+        run: |
+          npm ci
+          python -m pip install Pillow
+      - name: Cache licensed football photographs
+        run: python tools/fetch_home_photos.py
+      - name: Deterministic gameplay checks
+        run: npm test
+      - name: Check asset source revision
+        id: assets
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import os,json,hashlib
+          paths=['tools/build_international_assets.py','tools/build_keeper_assets.py']
+          digest=hashlib.sha256(b''.join(open(p,'rb').read() for p in paths)).hexdigest()
+          manifest='assets/international/manifest.json'
+          saved=json.load(open(manifest)) if os.path.exists(manifest) else {}
+          complete=all(os.path.exists('assets/international/'+p) for p in ['footballer.glb','match-ball.glb','keeper.glb','keeper.blend'])
+          print('rebuild='+str(not complete or saved.get('asset_source_sha')!=digest).lower())
+          PY
+      - name: Install Blender
+        if: steps.assets.outputs.rebuild == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender python3-numpy python3-pil
+      - name: Build original 3D assets
+        if: steps.assets.outputs.rebuild == 'true'
+        env:
+          PYTHONPATH: /usr/lib/python3/dist-packages
+        run: |
+          blender --background --python-exit-code 1 --python tools/build_international_assets.py
+          test -s assets/international/footballer.glb
+          test -s assets/international/match-ball.glb
+          test -s assets/international/keeper.glb
+      - name: Capture goalkeeper motion and check skin alignment
+        id: motion
+        continue-on-error: true
+        run: |
+          node tests/motion.cjs
+          python tools/motion_sheets.py
+      - name: Save goalkeeper review frames
+        if: github.event_name == 'push' && steps.motion.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/international verification/motion verification/difficulty.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Build goalkeeper and capture motion review frames [skip ci]"
+            git push origin HEAD:codex/international-penalty-overhaul
+          fi
+      - name: Verify desktop and mobile flows
+        id: browser
+        continue-on-error: true
+        run: npm run verify
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: international-verification
+          path: |
+            verification/
+            assets/international/
+          retention-days: 14
+      - name: Save generated assets and verification to feature branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/codex/international-penalty-overhaul'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/international verification package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Build Blender assets and record browser verification [skip ci]"
+            git push origin HEAD:codex/international-penalty-overhaul
+          fi
+      - name: Check public feature preview
+        if: steps.browser.outcome == 'success' && steps.motion.outcome == 'success' && github.event_name == 'push'
+        run: |
+          PREVIEW_SHA=$(git rev-parse HEAD) node tests/preview.cjs
+          git add verification/public-preview.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Record public feature preview check [skip ci]"
+            git push origin HEAD:codex/international-penalty-overhaul
+          fi
+      - name: Require browser verification
+        if: steps.browser.outcome != 'success' || steps.motion.outcome != 'success'
+        run: exit 1

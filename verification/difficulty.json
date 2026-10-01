@@ -1,0 +1,26 @@
+{
+  "method": "Same seed and 3000 distributed on-target shots per level. Simulation calibration, not player success rates.",
+  "results": {
+    "rookie": {
+      "label": "Easy",
+      "shots": 3000,
+      "goals": 2550,
+      "saves": 450,
+      "saveRate": 0.15
+    },
+    "pro": {
+      "label": "Normal",
+      "shots": 3000,
+      "goals": 2169,
+      "saves": 831,
+      "saveRate": 0.277
+    },
+    "elite": {
+      "label": "Hard",
+      "shots": 3000,
+      "goals": 1801,
+      "saves": 1199,
+      "saveRate": 0.39966666666666667
+    }
+  }
+}

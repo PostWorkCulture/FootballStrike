@@ -1,0 +1,35 @@
+[
+  {
+    "id": "france",
+    "country": "France",
+    "caption": "World champions · 2018",
+    "file": "france.jpg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/e/e5/France_champion_of_the_Football_World_Cup_Russia_2018.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:France_champion_of_the_Football_World_Cup_Russia_2018.jpg",
+    "author": "Russian Presidential Press and Information Office / Kremlin.ru",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  {
+    "id": "england",
+    "country": "England",
+    "caption": "European champions · 2022",
+    "file": "england.jpg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Euro_2022_Final_England_v_Germany_%2852254784564%29_%28cropped%29.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Euro_2022_Final_England_v_Germany_(52254784564)_(cropped).jpg",
+    "author": "Daniel (Daniel Richardson), cropped by Kingsif",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0/"
+  },
+  {
+    "id": "sweden",
+    "country": "Sweden",
+    "caption": "World Cup goal celebrations · 2019",
+    "file": "sweden.jpg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/b/b1/Match_3rd_place_Word_Cup_football_W2019-_celebration_1st_Sweden_goal.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Match_3rd_place_Word_Cup_football_W2019-_celebration_1st_Sweden_goal.jpg",
+    "author": "Anthospace",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  }
+]

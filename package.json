@@ -1,11 +1,13 @@
 {
   "name": "football-strike",
-  "version": "1.0.0",
-  "description": "3D WebGL Football Game with Three.js",
+  "version": "2.3.0",
+  "private": true,
+  "description": "Three.js international penalty football",
   "scripts": {
-    "test": "node test_ball.js",
-    "verify": "python verify_full_game.py",
-    "start": "npx serve -l 8080 ."
+    "test": "node --test tests/physics.cjs",
+    "verify": "node tests/browser.cjs",
+    "start": "node tools/serve.cjs",
+    "build:assets": "blender --background --python-exit-code 1 --python tools/build_international_assets.py"
   },
   "dependencies": {
     "puppeteer": "^25.12.0"
