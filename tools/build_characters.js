@@ -31,7 +31,7 @@ for (const role of roles) {
     gt('resize', tmp, tmp, '--width', '256', '--height', '256', '--pattern', '"*(eye|brown|blue|green|lash|brow)*"');
     gt('resize', tmp, tmp, '--width', '512', '--height', '512', '--pattern', '"*(short|hair|afro|bob)*"');
     gt('resize', tmp, tmp, '--width', '1024', '--height', '1024');
-    gt('webp', tmp, tmp, '--quality', '82');
+    gt('webp', tmp, tmp, '--quality', '92');
     gt('dedup', tmp, tmp);
     gt('prune', tmp, tmp);
     gt('resample', tmp, tmp);          // drop redundant animation keys

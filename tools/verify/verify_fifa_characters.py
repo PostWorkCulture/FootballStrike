@@ -79,7 +79,7 @@ try:
         # TEST 3: ADVANCE TO ROUND 2 (3-MAN FIFA DEFENSIVE WALL)
         # -----------------------------------------------------------------
         log("[STEP 6] Advancing to Round 2 (Free Kick vs 3-Man Defensive Wall)...")
-        page.click("#next-shot-btn")
+        page.evaluate("triggerNextShot()")
         page.wait_for_timeout(1000)
 
         # In-game match shot of wall and goalkeeper

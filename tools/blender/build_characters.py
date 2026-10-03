@@ -45,7 +45,7 @@ BLEND = argv[argv.index("--blend") + 1] if "--blend" in argv else None
 #   peak_side:B:A   -> around peak lateral hip speed (keeper dives)
 CLIPS = {
     "player": [
-        ("idle", "77_02", "head:3.0"),
+        ("idle", "111_28", "head:3.0"),
         ("run", "16_35", "full"),
         ("kick_instep", "10_02", "peak_foot:1.4:0.9"),
         ("kick_power", "10_01", "peak_foot:1.4:0.9"),
@@ -430,7 +430,7 @@ def export_glb(rig, path):
     bpy.ops.export_scene.gltf(
         filepath=path, export_format='GLB', use_selection=True,
         export_apply=True, export_yup=True, export_texcoords=True, export_normals=True,
-        export_materials='EXPORT', export_image_format='JPEG', export_jpeg_quality=88,
+        export_materials='EXPORT', export_image_format='JPEG', export_jpeg_quality=95,
         export_skins=True, export_morph=False, export_def_bones=True,
         export_animations=True, export_animation_mode='NLA_TRACKS', export_force_sampling=True,
         export_frame_step=1, export_optimize_animation_size=True, export_anim_single_armature=True,

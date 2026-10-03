@@ -56,6 +56,11 @@ function prepCharacterMaterials(model) {
                 m.normalMap = jerseyNormalTex; m.normalScale = new THREE.Vector2(0.55, 0.55); m.roughness = 0.62;
             } else if (m.name.indexOf('gk_gloves') === 0) {
                 m.normalMap = glovesNormalTex; m.normalScale = new THREE.Vector2(0.65, 0.65); m.roughness = 0.4;
+            } else if (/skin|caucasian|african|asian|body|human/i.test(m.name)) {
+                // MPFB game-engine skin bakes blotchy diffuse/AO; use a clean subsurface-like tone instead
+                m.map = null; m.aoMap = null; m.normalMap = null; m.roughnessMap = null; m.metalnessMap = null;
+                m.color.setRGB(0.66, 0.45, 0.34); m.roughness = 0.55; m.metalness = 0;
+                m.transparent = false; m.opacity = 1; m.depthWrite = true; m.alphaTest = 0; m.needsUpdate = true;
             }
         });
     });
@@ -121,16 +126,20 @@ function buildWall(gltf) {
         const defender = THREE.SkeletonUtils.clone(gltf.scene);
         prepCharacterMaterials(defender);
         defender.scale.setScalar(cfg.scale / 1.24); // legacy configs assumed 1.24x undersized models
-        defender.position.set(cfg.xOffset, 0, 0);
-        defender.rotation.y = Math.PI / 2 + cfg.inwardYaw * 0.2; // face the ball (+Z)
+        // Inner model carries the MPFB facing fix; legacy code resets the outer pivot's rotation each round.
+        defender.rotation.y = Math.PI / 2; // MPFB faces local -X; turn to face the ball (+Z)
+        const pivot = new THREE.Group();
+        pivot.add(defender);
+        pivot.position.set(cfg.xOffset, 0, 0);
+        pivot.rotation.y = cfg.inwardYaw * 0.2;
         const anim = new CharacterAnimator(defender, gltf.animations, CharacterAnimator.WALL_POSES);
         anim.setKit({ shirt: 0x1d4ed8, shorts: 0x1e293b, socks: 0x1d4ed8, boots: 0x111111 });
         anim.setPose('idle');
         anim.mixer.setTime(cfg.id * 0.7); // de-synchronise idle breathing
         characterAnimators.push(anim);
         wallAnimators.push(anim);
-        wallGroup.add(defender);
-        wallDefenders.push(defender);
+        wallGroup.add(pivot);
+        wallDefenders.push(pivot);
     });
 }
 // Ground Contact Shadows for each individual defender
