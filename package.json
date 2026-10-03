@@ -1,13 +1,14 @@
 {
-  "name": "football-strike",
-  "version": "1.0.0",
-  "description": "3D WebGL Football Game with Three.js",
-  "scripts": {
-    "test": "node tools/verify/test_physics.js",
-    "verify": "python tools/verify/verify_v9_review.py",
-    "start": "npx serve -l 8080 ."
-  },
-  "dependencies": {
-    "puppeteer": "^25.12.0"
-  }
+    "name":  "football-strike",
+    "version":  "1.0.0",
+    "description":  "3D WebGL Football Game with Three.js",
+    "scripts":  {
+                    "test":  "node tools/verify/test_physics.js",
+                    "verify":  "python tools/verify/verify_v9_review.py",
+                    "start":  "npx serve -l 8080 .",
+                    "build":  "node tools/build.js"
+                },
+    "dependencies":  {
+                         "puppeteer":  "^25.12.0"
+                     }
 }
