@@ -155,23 +155,59 @@ function spawnRandomTarget() {
     }
 }
 
+// Pooled Particle FX (zero allocation during gameplay)
+const FX_POOL_SIZE = 128;
+const fxShardGeo = new THREE.BoxGeometry(0.08, 0.08, 0.08);
+const fxVaporGeo = new THREE.SphereGeometry(0.04, 6, 6);
+const fxMatRed = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.2 });
+const fxMatWhite = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
+const fxMatVapor = new THREE.MeshBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.55 });
+const fxPool = [];
+for (let i = 0; i < FX_POOL_SIZE; i++) {
+    const m = new THREE.Mesh(fxShardGeo, fxMatWhite);
+    m.visible = false;
+    m.frustumCulled = false;
+    scene.add(m);
+    fxPool.push({ mesh: m, life: 0, vx: 0, vy: 0, vz: 0, gravity: 16 });
+}
+let fxCursor = 0;
+
+function spawnParticle(geo, mat, x, y, z, vx, vy, vz, life, gravity) {
+    const p = fxPool[fxCursor];
+    fxCursor = (fxCursor + 1) % FX_POOL_SIZE; // ring buffer: oldest particle recycled
+    p.mesh.geometry = geo;
+    p.mesh.material = mat;
+    p.mesh.position.set(x, y, z);
+    p.mesh.visible = true;
+    p.vx = vx; p.vy = vy; p.vz = vz; p.life = life; p.gravity = gravity;
+    return p;
+}
+
+function updateParticles(dt) {
+    for (let i = 0; i < FX_POOL_SIZE; i++) {
+        const p = fxPool[i];
+        if (p.life <= 0) continue;
+        p.life -= dt * 1.5;
+        if (p.life <= 0) { p.mesh.visible = false; continue; }
+        p.mesh.position.x += p.vx * dt;
+        p.mesh.position.y += p.vy * dt;
+        p.mesh.position.z += p.vz * dt;
+        p.vy -= p.gravity * dt;
+    }
+}
+
+function activeParticleCount() {
+    let n = 0;
+    for (let i = 0; i < FX_POOL_SIZE; i++) if (fxPool[i].life > 0) n++;
+    return n;
+}
+window.activeParticleCount = activeParticleCount;
+
 // Particle Glass FX (Dynamic Red and White Shards)
 function createShatterFX(x, y, z) {
-    const geo = new THREE.BoxGeometry(0.08, 0.08, 0.08);
-    const matRed = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.2 });
-    const matWhite = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
     for (let i = 0; i < 40; i++) {
-        const mat = (i % 2 === 0) ? matRed : matWhite;
-        const p = new THREE.Mesh(geo, mat);
-        p.position.set(x, y, z);
-        scene.add(p);
-        particles.push({
-            mesh: p,
-            vx: (Math.random() - 0.5) * 14,
-            vy: Math.random() * 10 + 2,
-            vz: (Math.random() - 0.5) * 14,
-            life: 0.95
-        });
+        spawnParticle(fxShardGeo, (i % 2 === 0) ? fxMatRed : fxMatWhite, x, y, z,
+            (Math.random() - 0.5) * 14, Math.random() * 10 + 2, (Math.random() - 0.5) * 14, 0.95, 16);
     }
 }
 

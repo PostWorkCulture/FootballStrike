@@ -35,6 +35,6 @@ const freeKickSpots = [
 let targetRaceTimeLeft = 45;
 let targetRaceTimer = null;
 let activeTargets = [];
-let particles = [];
+const PHYSICS_STEP = 1 / 120; // fixed simulation step shared by game world and ShotSolver
 let cameraFlashes = [];
 

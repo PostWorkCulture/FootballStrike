@@ -46,7 +46,7 @@ try:
         page.wait_for_timeout(1000)
 
         # Save close-up proof screenshot
-        proof_path = os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out"))
+        proof_path = os.path.join(os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out")), "verify_white_gloves_proof_path.png")
         page.screenshot(path=proof_path)
         print(f"Captured screenshot: {proof_path}")
 
@@ -57,7 +57,7 @@ try:
             renderer.render(scene, camera);
         }""")
         page.wait_for_timeout(800)
-        match_proof_path = os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out"))
+        match_proof_path = os.path.join(os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out")), "verify_white_gloves_match_proof_path.png")
         page.screenshot(path=match_proof_path)
         print(f"Captured match view screenshot: {match_proof_path}")
 

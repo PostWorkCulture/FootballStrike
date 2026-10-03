@@ -6,7 +6,7 @@ const clock = new THREE.Clock();
 function updateSimulation(dt) {
     const time = clock.getElapsedTime();
 
-    world.step(1 / 60, dt, 3);
+    world.step(PHYSICS_STEP, dt, 8);
 
     // Camera Flashbulbs Animation
     cameraFlashes.forEach(f => {
@@ -87,26 +87,16 @@ function updateSimulation(dt) {
 
     // Continuous 3D Magnus Aerodynamic Forces & Visual Vortex Trail
     if (ballInFlight && ballBody.position.z > -20.0 && !ballBody.inNet && !ballBody.saved) {
-        ballBody.velocity.x += currentShotMagnusAx * dt;
-        
+        // Magnus lateral force is applied inside the fixed physics step (ballBody.preStep).
         // High-speed visual aerodynamic ball spin (pentagons & hexagons whirl with spin)
         ballMesh.rotation.y += spinVector.y * dt;
         ballMesh.rotation.x += (ballBody.velocity.z / ballRadius) * dt * 0.45;
 
         // Subtle curved aerodynamic vapor trail particles highlighting the swerve
         if (Math.abs(currentShotMagnusAx) > 3.0 && Math.random() < 0.45) {
-            const pGeo = new THREE.SphereGeometry(0.04, 6, 6);
-            const pMat = new THREE.MeshBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.55 });
-            const pMesh = new THREE.Mesh(pGeo, pMat);
-            pMesh.position.copy(ballMesh.position);
-            scene.add(pMesh);
-            particles.push({
-                mesh: pMesh,
-                life: 0.28,
-                vx: -Math.sign(currentShotMagnusAx) * 0.5 + (Math.random() - 0.5) * 0.2,
-                vy: (Math.random() - 0.5) * 0.2,
-                vz: 0.3
-            });
+            spawnParticle(fxVaporGeo, fxMatVapor, ballMesh.position.x, ballMesh.position.y, ballMesh.position.z,
+                -Math.sign(currentShotMagnusAx) * 0.5 + (Math.random() - 0.5) * 0.2,
+                (Math.random() - 0.5) * 0.2, 0.3, 0.28, 16);
         }
     }
 
@@ -287,19 +277,8 @@ function updateSimulation(dt) {
     }
 
     // Particle FX Update
-    for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.life -= dt * 1.5;
-        if (p.life <= 0) {
-            scene.remove(p.mesh);
-            particles.splice(i, 1);
-        } else {
-            p.mesh.position.x += p.vx * dt;
-            p.mesh.position.y += p.vy * dt;
-            p.mesh.position.z += p.vz * dt;
-            p.vy -= 16 * dt;
-        }
-    }
+    updateParticles(dt);
+
 }
 
 function animate() {

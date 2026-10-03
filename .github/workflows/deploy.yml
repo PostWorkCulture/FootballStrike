@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: '20'
       - name: Physics unit tests
-        run: node tools/verify/test_physics.js
+        run: node tools/verify/test_physics.js && node tools/verify/test_trajectory.js
       - name: Build runtime bundle
         run: node tools/build.js
       - name: Setup Pages

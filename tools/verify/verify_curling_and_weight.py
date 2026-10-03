@@ -136,7 +136,7 @@ try:
         results["inswing_goal"] = inswing_goal
 
         # Capture Inswing Screenshot
-        inswing_proof = os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out"))
+        inswing_proof = os.path.join(os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out")), "verify_curling_and_weight_inswing_proof.png")
         page.screenshot(path=inswing_proof)
         print("Saved inswing screenshot:", inswing_proof)
 
@@ -220,7 +220,7 @@ try:
         results["outswing_goal"] = outswing_goal
 
         # Capture Outswing Screenshot
-        outswing_proof = os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out"))
+        outswing_proof = os.path.join(os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out")), "verify_curling_and_weight_outswing_proof.png")
         page.screenshot(path=outswing_proof)
         print("Saved outswing screenshot:", outswing_proof)
 
@@ -228,7 +228,7 @@ try:
         results["console_errors"] = console_errors
 
         # Save JSON results
-        with open(os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out")), "w") as f:
+        with open(os.path.join(os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out")), "verify_curling_and_weight_report.txt"), "w") as f:
             json.dump(results, f, indent=2)
 
         browser.close()

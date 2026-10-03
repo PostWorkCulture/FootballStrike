@@ -31,7 +31,7 @@ try:
 
         # 1. Capture Bright Goalkeeper in Goalmouth
         print("[2] Capturing Goalkeeper lighting & stance...")
-        gk_screenshot = os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out"))
+        gk_screenshot = os.path.join(os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out")), "verify_v8_review_gk_screenshot.png")
         page.screenshot(path=gk_screenshot)
         print("Saved:", gk_screenshot)
 
@@ -72,7 +72,7 @@ try:
         print("Right Curl Flight & GK Dive:", res_right)
 
         # Capture GK diving action
-        gk_dive_screenshot = os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out"))
+        gk_dive_screenshot = os.path.join(os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out")), "verify_v8_review_gk_dive_screenshot.png")
         page.screenshot(path=gk_dive_screenshot)
         print("Saved:", gk_dive_screenshot)
 
@@ -98,7 +98,7 @@ try:
         }""")
         print("Left Curl Result:", res_left)
 
-        left_curl_screenshot = os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out"))
+        left_curl_screenshot = os.path.join(os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out")), "verify_v8_review_left_curl_screenshot.png")
         page.screenshot(path=left_curl_screenshot)
         print("Saved:", left_curl_screenshot)
 

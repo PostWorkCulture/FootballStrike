@@ -31,6 +31,9 @@ window.getGoalScreenProjected = function getGoalScreenProjected() {
     };
 }
 
+const shotTargetScratch = { x: 0, y: 0, z: 0 };
+let lastShotRecord = null;
+
 window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinRPM = 0, powerNorm = 0.7, curlBendMeters = 0) {
     if (!isPlaying || !isAiming) return;
     isAiming = false;
@@ -62,18 +65,18 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
         curlBendMeters = Math.sign(curlBendMeters) * maxCurlForDist;
     }
 
-    // Dynamic lateral Magnus acceleration required to achieve organic aerodynamic curl:
-    const ax = flightTime > 0.05 ? (1.5 * curlBendMeters) / (flightTime * flightTime) : 0;
-    currentShotMagnusAx = ax;
+    // Deterministic inverse solve over the game's own fixed-step integrator:
+    // ball crosses the goal plane exactly at the aimed point, curl included.
+    shotTargetScratch.x = targetWorldX; shotTargetScratch.y = targetWorldY; shotTargetScratch.z = goalPlaneZ;
+    const shot = ShotSolver.solve(ballBody.position, shotTargetScratch, Math.abs(vz), curlBendMeters,
+        { fixedStep: PHYSICS_STEP, gravity: -world.gravity.y, linearDamping: ballBody.linearDamping, radius: ballRadius });
+    currentShotMagnusAx = shot.ax;
+    lastShotRecord = { start: { x: ballBody.position.x, y: ballBody.position.y, z: ballBody.position.z },
+        target: { x: targetWorldX, y: targetWorldY, z: goalPlaneZ }, speed: Math.abs(vz), curl: curlBendMeters,
+        vx: shot.vx, vy: shot.vy, vz: shot.vz, ax: shot.ax, solveErrorM: shot.errorM };
+    window.lastShotRecord = lastShotRecord;
 
-    // Natural launch velocity with balanced lateral offset: ball leaves boot smoothly and curves visibly into target
-    const vx = (targetWorldX - ballBody.position.x - 0.5 * curlBendMeters) / flightTime;
-
-    // Exact gravity compensation for realistic buoyant lift (no drooping)
-    const gravityComp = 0.5 * 9.81 * flightTime * flightTime;
-    const vy = (targetWorldY - ballBody.position.y + gravityComp) / flightTime;
-
-    ballBody.velocity.set(vx, vy, vz);
+    ballBody.velocity.set(shot.vx, shot.vy, shot.vz);
 
     // Curvature Deflection (Magnus Spin)
     const omegaY = (spinRPM * Math.PI * 2) / 60;

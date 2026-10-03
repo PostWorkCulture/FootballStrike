@@ -251,6 +251,8 @@
             for (let i = 0; i < bodies.length; i++) {
                 const b = bodies[i];
                 if (b.type !== Body.DYNAMIC) continue;
+                // External per-substep forces (aerodynamics etc.)
+                if (b.preStep) b.preStep(h);
                 // Integrate (semi-implicit Euler)
                 b.velocity.x += g.x * h; b.velocity.y += g.y * h; b.velocity.z += g.z * h;
                 const ld = Math.pow(1 - b.linearDamping, h), ad = Math.pow(1 - b.angularDamping, h);

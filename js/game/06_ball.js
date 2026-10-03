@@ -26,6 +26,11 @@ const ballBody = new CANNON.Body({
     angularDamping: 0.04
 });
 world.addBody(ballBody);
+// Deterministic aerodynamic curl: constant lateral Magnus acceleration applied every fixed substep
+// until the ball crosses the goal line. Must match ShotSolver's sandbox exactly.
+ballBody.preStep = function (h) {
+    if (ballInFlight && this.position.z > -20.0 && !this.inNet && !this.saved) this.velocity.x += currentShotMagnusAx * h;
+};
 window.ballBody = ballBody;
 window.ballMesh = ballMesh;
 window.ballRadius = ballRadius;

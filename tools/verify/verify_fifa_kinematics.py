@@ -45,7 +45,7 @@ try:
         print("[3] Character Armatures Status:", status_idle)
 
         # Screenshot 1: Match View with Striker and Goalkeeper
-        shot1 = os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out"))
+        shot1 = os.path.join(os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out")), "verify_fifa_kinematics_shot1.png")
         page.screenshot(path=shot1)
         print("Saved:", shot1)
 
@@ -92,7 +92,7 @@ try:
         print("Striker Strike Test:", strike_test)
 
         # Screenshot 2: Striker Kicking Action
-        shot2 = os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out"))
+        shot2 = os.path.join(os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out")), "verify_fifa_kinematics_shot2.png")
         page.screenshot(path=shot2)
         print("Saved:", shot2)
 
@@ -112,7 +112,7 @@ try:
         print("Goalkeeper Full Dive Extension:", gk_dive_test)
 
         # Screenshot 3: Goalkeeper Flying Extension
-        shot3 = os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out"))
+        shot3 = os.path.join(os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out")), "verify_fifa_kinematics_shot3.png")
         page.screenshot(path=shot3)
         print("Saved:", shot3)
 
@@ -139,7 +139,7 @@ try:
         print("Wall Defenders Articulated Jump:", wall_test)
 
         # Screenshot 4: Wall Jump
-        shot4 = os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out"))
+        shot4 = os.path.join(os.environ.get("FS_OUT_DIR", os.path.join(os.getcwd(), "tools", "verify", "out")), "verify_fifa_kinematics_shot4.png")
         page.screenshot(path=shot4)
         print("Saved:", shot4)
 

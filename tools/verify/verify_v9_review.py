@@ -179,7 +179,7 @@ try:
                 initialShattered: initialShattered,
                 finalShattered: targetsShattered,
                 targetHit: !target0.active,
-                particlesSpawned: particles.length > 0
+                particlesSpawned: activeParticleCount() > 0
             };
         }""")
         results["hit_target_test"] = hit_target_test
