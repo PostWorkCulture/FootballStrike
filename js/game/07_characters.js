@@ -41,60 +41,46 @@ jerseyNormalTex.wrapS = THREE.RepeatWrapping;
 jerseyNormalTex.wrapT = THREE.RepeatWrapping;
 jerseyNormalTex.repeat.set(10, 10);
 
-const gkPoseModels = {
-    idle: null,
-    dive_right: null,
-    dive_left: null,
-    parry: null,
-    low_sweep_right: null,
-    low_sweep_left: null,
-    recovery_roll: null
-};
+// Legacy pose registry kept for test-suite compatibility; the realistic mocap keeper drives all poses.
+const gkPoseModels = {};
+let gkAnimator = null;
+const characterAnimators = [];
 
-function setupGkPoseModel(gltf, poseKey) {
-    const model = gltf.scene;
-    model.scale.set(1.30, 1.30, 1.30);
-    model.traverse(node => {
-        if (node.isMesh) {
-            node.castShadow = true;
-            node.receiveShadow = true;
-            if (node.material) {
-                node.material.normalMap = glovesNormalTex;
-                node.material.normalScale = new THREE.Vector2(0.65, 0.65);
-                node.material.roughness = 0.32; // German Contact Latex foam palm & grip
-                node.material.metalness = 0.04;
-                node.material.emissive = new THREE.Color(0x333333);
-                node.material.emissiveIntensity = 0.35;
-                node.material.needsUpdate = true;
+function prepCharacterMaterials(model) {
+    model.traverse(n => {
+        if (!n.isMesh) return;
+        const mats = Array.isArray(n.material) ? n.material : [n.material];
+        mats.forEach(m => {
+            if (!m || !m.name) return;
+            if (m.name.indexOf('kit_shirt') === 0 || m.name.indexOf('kit_shorts') === 0 || m.name.indexOf('kit_socks') === 0) {
+                m.normalMap = jerseyNormalTex; m.normalScale = new THREE.Vector2(0.55, 0.55); m.roughness = 0.62;
+            } else if (m.name.indexOf('gk_gloves') === 0) {
+                m.normalMap = glovesNormalTex; m.normalScale = new THREE.Vector2(0.65, 0.65); m.roughness = 0.4;
             }
-        }
+        });
     });
-    model.visible = (poseKey === 'idle');
-    gkMesh.add(model);
-    gkPoseModels[poseKey] = model;
 }
 
-charGltfLoader.load('assets/goalkeeper_pro_3d.glb', (gltf) => setupGkPoseModel(gltf, 'idle'));
-charGltfLoader.load('assets/goalkeeper_dive_right.glb', (gltf) => setupGkPoseModel(gltf, 'dive_right'));
-charGltfLoader.load('assets/goalkeeper_dive_left.glb', (gltf) => setupGkPoseModel(gltf, 'dive_left'));
-charGltfLoader.load('assets/goalkeeper_parry.glb', (gltf) => setupGkPoseModel(gltf, 'parry'));
-charGltfLoader.load('assets/goalkeeper_low_sweep_right.glb', (gltf) => setupGkPoseModel(gltf, 'low_sweep_right'));
-charGltfLoader.load('assets/goalkeeper_low_sweep_left.glb', (gltf) => setupGkPoseModel(gltf, 'low_sweep_left'));
-charGltfLoader.load('assets/goalkeeper_recovery_roll.glb', (gltf) => setupGkPoseModel(gltf, 'recovery_roll'));
+charGltfLoader.load('assets/goalkeeper.glb', (gltf) => {
+    const model = gltf.scene;
+    prepCharacterMaterials(model);
+    model.rotation.y = Math.PI / 2; // face the striker (+Z)
+    gkMesh.add(model);
+    gkAnimator = new CharacterAnimator(model, gltf.animations, CharacterAnimator.GK_POSES);
+    gkAnimator.setKit({ shirt: 0xc6f432, shorts: 0x111111, socks: 0xc6f432, boots: 0x111111, gloves: 0xf1f1ea });
+    gkAnimator.setPose('idle');
+    characterAnimators.push(gkAnimator);
+    window.gkAnimator = gkAnimator;
+});
 
 function setGkPose(poseKey) {
-    for (const k in gkPoseModels) {
-        if (gkPoseModels[k]) {
-            gkPoseModels[k].visible = (k === poseKey);
-        }
-    }
+    if (gkAnimator) gkAnimator.setPose(poseKey);
     if (window.PlayerKinematics) {
         PlayerKinematics.setGkPose(poseKey);
     }
 }
 window.setGkPose = setGkPose;
 window.gkPoseModels = gkPoseModels;
-
 // Ground Contact Shadow under Goalkeeper (Decoupled to Ground Plane)
 const gkShadowGeo = new THREE.PlaneGeometry(1.85, 1.10);
 gkShadowGeo.rotateX(-Math.PI / 2);
@@ -129,35 +115,24 @@ const wallDefenderConfigs = [
     { id: 2, xOffset: 0.85,  scale: 1.24, delay: 0.080, maxH: 0.54, duration: 0.68, lean: -0.15, inwardYaw: -0.09 }
 ];
 
-charGltfLoader.load('assets/wall_defender_pro_3d.glb', (gltf) => {
-    const baseModel = gltf.scene;
-
+const wallAnimators = [];
+function buildWall(gltf) {
     wallDefenderConfigs.forEach((cfg) => {
-        const defender = baseModel.clone(true);
-        defender.scale.set(cfg.scale, cfg.scale, cfg.scale);
+        const defender = THREE.SkeletonUtils.clone(gltf.scene);
+        prepCharacterMaterials(defender);
+        defender.scale.setScalar(cfg.scale / 1.24); // legacy configs assumed 1.24x undersized models
         defender.position.set(cfg.xOffset, 0, 0);
-        defender.rotation.y = cfg.inwardYaw * 0.2;
-        defender.traverse(node => {
-            if (node.isMesh) {
-                node.castShadow = true;
-                node.receiveShadow = true;
-                if (node.material) {
-                    node.material = node.material.clone();
-                    node.material.normalMap = jerseyNormalTex;
-                    node.material.normalScale = new THREE.Vector2(0.75, 0.75);
-                    node.material.roughness = 0.44; // Micro-knit polyester weave
-                    node.material.metalness = 0.02;
-                    node.material.emissive = new THREE.Color(0x222222);
-                    node.material.emissiveIntensity = 0.22;
-                    node.material.needsUpdate = true;
-                }
-            }
-        });
+        defender.rotation.y = Math.PI / 2 + cfg.inwardYaw * 0.2; // face the ball (+Z)
+        const anim = new CharacterAnimator(defender, gltf.animations, CharacterAnimator.WALL_POSES);
+        anim.setKit({ shirt: 0x1d4ed8, shorts: 0x1e293b, socks: 0x1d4ed8, boots: 0x111111 });
+        anim.setPose('idle');
+        anim.mixer.setTime(cfg.id * 0.7); // de-synchronise idle breathing
+        characterAnimators.push(anim);
+        wallAnimators.push(anim);
         wallGroup.add(defender);
         wallDefenders.push(defender);
     });
-});
-
+}
 // Ground Contact Shadows for each individual defender
 const defShadowGeo = new THREE.PlaneGeometry(1.05, 0.78);
 defShadowGeo.rotateX(-Math.PI / 2);
@@ -230,46 +205,33 @@ scene.add(strikerShadow);
 strikerGroup.position.set(0, 0, -7.0);
 scene.add(strikerGroup);
 
-const strikerPoseModels = {
-    idle: null,
-    run: null,
-    plant: null,
-    strike_instep: null,
-    strike_laces: null,
-    follow_through: null,
-    celebrate: null,
-    disbelief: null
-};
+const strikerPoseModels = {};
+let strikerAnimator = null;
 
-function setupStrikerPoseModel(gltf, poseKey) {
+charGltfLoader.load('assets/player.glb', (gltf) => {
     const model = gltf.scene;
-    model.scale.set(1.24, 1.24, 1.24);
-    model.traverse(node => {
-        if (node.isMesh) {
-            node.castShadow = true;
-            node.receiveShadow = true;
-            if (node.material) {
-                node.material.roughness = 0.35;
-                node.material.metalness = 0.04;
-                node.material.emissive = new THREE.Color(0x222222);
-                node.material.emissiveIntensity = 0.25;
-            }
-        }
-    });
-    model.visible = (poseKey === 'idle');
+    prepCharacterMaterials(model);
+    model.rotation.y = -Math.PI / 2; // MPFB export faces local -X; turn to face the goal (-Z)
     strikerGroup.add(model);
-    strikerPoseModels[poseKey] = model;
+    strikerAnimator = new CharacterAnimator(model, gltf.animations, CharacterAnimator.STRIKER_POSES);
+    strikerAnimator.setKit({ shirt: 0xdc2626, shorts: 0xffffff, socks: 0xdc2626, boots: 0x111111 });
+    strikerAnimator.setPose('idle');
+    characterAnimators.push(strikerAnimator);
+    window.strikerAnimator = strikerAnimator;
+    buildWall(gltf);
+    if (window.PlayerKinematics) {
+        // Route legacy pose switches into the mocap animator
+        const origSetStrikerPose = PlayerKinematics.setStrikerPose.bind(PlayerKinematics);
+        PlayerKinematics.setStrikerPose = function (k) { origSetStrikerPose(k); if (strikerAnimator) strikerAnimator.setPose(k); };
+        const origSetGkPose = PlayerKinematics.setGkPose.bind(PlayerKinematics);
+        PlayerKinematics.setGkPose = function (k) { origSetGkPose(k); if (gkAnimator) gkAnimator.setPose(k); };
+    }
+});
+
+function updateCharacterAnimators(dt) {
+    for (let i = 0; i < characterAnimators.length; i++) characterAnimators[i].update(dt);
 }
-
-charGltfLoader.load('assets/striker_idle.glb', (gltf) => setupStrikerPoseModel(gltf, 'idle'));
-charGltfLoader.load('assets/striker_run.glb', (gltf) => setupStrikerPoseModel(gltf, 'run'));
-charGltfLoader.load('assets/striker_plant.glb', (gltf) => setupStrikerPoseModel(gltf, 'plant'));
-charGltfLoader.load('assets/striker_strike_instep.glb', (gltf) => setupStrikerPoseModel(gltf, 'strike_instep'));
-charGltfLoader.load('assets/striker_strike_laces.glb', (gltf) => setupStrikerPoseModel(gltf, 'strike_laces'));
-charGltfLoader.load('assets/striker_follow_through.glb', (gltf) => setupStrikerPoseModel(gltf, 'follow_through'));
-charGltfLoader.load('assets/striker_celebrate.glb', (gltf) => setupStrikerPoseModel(gltf, 'celebrate'));
-charGltfLoader.load('assets/striker_disbelief.glb', (gltf) => setupStrikerPoseModel(gltf, 'disbelief'));
-
+window.characterAnimators = characterAnimators;
 window.strikerGroup = strikerGroup;
 window.strikerShadow = strikerShadow;
 window.strikerPoseModels = strikerPoseModels;

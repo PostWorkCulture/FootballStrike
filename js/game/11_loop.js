@@ -7,6 +7,7 @@ function updateSimulation(dt) {
     const time = clock.getElapsedTime();
 
     world.step(PHYSICS_STEP, dt, 8);
+    updateCharacterAnimators(dt);
 
     // Camera Flashbulbs Animation
     cameraFlashes.forEach(f => {
