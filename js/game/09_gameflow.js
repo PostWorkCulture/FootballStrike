@@ -426,8 +426,8 @@ window.resetBall = function() {
     }
 
     // Dynamic Camera Framing (Hero Sports Broadcast Angle - Elevated TV broadcast perspective)
-    camera.position.set(spotX * 0.65, 1.18, spotZ + 2.95);
-    camera.lookAt(0, 1.25, -20.0);
+    camera.position.set(spotX, 1.45, spotZ + 3.0); // first-person: striker's eye line behind the ball
+    camera.lookAt(0, -0.25, -20.0);
 
     const topNextBtn = document.getElementById('next-shot-btn');
     if (topNextBtn) topNextBtn.style.display = 'none';

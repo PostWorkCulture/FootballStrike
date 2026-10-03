@@ -210,7 +210,8 @@ strikerShadowGeo.rotateX(-Math.PI / 2);
 const strikerShadowMat = new THREE.MeshBasicMaterial({ map: softShadowTex, transparent: true, opacity: 0.75, depthWrite: false });
 const strikerShadow = new THREE.Mesh(strikerShadowGeo, strikerShadowMat);
 strikerShadow.position.set(0, 0.015, -7.0);
-scene.add(strikerShadow);
+// First-person shooting: striker body and shadow are not rendered.
+strikerShadow.visible = false;
 strikerGroup.position.set(0, 0, -7.0);
 scene.add(strikerGroup);
 
@@ -221,11 +222,10 @@ charGltfLoader.load('assets/player.glb', (gltf) => {
     const model = gltf.scene;
     prepCharacterMaterials(model);
     model.rotation.y = -Math.PI / 2; // MPFB export faces local -X; turn to face the goal (-Z)
-    strikerGroup.add(model);
+    // First-person: model is loaded for the wall clones only, never added to the scene.
     strikerAnimator = new CharacterAnimator(model, gltf.animations, CharacterAnimator.STRIKER_POSES);
     strikerAnimator.setKit({ shirt: 0xdc2626, shorts: 0xffffff, socks: 0xdc2626, boots: 0x111111 });
     strikerAnimator.setPose('idle');
-    characterAnimators.push(strikerAnimator);
     window.strikerAnimator = strikerAnimator;
     buildWall(gltf);
     if (window.PlayerKinematics) {

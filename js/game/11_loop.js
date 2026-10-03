@@ -268,7 +268,7 @@ function updateSimulation(dt) {
     // Subtle broadcast camera track: pan gently toward ball during flight
     if (ballInFlight && !slowMo) {
         const camLerpRate = dt * 1.2;
-        const targetLookY = 1.10 + (ballMesh.position.y - 1.10) * 0.25;
+        const targetLookY = -0.25 + (ballMesh.position.y + 0.25) * 0.25;
         const targetLookX = ballMesh.position.x * 0.15;
         camera.lookAt(
             camera.position.x * 0.05 + targetLookX * (1 - 0.05),
