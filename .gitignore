@@ -1,13 +1,8 @@
 node_modules/
+dist/
 *.log
 __pycache__/
-test_*.py
-verify_*.py
-capture_*.py
-render_*.py
-tools/
-get_kenney*.py
-test_ball*.js
+tools/verify/out/
 assets/kenney_sports/
 assets/Michelle.glb
 assets/Soldier.glb
@@ -17,9 +12,5 @@ assets/gk_vcolor_test.glb
 assets/gk_tex_baked.png
 assets/goalkeeper_3d*.glb
 assets/goalkeeper_3d*.jpg
-pose_*.py
-bake_aligned_*.py
-bake_projected_*.py
-create_pro_wall_defender.py
 showcase_player_3d.html
 fifa_*.json
