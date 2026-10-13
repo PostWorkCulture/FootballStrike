@@ -18,16 +18,16 @@ function createSoftShadowTex() {
 }
 const softShadowTex = createSoftShadowTex();
 
-// National Team & Club Kit Presets
+// National Team & Club Kit Presets (Rich broadcast fabric tones that never blow out under floodlights)
 const TEAM_PRESETS = {
-    france:    { name: 'FRANCE',    code: 'FRA', flag: 'assets/france.jpg',    shirt: 0x1e3a8a, shorts: 0xffffff, socks: 0xdc2626, gkShirt: 0xc6f432, starName: 'MBAPPE',     starNum: 10, skin: 0x8d5534, hair: 0x0f0f12 },
-    brazil:    { name: 'BRAZIL',    code: 'BRA', flag: 'assets/brazil.jpg',    shirt: 0xfacc15, shorts: 0x1d4ed8, socks: 0xffffff, gkShirt: 0x10b981, starName: 'VINICIUS',   starNum: 7,  skin: 0x7c4b2b, hair: 0x0f0f12 },
-    argentina: { name: 'ARGENTINA', code: 'ARG', flag: 'assets/argentina.jpg', shirt: 0x38bdf8, shorts: 0x0f172a, socks: 0xffffff, gkShirt: 0xef4444, starName: 'MESSI',      starNum: 10, skin: 0xd89c7a, hair: 0x23170f },
-    england:   { name: 'ENGLAND',   code: 'ENG', flag: 'assets/england.jpg',   shirt: 0xf8fafc, shorts: 0x1e3a8a, socks: 0xf8fafc, gkShirt: 0xf97316, starName: 'BELLINGHAM', starNum: 10, skin: 0x8d5534, hair: 0x0f0f12 },
-    spain:     { name: 'SPAIN',     code: 'ESP', flag: 'assets/spain.jpg',     shirt: 0xdc2626, shorts: 0x1e3a8a, socks: 0xdc2626, gkShirt: 0x38bdf8, starName: 'YAMAL',      starNum: 19, skin: 0x9c623e, hair: 0x12100e },
-    germany:   { name: 'GERMANY',   code: 'GER', flag: 'assets/germany.jpg',   shirt: 0xf1f5f9, shorts: 0x0f172a, socks: 0xf1f5f9, gkShirt: 0x22c55e, starName: 'MUSIALA',    starNum: 10, skin: 0xc68863, hair: 0x18120e },
-    portugal:  { name: 'PORTUGAL',  code: 'POR', flag: 'assets/portugal.jpg',  shirt: 0xb91c1c, shorts: 0x065f46, socks: 0xb91c1c, gkShirt: 0xfacc15, starName: 'RONALDO',    starNum: 7,  skin: 0xd2946e, hair: 0x14100d },
-    usa:       { name: 'USA',       code: 'USA', flag: 'assets/usa.jpg',       shirt: 0x1e293b, shorts: 0x1e293b, socks: 0xdc2626, gkShirt: 0xa855f7, starName: 'PULISIC',    starNum: 10, skin: 0xdca07c, hair: 0x382214 }
+    france:    { name: 'FRANCE',    code: 'FRA', flag: 'assets/france.jpg',    shirt: 0x1e3a8a, shorts: 0xe2e8f0, socks: 0xb91c1c, gkShirt: 0x0d9488, starName: 'MBAPPE',     starNum: 10, skin: 0x8d5534, hair: 0x0f0f12 },
+    brazil:    { name: 'BRAZIL',    code: 'BRA', flag: 'assets/brazil.jpg',    shirt: 0xd99b06, shorts: 0x1d4ed8, socks: 0xe2e8f0, gkShirt: 0x0d9488, starName: 'VINICIUS',   starNum: 7,  skin: 0x7c4b2b, hair: 0x0f0f12 },
+    argentina: { name: 'ARGENTINA', code: 'ARG', flag: 'assets/argentina.jpg', shirt: 0x0284c7, shorts: 0x0f172a, socks: 0xe2e8f0, gkShirt: 0xdc2626, starName: 'MESSI',      starNum: 10, skin: 0xd89c7a, hair: 0x23170f },
+    england:   { name: 'ENGLAND',   code: 'ENG', flag: 'assets/england.jpg',   shirt: 0xe2e8f0, shorts: 0x1e3a8a, socks: 0xe2e8f0, gkShirt: 0xd97706, starName: 'BELLINGHAM', starNum: 10, skin: 0x8d5534, hair: 0x0f0f12 },
+    spain:     { name: 'SPAIN',     code: 'ESP', flag: 'assets/spain.jpg',     shirt: 0xb91c1c, shorts: 0x1e3a8a, socks: 0xb91c1c, gkShirt: 0x0284c7, starName: 'YAMAL',      starNum: 19, skin: 0x9c623e, hair: 0x12100e },
+    germany:   { name: 'GERMANY',   code: 'GER', flag: 'assets/germany.jpg',   shirt: 0xe2e8f0, shorts: 0x0f172a, socks: 0xe2e8f0, gkShirt: 0x15803d, starName: 'MUSIALA',    starNum: 10, skin: 0xc68863, hair: 0x18120e },
+    portugal:  { name: 'PORTUGAL',  code: 'POR', flag: 'assets/portugal.jpg',  shirt: 0x991b1b, shorts: 0x065f46, socks: 0x991b1b, gkShirt: 0xd97706, starName: 'RONALDO',    starNum: 7,  skin: 0xd2946e, hair: 0x14100d },
+    usa:       { name: 'USA',       code: 'USA', flag: 'assets/usa.jpg',       shirt: 0x1e293b, shorts: 0x1e293b, socks: 0xb91c1c, gkShirt: 0x7e22ce, starName: 'PULISIC',    starNum: 10, skin: 0xdca07c, hair: 0x382214 }
 };
 window.TEAM_PRESETS = TEAM_PRESETS;
 window.selectedHomeTeam = 'france';
@@ -67,17 +67,18 @@ const characterAnimators = [];
 function prepCharacterMaterials(model) {
     model.traverse(n => {
         if (!n.isMesh) return;
+        n.castShadow = true;
+        n.receiveShadow = false; // Prevent directional shadow-map self-shadowing staircase acne on curved limbs
         const mats = Array.isArray(n.material) ? n.material : [n.material];
         mats.forEach(m => {
             if (!m || !m.name) return;
             if (m.name.indexOf('kit_shirt') === 0 || m.name.indexOf('kit_shorts') === 0 || m.name.indexOf('kit_socks') === 0) {
-                m.normalMap = jerseyNormalTex; m.normalScale = new THREE.Vector2(0.55, 0.55); m.roughness = 0.62;
+                m.normalMap = null; m.roughness = 0.64; m.metalness = 0.02;
             } else if (m.name.indexOf('gk_gloves') === 0) {
-                m.normalMap = glovesNormalTex; m.normalScale = new THREE.Vector2(0.65, 0.65); m.roughness = 0.38;
+                m.normalMap = null; m.roughness = 0.45;
             } else if (/Human\.body/i.test(m.name)) {
-                // Only target Human.body skin; preserve hair (short02/short04), eyes (low-poly), and eyebrows
                 m.map = null; m.aoMap = null; m.normalMap = null; m.roughnessMap = null; m.metalnessMap = null;
-                m.color.setRGB(0.82, 0.58, 0.44); m.roughness = 0.52; m.metalness = 0;
+                m.color.setRGB(0.76, 0.52, 0.38); m.roughness = 0.58; m.metalness = 0;
                 m.transparent = false; m.opacity = 1; m.depthWrite = true; m.alphaTest = 0; m.needsUpdate = true;
             }
         });
@@ -96,12 +97,12 @@ charGltfLoader.load('assets/goalkeeper.glb', (gltf) => {
         shorts: 0x111827,
         socks: away.gkShirt,
         boots: 0x0f172a,
-        gloves: 0xf8fafc,
-        skin: 0xd69a72,
+        gloves: 0xe2e8f0,
+        skin: 0xc68863,
         hair: 0x2c1b10,
         number: 1,
         name: 'KEEPER',
-        numberColor: '#0f172a'
+        numberColor: '#ffffff'
     });
     gkAnimator.setPose('idle');
     characterAnimators.push(gkAnimator);
@@ -120,16 +121,17 @@ function setGkPose(poseKey) {
 window.setGkPose = setGkPose;
 window.gkPoseModels = gkPoseModels;
 
-// Ground Contact Shadow under Goalkeeper
+// Ground Contact Shadow under Goalkeeper (Grounded flush at y = 0.004)
 const gkShadowGeo = new THREE.PlaneGeometry(1.85, 1.10);
 gkShadowGeo.rotateX(-Math.PI / 2);
-const gkShadowMat = new THREE.MeshBasicMaterial({ map: softShadowTex, transparent: true, opacity: 0.75, depthWrite: false });
+const gkShadowMat = new THREE.MeshBasicMaterial({ map: softShadowTex, transparent: true, opacity: 0.78, depthWrite: false });
 const gkShadow = new THREE.Mesh(gkShadowGeo, gkShadowMat);
-gkShadow.position.set(0, 0.015, -19.6);
+gkShadow.position.set(0, 0.004, -19.6);
 scene.add(gkShadow);
 
-gkGroup.position.set(0, 0, -19.6);
+gkGroup.position.set(0, 0.0, -19.6);
 scene.add(gkGroup);
+window.keeperGroup = gkGroup;
 
 // Cannon Physics Collider for Goalkeeper
 const gkBodyCollider = new CANNON.Body({
@@ -142,17 +144,32 @@ const gkBodyCollider = new CANNON.Body({
 gkBodyCollider.collisionResponse = 0;
 world.addBody(gkBodyCollider);
 
-// Instantiation: Defensive Wall (Decoupled Individual Jumper Mechanics)
+// Instantiation: Defensive Wall & Grounded Free-Kick Training Mannequins
 const wallGroup = new THREE.Group();
-wallGroup.position.set(0, 0, -13.5);
+wallGroup.position.set(0, 0.0, -13.5);
 const wallDefenders = [];
 const wallShadows = [];
+const wallBaseDisks = [];
 
 const wallDefenderConfigs = [
     { id: 0, xOffset: -0.85, scale: 1.22, delay: 0.055, maxH: 0.50, duration: 0.65, lean: -0.14, inwardYaw: 0.09, skin: 0xd89c7a, hair: 0x1a120b, num: 4 },
     { id: 1, xOffset: 0.00,  scale: 1.26, delay: 0.000, maxH: 0.64, duration: 0.72, lean: -0.18, inwardYaw: 0.00, skin: 0x8d5534, hair: 0x0f0f12, num: 5 },
     { id: 2, xOffset: 0.85,  scale: 1.24, delay: 0.080, maxH: 0.54, duration: 0.68, lean: -0.15, inwardYaw: -0.09, skin: 0xc6865c, hair: 0x3b2314, num: 6 }
 ];
+
+// Weighted Grounded Rubber Base Disk + Spring Spike Collars for each Wall Defender / Mannequin
+const mannequinBaseGeo = new THREE.CylinderGeometry(0.28, 0.30, 0.03, 24);
+const mannequinBaseMat = new THREE.MeshStandardMaterial({
+    color: 0x111827,
+    roughness: 0.85,
+    metalness: 0.15
+});
+const mannequinRimGeo = new THREE.CylinderGeometry(0.29, 0.295, 0.012, 24);
+const mannequinRimMat = new THREE.MeshStandardMaterial({
+    color: 0xd97706,
+    roughness: 0.45,
+    metalness: 0.35
+});
 
 const wallAnimators = [];
 function buildWall(gltf) {
@@ -161,10 +178,11 @@ function buildWall(gltf) {
         const defender = THREE.SkeletonUtils.clone(gltf.scene);
         prepCharacterMaterials(defender);
         defender.scale.setScalar(cfg.scale / 1.24);
+        defender.position.y = -0.022;
         defender.rotation.y = Math.PI / 2; // MPFB faces local -X; turn to face the ball (+Z)
         const pivot = new THREE.Group();
         pivot.add(defender);
-        pivot.position.set(cfg.xOffset, 0, 0);
+        pivot.position.set(cfg.xOffset, 0.0, 0);
         pivot.rotation.y = cfg.inwardYaw * 0.2;
         const anim = new CharacterAnimator(defender, gltf.animations, CharacterAnimator.WALL_POSES, 'wall');
         anim.setKit({
@@ -177,31 +195,86 @@ function buildWall(gltf) {
             number: cfg.num
         });
         anim.setPose('idle');
-        anim.mixer.setTime(0.1 + cfg.id * 0.65);
+        anim.mixer.setTime(0.08 + cfg.id * 0.04);
         characterAnimators.push(anim);
         wallAnimators.push(anim);
         wallGroup.add(pivot);
         wallDefenders.push(pivot);
     });
+
+    // Standalone Grounded Blender 3D Training Mannequins placed on the outer training flanks (no overlap with human wall!)
+    const trainingPropsGroup = new THREE.Group();
+    scene.add(trainingPropsGroup);
+    window.trainingPropsGroup = trainingPropsGroup;
+    charGltfLoader.load('assets/models/training_mannequin.glb', (mGltf) => {
+        if (!mGltf || !mGltf.scene) return;
+        // Refine mannequin materials to matte pro-training slate & amber (no neon blowout)
+        mGltf.scene.traverse(n => {
+            if (n.isMesh && n.material) {
+                n.castShadow = true;
+                n.receiveShadow = true;
+                if (n.material.color && n.material.color.r > 0.7 && n.material.color.g > 0.6) {
+                    n.material = n.material.clone();
+                    n.material.color.setHex(0xd97706);
+                    n.material.roughness = 0.68;
+                    n.material.metalness = 0.12;
+                }
+            }
+        });
+        [
+            { x: -5.2, z: -15.5, rotY: 0.22 },
+            { x:  5.2, z: -15.5, rotY: -0.22 }
+        ].forEach(pos => {
+            const prop = mGltf.scene.clone();
+            prop.position.set(pos.x, 0.0, pos.z);
+            prop.rotation.y = pos.rotY;
+            trainingPropsGroup.add(prop);
+
+            const propShadow = new THREE.Mesh(
+                defShadowGeo,
+                new THREE.MeshBasicMaterial({ map: softShadowTex, transparent: true, opacity: 0.75, depthWrite: false })
+            );
+            propShadow.position.set(pos.x, 0.004, pos.z);
+            trainingPropsGroup.add(propShadow);
+        });
+    }, undefined, () => {});
 }
 window.wallAnimators = wallAnimators;
 
-// Ground Contact Shadows for each individual defender
-const defShadowGeo = new THREE.PlaneGeometry(1.05, 0.78);
+// Ground Contact Shadows (y = 0.004) & Dual-Boot Cleat AO Pads for each human wall defender
+const defShadowGeo = new THREE.PlaneGeometry(1.10, 0.82);
 defShadowGeo.rotateX(-Math.PI / 2);
+const bootAoGeo = new THREE.PlaneGeometry(0.42, 0.52);
+bootAoGeo.rotateX(-Math.PI / 2);
 
 wallDefenderConfigs.forEach((cfg) => {
+    const shadowGroup = new THREE.Group();
     const shadowMat = new THREE.MeshBasicMaterial({
         map: softShadowTex,
         transparent: true,
-        opacity: 0.75,
+        opacity: 0.85,
         depthWrite: false
     });
     const defShadow = new THREE.Mesh(defShadowGeo, shadowMat);
-    defShadow.position.set(cfg.xOffset, 0.015, 0);
-    wallGroup.add(defShadow);
+    shadowGroup.add(defShadow);
+
+    // Left & right boot contact AO shadows right under the cleats
+    [-0.14, 0.14].forEach(bx => {
+        const bootAo = new THREE.Mesh(bootAoGeo, new THREE.MeshBasicMaterial({
+            map: softShadowTex,
+            transparent: true,
+            opacity: 0.92,
+            depthWrite: false
+        }));
+        bootAo.position.set(bx, 0.001, 0.02);
+        shadowGroup.add(bootAo);
+    });
+
+    shadowGroup.position.set(cfg.xOffset, 0.004, 0);
+    wallGroup.add(shadowGroup);
     wallShadows.push(defShadow);
 });
+window.wallBaseDisks = wallBaseDisks;
 
 const wallBodies = [];
 for (let i = 0; i < 3; i++) {
@@ -213,12 +286,7 @@ for (let i = 0; i < 3; i++) {
         material: postPhysMat
     });
     dummyBody.addEventListener('collide', () => {
-        const isPenalty = (currentGameMode === 'duel' && currentRound === 1) ||
-                          (currentGameMode === 'keeper') ||
-                          (currentGameMode === 'practice' && practiceSpots[practiceSettings.spotIndex] && practiceSpots[practiceSettings.spotIndex].isPenalty);
-        const isWallActive = (currentGameMode === 'duel' && !isPenalty) ||
-                             (currentGameMode === 'practice' && practiceSettings.wall && !isPenalty);
-        if (!isWallActive) return;
+        if (!wallGroup.visible) return;
 
         if (ballInFlight && !ballBody.scored && !ballBody.saved && !ballBody.blocked) {
             ballBody.blocked = true;
@@ -227,7 +295,7 @@ for (let i = 0; i < 3; i++) {
             updateHUD();
             sfx.playPost();
             sfx.playGasp();
-            finishShot('miss', 'BLOCKED', '', '#ef4444');
+            finishShot('miss', 'BLOCKED BY WALL', '', '#ef4444');
         }
     });
     world.addBody(dummyBody);
@@ -242,6 +310,7 @@ window.wallShadows = wallShadows;
 window.wallBodies = wallBodies;
 window.wallDefenderConfigs = wallDefenderConfigs;
 window.gkGroup = gkGroup;
+window.keeperGroup = gkGroup;
 window.gkShadow = gkShadow;
 window.gkSpine = gkSpine;
 window.gkMesh = gkMesh;
@@ -251,15 +320,25 @@ window.gkBodyCollider = gkBodyCollider;
 // 8B. HIGH-FIDELITY ATHLETIC 3D STRIKER RIG (OVER-THE-SHOULDER 3RD PERSON)
 // ============================================================================
 const strikerGroup = new THREE.Group();
-const strikerShadowGeo = new THREE.PlaneGeometry(1.20, 0.90);
+const strikerShadowGeo = new THREE.PlaneGeometry(1.25, 0.95);
 strikerShadowGeo.rotateX(-Math.PI / 2);
-const strikerShadowMat = new THREE.MeshBasicMaterial({ map: softShadowTex, transparent: true, opacity: 0.75, depthWrite: false });
+const strikerShadowMat = new THREE.MeshBasicMaterial({ map: softShadowTex, transparent: true, opacity: 0.88, depthWrite: false });
 const strikerShadow = new THREE.Mesh(strikerShadowGeo, strikerShadowMat);
-strikerShadow.position.set(-1.15, 0.015, -7.85);
+[-0.18, 0.18].forEach(bx => {
+    const sBootAo = new THREE.Mesh(bootAoGeo, new THREE.MeshBasicMaterial({
+        map: softShadowTex,
+        transparent: true,
+        opacity: 0.95,
+        depthWrite: false
+    }));
+    sBootAo.position.set(bx, 0.001, 0.0);
+    strikerShadow.add(sBootAo);
+});
+strikerShadow.position.set(-1.15, 0.004, -7.85);
 strikerShadow.visible = true;
 scene.add(strikerShadow);
 
-strikerGroup.position.set(-1.15, 0, -7.85);
+strikerGroup.position.set(-1.15, 0.0, -7.85);
 scene.add(strikerGroup);
 
 const strikerPoseModels = {
@@ -318,10 +397,53 @@ charGltfLoader.load('assets/player.glb', (gltf) => {
         const origResetWall = PlayerKinematics.resetWall.bind(PlayerKinematics);
         PlayerKinematics.resetWall = function (sx, sz, allowW) {
             origResetWall(sx, sz, allowW);
+            wallShadows.forEach(s => { if (s) s.position.y = 0.004; });
             wallAnimators.forEach((a, idx) => {
                 a.setPose('idle');
-                a.mixer.setTime(0.1 + idx * 0.65);
+                a.mixer.setTime(0.08 + idx * 0.04);
             });
+        };
+        const origResetStriker = PlayerKinematics.resetStriker.bind(PlayerKinematics);
+        PlayerKinematics.resetStriker = function (sx, sz, isPen, mode) {
+            origResetStriker(sx, sz, isPen, mode);
+            if (strikerGroup) strikerGroup.position.y = 0.0;
+            if (strikerShadow) strikerShadow.position.y = 0.004;
+        };
+        const origResetGoalkeeper = PlayerKinematics.resetGoalkeeper.bind(PlayerKinematics);
+        PlayerKinematics.resetGoalkeeper = function (sx, allowG, allowW) {
+            origResetGoalkeeper(sx, allowG, allowW);
+            if (gkGroup && allowG) gkGroup.position.y = 0.0;
+            if (gkShadow && allowG) gkShadow.position.y = 0.004;
+        };
+        const origUpdateStriker = PlayerKinematics.updateStriker.bind(PlayerKinematics);
+        PlayerKinematics.updateStriker = function (dt, time) {
+            origUpdateStriker(dt, time);
+            if (strikerShadow) strikerShadow.position.y = 0.004;
+            if (PlayerKinematics.strikerState.phase === 'idle' && strikerGroup) {
+                strikerGroup.position.y = 0.0;
+            }
+        };
+        const origUpdateGoalkeeper = PlayerKinematics.updateGoalkeeper.bind(PlayerKinematics);
+        PlayerKinematics.updateGoalkeeper = function (dt, time, bMesh, bFlight) {
+            origUpdateGoalkeeper(dt, time, bMesh, bFlight);
+            if (gkShadow && gkGroup.visible) gkShadow.position.y = 0.004;
+            if (!PlayerKinematics.gkState.diving && gkGroup && gkGroup.visible) {
+                gkGroup.position.y = 0.0;
+            }
+        };
+        const origUpdateWall = PlayerKinematics.updateWall.bind(PlayerKinematics);
+        PlayerKinematics.updateWall = function (dt, time, allowW) {
+            origUpdateWall(dt, time, allowW);
+            wallShadows.forEach(s => { if (s) s.position.y = 0.004; });
+            if (!PlayerKinematics.wallState.jumping) {
+                wallDefenders.forEach(def => {
+                    if (def) {
+                        def.position.y = 0.0;
+                        def.rotation.x = 0.0;
+                        def.rotation.z = 0.0;
+                    }
+                });
+            }
         };
     }
 });

@@ -219,6 +219,7 @@ function createTargetMeshAndBody(c) {
         mesh: group,
         body,
         config: c,
+        cables: [cableL, cableR],
         active: true,
         isMoving: c.isMoving,
         isGolden: isGolden,
@@ -229,9 +230,11 @@ function createTargetMeshAndBody(c) {
 
 function spawnSingleTarget(slotId) {
     const config = targetSlotConfigs[slotId];
+    if (!config) return null;
     const targetObj = createTargetMeshAndBody(config);
     targetObj.slotId = slotId;
     activeTargets.push(targetObj);
+    return targetObj;
 }
 
 function spawnRandomTarget() {
@@ -242,6 +245,16 @@ function spawnRandomTarget() {
         spawnSingleTarget(nextSlot);
     }
 }
+
+function spawnTrainingDrillTargets() {
+    activeTargets.forEach(t => { scene.remove(t.mesh); world.removeBody(t.body); });
+    activeTargets = [];
+    // Spawn all 4 Corner Bullseye Targets (TL, TR, BL, BR) + 1 Center Golden Bullseye
+    [0, 1, 2, 3, 4].forEach(slotId => spawnSingleTarget(slotId));
+}
+window.spawnTrainingDrillTargets = spawnTrainingDrillTargets;
+window.spawnTargetsWave = spawnTrainingDrillTargets;
+window.targets = activeTargets;
 
 // Pooled Particle FX (zero allocation during gameplay)
 const FX_POOL_SIZE = 128;

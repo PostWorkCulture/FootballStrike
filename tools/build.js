@@ -15,7 +15,11 @@ function walk(dir, out = []) {
     return out;
 }
 
-const codeFiles = [path.join(root, 'index.html'), ...walk(path.join(root, 'js')).filter(f => f.endsWith('.js'))];
+const codeFiles = [
+    path.join(root, 'index.html'),
+    ...(fs.existsSync(path.join(root, 'progress.html')) ? [path.join(root, 'progress.html')] : []),
+    ...walk(path.join(root, 'js')).filter(f => f.endsWith('.js'))
+];
 const referenced = new Set();
 for (const f of codeFiles) {
     const src = fs.readFileSync(f, 'utf8');
@@ -32,7 +36,19 @@ function put(src, rel) {
 }
 
 put(path.join(root, 'index.html'), 'index.html');
+if (fs.existsSync(path.join(root, 'progress.html'))) {
+    put(path.join(root, 'progress.html'), 'progress.html');
+}
 for (const f of walk(path.join(root, 'js'))) put(f, path.relative(root, f));
+
+// Include all verify/out gallery screenshots so progress.html works on GitHub Pages
+const verifyOutDir = path.join(root, 'tools', 'verify', 'out');
+if (fs.existsSync(verifyOutDir)) {
+    for (const f of walk(verifyOutDir).filter(p => /\.(?:png|jpg|jpeg|webp)$/i.test(p))) {
+        put(f, path.relative(root, f));
+    }
+}
+
 const missing = [];
 for (const rel of referenced) {
     const src = path.join(root, 'assets', rel);
@@ -42,3 +58,4 @@ fs.writeFileSync(path.join(dist, '.nojekyll'), '');
 
 console.log(`dist/ built: ${files} files, ${(bytes / 1048576).toFixed(1)} MB (${referenced.size} assets referenced)`);
 if (missing.length) { console.error('Missing assets:', missing.join(', ')); process.exit(1); }
+

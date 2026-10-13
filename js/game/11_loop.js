@@ -4,6 +4,13 @@
 const clock = new THREE.Clock();
 
 function updateSimulation(dt) {
+    if (window.__diagCam) {
+        camera.fov = window.__diagCam.fov;
+        camera.updateProjectionMatrix();
+        camera.position.set(window.__diagCam.pos[0], window.__diagCam.pos[1], window.__diagCam.pos[2]);
+        camera.lookAt(window.__diagCam.look[0], window.__diagCam.look[1], window.__diagCam.look[2]);
+        return;
+    }
     const time = clock.getElapsedTime();
 
     world.step(PHYSICS_STEP, dt, 8);
@@ -41,9 +48,26 @@ function updateSimulation(dt) {
         }
     }
 
-    // Subtle animated perimeter sponsor LED hoardings
-    if (adTex) {
-        adTex.offset.x = (adTex.offset.x + dt * 0.035) % 1.0;
+    // Static Perimeter Hoarding (scrolling disabled per user requirement; calls no-op hook if present)
+    if (typeof window.updateAdBoard === 'function') {
+        window.updateAdBoard(dt);
+    }
+
+    // Bind Studio Control Panel material & camera overrides on first frame and when active
+    if (!window.__studioMaterialsInitialized && window.applyStudioSettings) {
+        window.__studioMaterialsInitialized = true;
+        window.applyStudioSettings(window.studioSettings, false);
+    }
+    if (window.__studioCameraTouched && window.studioSettings && !ballInFlight && !window.__overrideCamera) {
+        const s = window.studioSettings;
+        if (Math.abs(camera.fov - s.camFov) > 0.01) {
+            camera.fov = s.camFov;
+            camera.updateProjectionMatrix();
+        }
+        const bx = ballMesh ? ballMesh.position.x : spotX;
+        const bz = ballMesh ? ballMesh.position.z : spotZ;
+        camera.position.set(bx + s.camOffsetX, s.camHeight, bz + s.camDist);
+        camera.lookAt(0, s.camLookY, -20.0);
     }
 
     // FIFA-Grade Player Kinematics (Striker Curved Approach, Wall Defending & Goalkeeper Parabolic Leap)
@@ -51,12 +75,13 @@ function updateSimulation(dt) {
         PlayerKinematics.updateStriker(dt, time);
     }
 
-    if (currentGameMode === 'duel' || currentGameMode === 'keeper' || currentGameMode === 'practice') {
+    if (currentGameMode === 'duel' || currentGameMode === 'keeper' || currentGameMode === 'practice' || currentGameMode === 'training') {
         const isPenalty = ((currentGameMode === 'duel' || currentGameMode === 'keeper') && currentRound === 1) ||
+                          (currentGameMode === 'training' && spotZ <= -8.0) ||
                           (currentGameMode === 'practice' && practiceSpots[practiceSettings.spotIndex] && practiceSpots[practiceSettings.spotIndex].isPenalty);
-        const allowWall = ((currentGameMode === 'duel' || currentGameMode === 'keeper') && !isPenalty) ||
+        const allowWall = ((currentGameMode === 'duel' || currentGameMode === 'keeper' || currentGameMode === 'training') && !isPenalty) ||
                           (currentGameMode === 'practice' && practiceSettings.wall && !isPenalty);
-        const allowGk = (currentGameMode === 'duel' || currentGameMode === 'keeper') ||
+        const allowGk = (currentGameMode === 'duel' || currentGameMode === 'keeper' || currentGameMode === 'training') ||
                         (currentGameMode === 'practice' && practiceSettings.keeper);
 
         if (window.PlayerKinematics) {
@@ -99,8 +124,8 @@ function updateSimulation(dt) {
         }
     }
 
-    // Moving Sweeper Bullseye Oscillation (Target Race Mode)
-    if (currentGameMode === 'targets') {
+    // Moving Sweeper Bullseye Oscillation (Target Race & Training Mode)
+    if (currentGameMode === 'targets' || currentGameMode === 'training') {
         const diff = (typeof difficultySettings !== 'undefined' && difficultySettings[currentDifficulty])
             ? difficultySettings[currentDifficulty]
             : { targetSpeedMult: 1.0 };
@@ -138,8 +163,8 @@ function updateSimulation(dt) {
         }
     }
 
-    // Target Race & Practice: Bullseye Collision Detection
-    const checkTargets = currentGameMode === 'targets' || (currentGameMode === 'practice' && practiceSettings.targets);
+    // Target Race, Training & Practice: Bullseye Collision Detection
+    const checkTargets = currentGameMode === 'targets' || currentGameMode === 'training' || (currentGameMode === 'practice' && practiceSettings.targets);
     if (checkTargets && ballInFlight) {
         for (let i = 0; i < activeTargets.length; i++) {
             const t = activeTargets[i];
@@ -191,7 +216,7 @@ function updateSimulation(dt) {
                 ballBody.velocity.x *= 0.5;
                 if (currentGameMode === 'targets') {
                     setTimeout(() => { if (currentGameMode === 'targets' && isPlaying) resetBall(); }, 700);
-                } else if (currentGameMode === 'practice') {
+                } else if (currentGameMode === 'practice' || currentGameMode === 'training') {
                     ballBody.scored = true;
                     finishShot('goal', bannerTxt, '', '#38bdf8');
                 }
@@ -287,8 +312,8 @@ function updateSimulation(dt) {
         }
     }
 
-    // Duel, Keeper & Practice: Check Off-Target Miss (passed goal plane without scoring or save)
-    if ((currentGameMode === 'duel' || currentGameMode === 'keeper' || currentGameMode === 'practice') && ballInFlight && !ballBody.inNet && !ballBody.saved && !ballBody.scored) {
+    // Duel, Keeper, Training & Practice: Check Off-Target Miss (passed goal plane without scoring or save)
+    if ((currentGameMode === 'duel' || currentGameMode === 'keeper' || currentGameMode === 'practice' || currentGameMode === 'training') && ballInFlight && !ballBody.inNet && !ballBody.saved && !ballBody.scored) {
         if (ballBody.position.z < -20.05 || (ballBody.position.z < -13.0 && ballBody.velocity.length() < 0.25 && ballBody.position.y <= ballRadius + 0.05)) {
             if (currentGameMode === 'keeper') {
                 sfx.playCheer();
@@ -318,7 +343,7 @@ function updateSimulation(dt) {
             ballBody.angularVelocity.set(0, 0, 0);
             if (ballInFlight) {
                 ballInFlight = false;
-                if (!shotComplete && (currentGameMode === 'duel' || currentGameMode === 'practice')) {
+                if (!shotComplete && (currentGameMode === 'duel' || currentGameMode === 'practice' || currentGameMode === 'training')) {
                     finishShot(ballBody.scored ? 'goal' : 'miss', ballBody.scored ? 'GOAL' : 'OFF TARGET', '', ballBody.scored ? '#22c55e' : '#ef4444');
                 } else if (!shotComplete && currentGameMode === 'keeper') {
                     finishShot('goal', 'STOPPED!', '', '#22c55e');

@@ -1,10 +1,42 @@
 // ============================================================================
 // 6. HIGH-POLY 3D MATCH BALL, TACTICAL SPOT RING & AERODYNAMIC RIBBON TRAIL
 // ============================================================================
-const ballGeo = new THREE.SphereGeometry(ballRadius, 32, 32);
+const BALL_RADIUS = (typeof ballRadius !== 'undefined') ? ballRadius : 0.22;
+const ballGeo = new THREE.SphereGeometry(BALL_RADIUS, 32, 32);
 
 const ballNormalTex = pbrTextureLoader.load('assets/ball_normal_pbr.png');
 const ballDiffuseRaw = pbrTextureLoader.load('assets/ball_texture_pbr.png');
+
+function createDimpleBumpMap() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, 512, 256);
+
+    // Micro-textured aerodynamic golf-dimple / grip pattern across match ball panels
+    const step = 8;
+    for (let y = 4; y < 256; y += step) {
+        const rowShift = ((y / step) % 2) * (step * 0.5);
+        for (let x = 4; x < 512; x += step) {
+            const cx = (x + rowShift) % 512;
+            const grad = ctx.createRadialGradient(cx, y, 0.5, cx, y, 2.8);
+            grad.addColorStop(0, '#383838');
+            grad.addColorStop(0.7, '#686868');
+            grad.addColorStop(1, '#808080');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(cx, y, 2.8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    const bumpTex = new THREE.CanvasTexture(canvas);
+    bumpTex.wrapS = THREE.RepeatWrapping;
+    bumpTex.wrapT = THREE.RepeatWrapping;
+    bumpTex.repeat.set(3, 3);
+    return bumpTex;
+}
 
 function createProMatchBallTexture() {
     const canvas = document.createElement('canvas');
@@ -77,16 +109,36 @@ function createProMatchBallTexture() {
     return tex;
 }
 
+const ballBumpTex = createDimpleBumpMap();
 const ballMat = new THREE.MeshStandardMaterial({
     map: createProMatchBallTexture(),
     normalMap: ballNormalTex,
     normalScale: new THREE.Vector2(0.95, 0.95),
+    bumpMap: ballBumpTex,
+    bumpScale: 0.008,
     roughness: 0.30,
     metalness: 0.08
 });
+window.ballMat = ballMat;
+
+// Load Nano Banana 2K match ball texture onto ballMat while keeping procedural canvas as instant fallback
+pbrTextureLoader.load('assets/textures/match_ball_2k.jpg', (loadedTex) => {
+    loadedTex.anisotropy = 8;
+    if (THREE.SRGBColorSpace) {
+        loadedTex.colorSpace = THREE.SRGBColorSpace;
+    } else if (THREE.sRGBEncoding) {
+        loadedTex.encoding = THREE.sRGBEncoding;
+    }
+    loadedTex.needsUpdate = true;
+    ballMat.map = loadedTex;
+    ballMat.needsUpdate = true;
+});
 
 const ballMesh = new THREE.Mesh(ballGeo, ballMat);
+ballMesh.position.set(0, BALL_RADIUS, -9.0);
 ballMesh.castShadow = true;
+const ball = ballMesh;
+window.ball = ball;
 scene.add(ballMesh);
 
 // Ground Contact Shadow & Tactical Aim Ring beneath Ball
@@ -108,7 +160,7 @@ const ballGroundShadow = new THREE.Mesh(
     ballShadowGeo,
     new THREE.MeshBasicMaterial({ map: createBallShadowTex(), transparent: true, opacity: 0.85, depthWrite: false })
 );
-ballGroundShadow.position.set(0, 0.014, -9.0);
+ballGroundShadow.position.set(0, 0.005, -9.0);
 scene.add(ballGroundShadow);
 
 // Glowing Spot Halo Ring (Football Strike / FIFA style)
@@ -220,7 +272,8 @@ window.updateBallRibbon = function(posOrX, activeOrY, zArg, activeArg) {
 
 const ballBody = new CANNON.Body({
     mass: 0.38,
-    shape: new CANNON.Sphere(ballRadius),
+    shape: new CANNON.Sphere(BALL_RADIUS),
+    position: new CANNON.Vec3(0, BALL_RADIUS, -9.0),
     material: ballPhysMat,
     linearDamping: 0.008,
     angularDamping: 0.04
@@ -233,6 +286,7 @@ ballBody.preStep = function (h) {
 };
 window.ballBody = ballBody;
 window.ballMesh = ballMesh;
-window.ballRadius = ballRadius;
+window.ballRadius = BALL_RADIUS;
+window.BALL_RADIUS = BALL_RADIUS;
 window.ballGroundShadow = ballGroundShadow;
 window.ballSpotRing = ballSpotRing;

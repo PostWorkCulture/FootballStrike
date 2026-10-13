@@ -93,6 +93,121 @@
             this.kitMaterials = {};
             this.skinMaterials = [];
             this.hairMaterials = [];
+            this.garmentUniforms = {
+                uSkinColor:   { value: new THREE.Color(0xc68863) },
+                uShirtColor:  { value: new THREE.Color(0x1e3a8a) },
+                uShortsColor: { value: new THREE.Color(0xe2e8f0) },
+                uSocksColor:  { value: new THREE.Color(0xb91c1c) },
+                uGlovesColor: { value: new THREE.Color(0xe2e8f0) },
+                uIsGk:        { value: this.role === 'gk' ? 1.0 : 0.0 },
+                uWireframe:   { value: root.__wireframeMode ? 1.0 : 0.0 }
+            };
+
+            const attachGarmentShader = (mat, uniforms) => {
+                mat.onBeforeCompile = (shader) => {
+                    shader.uniforms.uSkinColor   = uniforms.uSkinColor;
+                    shader.uniforms.uShirtColor  = uniforms.uShirtColor;
+                    shader.uniforms.uShortsColor = uniforms.uShortsColor;
+                    shader.uniforms.uSocksColor  = uniforms.uSocksColor;
+                    shader.uniforms.uGlovesColor = uniforms.uGlovesColor;
+                    shader.uniforms.uIsGk        = uniforms.uIsGk;
+                    shader.uniforms.uWireframe   = uniforms.uWireframe;
+
+                    shader.vertexShader = 'varying vec3 vRestPos;\n' + shader.vertexShader.replace(
+                        '#include <begin_vertex>',
+                        '#include <begin_vertex>\nvRestPos = position;'
+                    );
+
+                    shader.fragmentShader = `
+                        uniform vec3 uSkinColor;
+                        uniform vec3 uShirtColor;
+                        uniform vec3 uShortsColor;
+                        uniform vec3 uSocksColor;
+                        uniform vec3 uGlovesColor;
+                        uniform float uIsGk;
+                        uniform float uWireframe;
+                        varying vec3 vRestPos;
+                    \n` + shader.fragmentShader.replace(
+                        '#include <color_fragment>',
+                        `#include <color_fragment>
+                        // Rest-pose normalized coordinates [-1..+1]:
+                        //   y  = vertical height (-1.0 feet to +1.0 head)
+                        //   ax = abs(vRestPos.x) is LATERAL width (0 at spine, ~0.24 at hips/thighs, >0.26 out on arms/hands)
+                        //   rz = vRestPos.z is FRONT/BACK depth
+                        float ry = vRestPos.y;
+                        float ax = abs(vRestPos.x);
+                        float rz = vRestPos.z;
+
+                        // Start with smooth skin tone
+                        vec3 gCol = uSkinColor;
+
+                        // 1. Football Socks: below knee (ry < -0.505) with crisp 2cm turnover cuff stripe
+                        float sockMask = 1.0 - smoothstep(-0.512, -0.500, ry);
+                        float sockStripe = smoothstep(-0.542, -0.535, ry) * (1.0 - smoothstep(-0.520, -0.513, ry));
+                        vec3 sockCol = mix(uSocksColor, uShortsColor, sockStripe * 0.88);
+                        gCol = mix(gCol, sockCol, sockMask);
+
+                        // 2. Authentic Football Shorts: lower-mid thigh (ry > -0.315) up into waist (ry < 0.080), confined to pelvis/thighs (ax < 0.255)
+                        float inTorsoOrThighX = 1.0 - smoothstep(0.248, 0.262, ax);
+                        float shortsBot = smoothstep(-0.320, -0.308, ry);
+                        float shortsTop = 1.0 - smoothstep(0.070, 0.085, ry);
+                        float shortsMask = shortsBot * shortsTop * inTorsoOrThighX;
+                        float shortsHemStripe = smoothstep(-0.318, -0.311, ry) * (1.0 - smoothstep(-0.298, -0.291, ry));
+                        vec3 shortsFinal = mix(uShortsColor, uShirtColor, shortsHemStripe * 0.65);
+                        gCol = mix(gCol, shortsFinal, shortsMask);
+
+                        // 3. Jersey Shirt & Sleeves: overlaps shorts waistband seamlessly at ry = 0.030 (flat 360-degree horizontal hem, zero bare skin!)
+                        float collarCurve = 0.722 - 0.032 * (1.0 - clamp(ax / 0.110, 0.0, 1.0)) * step(0.0, rz + 0.04);
+                        float belowCollar = 1.0 - smoothstep(collarCurve - 0.006, collarCurve + 0.006, ry);
+                        float aboveWaist = smoothstep(0.025, 0.035, ry);
+
+                        // Separate torso (ax < 0.235) from arms (ax >= 0.235):
+                        // Torso is 100% covered from ry = 0.030 to collarCurve; arms have short-sleeve bicep cuffs (or long sleeves for GK)
+                        float isArm = smoothstep(0.220, 0.250, ax);
+                        float armDist = (ax - 0.210) * 0.85 + max(0.0, 0.560 - ry) * 0.55;
+                        float sleeveLimit = mix(0.185, 0.435, uIsGk);
+                        float armSleeveMask = 1.0 - smoothstep(sleeveLimit - 0.008, sleeveLimit + 0.008, armDist);
+                        float inGarmentSpan = mix(1.0, armSleeveMask, isArm);
+                        float shirtMask = aboveWaist * belowCollar * inGarmentSpan;
+
+                        // Subtle collar & sleeve cuff trim + jersey bottom hem drop-shadow on shorts
+                        float cuffBand = smoothstep(sleeveLimit - 0.024, sleeveLimit - 0.016, armDist) * armSleeveMask * isArm;
+                        float collarBand = smoothstep(collarCurve - 0.022, collarCurve - 0.015, ry) * belowCollar * (1.0 - step(0.13, ax));
+                        vec3 shirtFinal = mix(uShirtColor, uShortsColor, clamp(cuffBand + collarBand, 0.0, 1.0) * 0.75);
+                        float hemDropShadow = smoothstep(0.014, 0.025, ry) * (1.0 - smoothstep(0.025, 0.038, ry)) * inTorsoOrThighX;
+                        gCol = mix(gCol, gCol * 0.78, hemDropShadow);
+                        gCol = mix(gCol, shirtFinal, shirtMask);
+
+                        // 4. Goalkeeper Gloves on hands/wrists when uIsGk > 0.5
+                        if (uIsGk > 0.5) {
+                            float gloveMask = smoothstep(0.420, 0.438, armDist) * isArm * step(-0.08, ry) * (1.0 - step(0.65, ry));
+                            gCol = mix(gCol, uGlovesColor, gloveMask);
+                        }
+
+                        // 5. Micro-fabric knit weave & athletic fold shading (matches 2K Nano Banana close-up render)
+                        float isFabric = clamp(shirtMask + shortsMask + sockMask, 0.0, 1.0);
+                        float weaveX = sin(vRestPos.x * 520.0 + vRestPos.z * 240.0);
+                        float weaveY = cos(vRestPos.y * 640.0 - vRestPos.z * 180.0);
+                        float microWeave = 1.0 + (weaveX * weaveY) * 0.045 * isFabric;
+                        float foldShade = 1.0 + 0.06 * sin(vRestPos.y * 38.0 + vRestPos.x * 24.0) * isFabric;
+                        gCol *= microWeave * foldShade;
+
+                        // 6. High-contrast topology lattice in diagnostic wireframe mode so high-poly skinned characters show crisp mesh lines
+                        if (uWireframe > 0.5) {
+                            float gx = abs(fract(vRestPos.x * 22.0) - 0.5);
+                            float gy = abs(fract(vRestPos.y * 28.0) - 0.5);
+                            float gz = abs(fract((vRestPos.x + vRestPos.y + vRestPos.z) * 18.0) - 0.5);
+                            float lineMask = 1.0 - smoothstep(0.05, 0.16, min(min(gx, gy), gz));
+                            gCol = mix(vec3(0.03, 0.06, 0.12), mix(gCol, vec3(0.22, 0.88, 1.0), 0.72), lineMask);
+                        }
+
+                        diffuseColor.rgb = gCol;
+                        `
+                    );
+                };
+                mat.customProgramCacheKey = () => 'garment_v7_' + this.role;
+                mat.needsUpdate = true;
+            };
 
             model.traverse(n => {
                 if (n.isBone && n.name) {
@@ -100,40 +215,54 @@
                 }
                 if (!n.isMesh) return;
                 n.castShadow = true;
-                n.receiveShadow = true;
+                // Disable self-shadow reception on SkinnedMesh to prevent directional shadow-map staircase acne on limbs
+                n.receiveShadow = false;
                 n.frustumCulled = false; // skinned bounds don't follow animation
                 const mats = Array.isArray(n.material) ? n.material : [n.material];
                 mats.forEach((m, i) => {
                     if (!m) return;
                     const key = KIT_SLOTS.find(k => m.name && m.name.indexOf(k) === 0);
-                    if (key) {
+                    if (key === 'kit_boots') {
                         const inst = m.clone();
+                        inst.roughness = 0.36;
+                        inst.metalness = 0.12;
+                        inst.wireframe = !!root.__wireframeMode;
                         if (Array.isArray(n.material)) n.material[i] = inst; else n.material = inst;
                         (this.kitMaterials[key] || (this.kitMaterials[key] = [])).push(inst);
-                    } else if (m.name && /Human\.body/i.test(m.name)) {
+                    } else if (key || (m.name && /Human\.body/i.test(m.name))) {
                         const inst = m.clone();
-                        inst.map = null; inst.aoMap = null;
-                        inst.transparent = false; inst.opacity = 1; inst.depthWrite = true;
-                        inst.roughness = 0.52; inst.metalness = 0.0;
+                        inst.map = null; inst.aoMap = null; inst.normalMap = null; inst.roughnessMap = null; inst.metalnessMap = null;
+                        inst.transparent = false; inst.opacity = 1; inst.depthWrite = true; inst.alphaTest = 0;
+                        inst.roughness = 0.64; inst.metalness = 0.02;
+                        inst.color.setHex(0xffffff);
+                        inst.wireframe = !!root.__wireframeMode;
+                        attachGarmentShader(inst, this.garmentUniforms);
                         if (Array.isArray(n.material)) n.material[i] = inst; else n.material = inst;
-                        this.skinMaterials.push(inst);
+                        if (key) {
+                            (this.kitMaterials[key] || (this.kitMaterials[key] = [])).push(inst);
+                        } else {
+                            this.skinMaterials.push(inst);
+                        }
                     } else if (m.name && /short02|short04|hair/i.test(m.name)) {
                         const inst = m.clone();
                         inst.map = null;
                         inst.transparent = false; inst.opacity = 1; inst.depthWrite = true;
                         inst.roughness = 0.78; inst.metalness = 0.04;
                         inst.color.setHex(0x18120e);
+                        inst.wireframe = !!root.__wireframeMode;
                         if (Array.isArray(n.material)) n.material[i] = inst; else n.material = inst;
                         this.hairMaterials.push(inst);
                     } else if (m.name && /eyebrow|eyelash/i.test(m.name)) {
                         const inst = m.clone();
                         inst.transparent = true; inst.alphaTest = 0.22; inst.depthWrite = false;
                         inst.color.setHex(0x18120e);
+                        inst.wireframe = !!root.__wireframeMode;
                         if (Array.isArray(n.material)) n.material[i] = inst; else n.material = inst;
                         this.hairMaterials.push(inst);
                     } else if (m.name && /low-poly|eye/i.test(m.name)) {
                         m.transparent = false; m.opacity = 1; m.depthWrite = true;
                         m.roughness = 0.15; m.color.setHex(0xffffff);
+                        m.wireframe = !!root.__wireframeMode;
                         m.needsUpdate = true;
                     }
                 });
@@ -147,15 +276,14 @@
          * { shirt, shorts, socks, boots, gloves, skin, hair, number, name, numberColor }
          */
         setKit(kit) {
-            const map = { shirt: 'kit_shirt', shorts: 'kit_shorts', socks: 'kit_socks', boots: 'kit_boots', gloves: 'gk_gloves' };
-            for (const k in map) {
-                if (kit[k] !== undefined) {
-                    const list = this.kitMaterials[map[k]];
-                    if (list) list.forEach(m => { m.color.setHex(kit[k]); m.needsUpdate = true; });
-                }
-            }
-            if (kit.skin !== undefined) {
-                this.skinMaterials.forEach(m => { m.color.setHex(kit.skin); m.needsUpdate = true; });
+            if (kit.shirt !== undefined)  this.garmentUniforms.uShirtColor.value.setHex(kit.shirt);
+            if (kit.shorts !== undefined) this.garmentUniforms.uShortsColor.value.setHex(kit.shorts);
+            if (kit.socks !== undefined)  this.garmentUniforms.uSocksColor.value.setHex(kit.socks);
+            if (kit.gloves !== undefined) this.garmentUniforms.uGlovesColor.value.setHex(kit.gloves);
+            if (kit.skin !== undefined)   this.garmentUniforms.uSkinColor.value.setHex(kit.skin);
+
+            if (kit.boots !== undefined && this.kitMaterials.kit_boots) {
+                this.kitMaterials.kit_boots.forEach(m => { m.color.setHex(kit.boots); m.needsUpdate = true; });
             }
             if (kit.hair !== undefined) {
                 this.hairMaterials.forEach(m => { m.color.setHex(kit.hair); m.needsUpdate = true; });
@@ -227,10 +355,10 @@
                     applyBoneEulerDelta(b.LeftLeg, 0.36 + pulse * 1.5, 0, 0);
                     applyBoneEulerDelta(b.RightLeg, 0.36 + pulse * 1.5, 0, 0);
                     applyBoneEulerDelta(b.Spine, 0.12, 0, 0);
-                    applyBoneEulerDelta(b.LeftArm, 0.28, 0, 0.38);
-                    applyBoneEulerDelta(b.RightArm, 0.28, 0, -0.38);
-                    applyBoneEulerDelta(b.LeftForeArm, 0.68, 0, 0);
-                    applyBoneEulerDelta(b.RightForeArm, 0.68, 0, 0);
+                    applyBoneEulerDelta(b.LeftArm, 0.22, 0, 0.28);
+                    applyBoneEulerDelta(b.RightArm, 0.22, 0, -0.28);
+                    applyBoneEulerDelta(b.LeftForeArm, 0.52, 0, 0);
+                    applyBoneEulerDelta(b.RightForeArm, 0.52, 0, 0);
                 } else if (pose === 'dive_right' || pose === 'dive_left' || pose === 'low_sweep_right' || pose === 'low_sweep_left') {
                     // Full outstretched fingertip save reach overhead
                     applyBoneEulerDelta(b.LeftArm, 0.35, 0, 0.82);
@@ -240,25 +368,29 @@
                 }
             } else if (this.role === 'wall') {
                 if (pose === 'idle') {
-                    // Shoulder-width defensive wall stance + hands protecting groin
-                    applyBoneEulerDelta(b.LeftUpLeg, -0.06, 0, -0.15);
-                    applyBoneEulerDelta(b.RightUpLeg, -0.06, 0, 0.15);
-                    applyBoneEulerDelta(b.LeftLeg, 0.12, 0, 0);
-                    applyBoneEulerDelta(b.RightLeg, 0.12, 0, 0);
-                    applyBoneEulerDelta(b.LeftArm, 0.22, 0, -0.18);
-                    applyBoneEulerDelta(b.RightArm, 0.22, 0, 0.18);
-                    applyBoneEulerDelta(b.LeftForeArm, 0.22, 0, -0.35);
-                    applyBoneEulerDelta(b.RightForeArm, 0.22, 0, 0.35);
+                    // In the raw idle clip, RightLeg is bent +0.42 rad more than LeftLeg (lifting the right boot ~4cm).
+                    // Extend RightLeg (-0.38) and lower RightUpLeg (+0.18) so BOTH boots plant 100% flush on Y = 0!
+                    applyBoneEulerDelta(b.LeftUpLeg, -0.02, 0, -0.05);
+                    applyBoneEulerDelta(b.RightUpLeg, 0.18, 0, 0.05);
+                    applyBoneEulerDelta(b.LeftLeg, 0.04, 0, 0);
+                    applyBoneEulerDelta(b.RightLeg, -0.38, 0, 0);
+                    applyBoneEulerDelta(b.RightFoot, 0.16, 0, 0);
+
+                    // Authentic free-kick wall stance: upper arms tucked into torso, forearms angled inward across pelvis
+                    applyBoneEulerDelta(b.LeftArm, 0.04, 0.42, 0.14);
+                    applyBoneEulerDelta(b.RightArm, 0.04, -0.42, -0.14);
+                    applyBoneEulerDelta(b.LeftForeArm, 0.28, 0.38, -0.16);
+                    applyBoneEulerDelta(b.RightForeArm, 0.28, -0.38, 0.16);
                 } else if (pose === 'jump') {
-                    // Mid-air wall jump with tucked knees & groin protection
-                    applyBoneEulerDelta(b.LeftUpLeg, -0.25, 0, -0.12);
-                    applyBoneEulerDelta(b.RightUpLeg, -0.25, 0, 0.12);
-                    applyBoneEulerDelta(b.LeftLeg, 0.45, 0, 0);
-                    applyBoneEulerDelta(b.RightLeg, 0.45, 0, 0);
-                    applyBoneEulerDelta(b.LeftArm, 0.22, 0, -0.18);
-                    applyBoneEulerDelta(b.RightArm, 0.22, 0, 0.18);
-                    applyBoneEulerDelta(b.LeftForeArm, 0.22, 0, -0.35);
-                    applyBoneEulerDelta(b.RightForeArm, 0.22, 0, 0.35);
+                    // Mid-air wall jump with tucked knees & groin-guard arms
+                    applyBoneEulerDelta(b.LeftUpLeg, -0.24, 0, -0.08);
+                    applyBoneEulerDelta(b.RightUpLeg, -0.12, 0, 0.08);
+                    applyBoneEulerDelta(b.LeftLeg, 0.42, 0, 0);
+                    applyBoneEulerDelta(b.RightLeg, 0.12, 0, 0);
+                    applyBoneEulerDelta(b.LeftArm, 0.06, 0.42, 0.14);
+                    applyBoneEulerDelta(b.RightArm, 0.06, -0.42, -0.14);
+                    applyBoneEulerDelta(b.LeftForeArm, 0.30, 0.38, -0.16);
+                    applyBoneEulerDelta(b.RightForeArm, 0.30, -0.38, 0.16);
                 }
             } else if (this.role === 'striker') {
                 if (pose === 'idle') {

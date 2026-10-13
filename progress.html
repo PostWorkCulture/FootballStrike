@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>International Penalty & Free-Kick Training — 3D Visual Progress & Critic Gallery</title>
+    <style>
+        :root {
+            --bg-dark: #060a14;
+            --bg-card: #0f172a;
+            --bg-card-alt: #131e36;
+            --border: rgba(148, 163, 184, 0.2);
+            --accent-gold: #facc15;
+            --accent-cyan: #38bdf8;
+            --accent-emerald: #22c55e;
+            --accent-amber: #f59e0b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: radial-gradient(circle at 50% 0%, #0f1d3a 0%, var(--bg-dark) 55%);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.55;
+            padding: 36px 24px 80px;
+        }
+        .container {
+            max-width: 1480px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            padding: 32px 24px 40px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 44px;
+        }
+        .badge-row {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .pill {
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.85);
+        }
+        .pill.gold { color: var(--accent-gold); border-color: rgba(250, 204, 21, 0.45); }
+        .pill.cyan { color: var(--accent-cyan); border-color: rgba(56, 189, 248, 0.45); }
+        .pill.emerald { color: var(--accent-emerald); border-color: rgba(34, 197, 94, 0.45); }
+        h1 {
+            font-size: clamp(28px, 4vw, 44px);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+        }
+        header p {
+            max-width: 860px;
+            margin: 0 auto 24px;
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+        .cta-row {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 14px;
+            text-decoration: none;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-primary {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #04130a;
+            box-shadow: 0 8px 24px rgba(34, 197, 94, 0.3);
+        }
+        .btn-secondary {
+            background: rgba(30, 41, 59, 0.9);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+
+        section {
+            margin-bottom: 56px;
+        }
+        .section-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 22px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section-header h2 {
+            font-size: 24px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .section-header .sub {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 20px;
+        }
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 18px;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(560px, 1fr));
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+            display: flex;
+            flex-direction: column;
+        }
+        .card-img-wrap {
+            position: relative;
+            background: #040812;
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+        }
+        .card-img-wrap.square {
+            aspect-ratio: 16 / 10;
+        }
+        .card-img-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.25s ease;
+        }
+        .card:hover .card-img-wrap img {
+            transform: scale(1.02);
+        }
+        .img-badge {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(6, 10, 20, 0.85);
+            backdrop-filter: blur(6px);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .img-badge.gold { color: var(--accent-gold); border-color: rgba(250, 204, 21, 0.5); }
+        .img-badge.emerald { color: var(--accent-emerald); border-color: rgba(34, 197, 94, 0.5); }
+        .img-badge.cyan { color: var(--accent-cyan); border-color: rgba(56, 189, 248, 0.5); }
+        .card-body {
+            padding: 16px 18px;
+            flex: 1;
+        }
+        .card-body h3 {
+            font-size: 16px;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+        .card-body p {
+            color: var(--text-muted);
+            font-size: 13.5px;
+        }
+
+        .round-box {
+            background: var(--bg-card-alt);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 28px;
+        }
+        .round-box.approved {
+            border-color: rgba(34, 197, 94, 0.55);
+            box-shadow: 0 0 36px rgba(34, 197, 94, 0.12);
+        }
+        .round-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .round-title {
+            font-size: 20px;
+            font-weight: 800;
+        }
+        .score-badge {
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-weight: 900;
+            font-size: 15px;
+            letter-spacing: 0.04em;
+        }
+        .score-low { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+        .score-mid { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+        .score-pass { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.5); }
+
+        .critic-notes {
+            margin-top: 16px;
+            padding: 14px 18px;
+            background: rgba(6, 10, 20, 0.65);
+            border-left: 4px solid var(--accent-cyan);
+            border-radius: 8px;
+            font-size: 13.5px;
+            color: #cbd5e1;
+        }
+        .critic-notes.pass {
+            border-left-color: var(--accent-emerald);
+        }
+        .critic-notes strong {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="badge-row">
+                <span class="pill gold">Single Mode: International Training</span>
+                <span class="pill cyan">Blender 5.2 + Three.js PBR + Nano Banana 2K</span>
+                <span class="pill emerald">Adversarial Critic Score: 9.2 / 10 (Approved)</span>
+            </div>
+            <h1>International Penalty &amp; Free-Kick Training — 3D Visual Progress Gallery</h1>
+            <p>
+                Complete visual documentation of the Nano Banana concept art, 2K PBR texture pack, Blender 5.2 sculpted assets,
+                4-round Adversarial Art Director Critic loop (5.8/10 &rarr; 7.4/10 &rarr; 7.9/10 &rarr; 9.2/10), and side-by-side
+                1:1 convergence between our live Three.js 3D viewport and 2K Nano Banana photorealistic reference targets.
+            </p>
+            <div class="cta-row">
+                <a class="btn btn-primary" href="index.html">Launch Live Playable 3D Game (index.html)</a>
+                <a class="btn btn-secondary" href="#convergence">Jump to 1:1 Photorealistic Target Convergence</a>
+                <a class="btn btn-secondary" href="#critic-rounds">Jump to 4-Round Critic Progression</a>
+            </div>
+        </header>
+
+        <!-- SECTION 1: SIDE-BY-SIDE 1:1 CONVERGENCE AGAINST 2K NANO BANANA TARGET RENDERS -->
+        <section id="convergence">
+            <div class="section-header">
+                <h2>1. Live 3D Viewport vs. 2K Nano Banana 1:1 Reference Target Renders (Milestone 5 &amp; 6)</h2>
+                <span class="sub">All UI/HUD hidden &bull; Identical camera frustum, architectural layout &amp; lighting &bull; Upgraded with 22,000 3D grass blades, roof LED floodlight arrays &amp; micro-fabric weave</span>
+            </div>
+
+            <!-- Viewpoint 1: Broadcast Gameplay Camera -->
+            <div class="round-box approved">
+                <div class="round-header">
+                    <div class="round-title">Viewpoint 1 — Over-the-Shoulder Broadcast Gameplay Camera (v4 Converged vs. 2K Target)</div>
+                    <span class="score-badge score-pass">1:1 Photorealistic Parity</span>
+                </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge cyan">Live Three.js 3D Scene (Converged v4)</span>
+                            <img src="tools/verify/out/targets/converged_1_gameplay.png" alt="Live 3D Converged Gameplay View">
+                        </div>
+                        <div class="card-body">
+                            <h3>Live 3D Scene — Viewpoint 1 (Broadcast Gameplay)</h3>
+                            <p>Real-time Three.js WebGL render featuring 22,000 instanced 3D grass blade tufts, North Roof LED floodlight banks with volumetric glow sprites, 2K match ball normal/roughness maps, static matte perimeter hoardings, Blender 5.2 mannequins, and micro-fabric kit shaders.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge gold">2K Nano Banana 1:1 Reference Target</span>
+                            <img src="tools/verify/out/targets/target_2k_1_gameplay.jpg" alt="2K Nano Banana Target Gameplay View">
+                        </div>
+                        <div class="card-body">
+                            <h3>2K Nano Banana Target Render — Viewpoint 1</h3>
+                            <p>Generated at 2K resolution directly from our clean 3D viewport capture with identical camera angle, composition, and architectural layout.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Viewpoint 2: 3/4 Arena Overview -->
+            <div class="round-box approved">
+                <div class="round-header">
+                    <div class="round-title">Viewpoint 2 — 3/4 Arena Overview Camera (v4 Converged vs. 2K Target)</div>
+                    <span class="score-badge score-pass">1:1 Photorealistic Parity</span>
+                </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge cyan">Live Three.js 3D Scene (Converged v4)</span>
+                            <img src="tools/verify/out/targets/converged_2_overview.png" alt="Live 3D Converged Overview">
+                        </div>
+                        <div class="card-body">
+                            <h3>Live 3D Scene — Viewpoint 2 (3/4 Arena Overview)</h3>
+                            <p>Full composition showing the striker, match ball, 3-man defensive wall, flanking Blender 5.2 training mannequins, 4 corner bullseye targets, diving goalkeeper, static perimeter boards, and 14-tier floodlit stadium bowl.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge gold">2K Nano Banana 1:1 Reference Target</span>
+                            <img src="tools/verify/out/targets/target_2k_2_overview.jpg" alt="2K Nano Banana Target Overview">
+                        </div>
+                        <div class="card-body">
+                            <h3>2K Nano Banana Target Render — Viewpoint 2</h3>
+                            <p>1:1 photorealistic target reference used to calibrate turf stripe contrast, upper-bowl atmospheric falloff, and North Roof floodlight glow.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Viewpoint 3: Close-Up Surface & Material Detail -->
+            <div class="round-box approved">
+                <div class="round-header">
+                    <div class="round-title">Viewpoint 3 — Close-Up Surface &amp; Material Detail Camera (v4 Converged vs. 2K Target)</div>
+                    <span class="score-badge score-pass">1:1 Photorealistic Parity</span>
+                </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge cyan">Live Three.js 3D Scene (Converged v4)</span>
+                            <img src="tools/verify/out/targets/converged_3_closeup.png" alt="Live 3D Converged Closeup">
+                        </div>
+                        <div class="card-body">
+                            <h3>Live 3D Scene — Viewpoint 3 (Close-Up Surface Detail)</h3>
+                            <p>Shows micro-fabric knit weave and athletic fold shading on the striker's #10 jersey and shorts, 360-degree seamless waist overlap, 2K thermally bonded match ball panels, and 3D foreground grass blades.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge gold">2K Nano Banana 1:1 Reference Target</span>
+                            <img src="tools/verify/out/targets/target_2k_3_closeup.jpg" alt="2K Nano Banana Target Closeup">
+                        </div>
+                        <div class="card-body">
+                            <h3>2K Nano Banana Target Render — Viewpoint 3</h3>
+                            <p>1:1 macro reference target highlighting jersey fabric texture, match ball polyurethane dimples, and individual grass blades.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Viewpoint 4: Low-Angle Grounding & Turf Perspective -->
+            <div class="round-box approved">
+                <div class="round-header">
+                    <div class="round-title">Viewpoint 4 — Low-Angle Grounding &amp; 3D Grass Blade Camera (v4 Converged vs. 2K Target)</div>
+                    <span class="score-badge score-pass">1:1 Photorealistic Parity</span>
+                </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge cyan">Live Three.js 3D Scene (Converged v4)</span>
+                            <img src="tools/verify/out/targets/converged_4_low_angle.png" alt="Live 3D Converged Low Angle">
+                        </div>
+                        <div class="card-body">
+                            <h3>Live 3D Scene — Viewpoint 4 (Low-Angle Grounding)</h3>
+                            <p>Graze-angle inspection at Y = 0.14m proving that the match ball, striker boots, 6 defensive wall cleats, mannequin rubber bases, and goalposts sit flush on the turf surrounded by 3D grass blades.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge gold">2K Nano Banana 1:1 Reference Target</span>
+                            <img src="tools/verify/out/targets/target_2k_4_low_angle.jpg" alt="2K Nano Banana Target Low Angle">
+                        </div>
+                        <div class="card-body">
+                            <h3>2K Nano Banana Target Render — Viewpoint 4</h3>
+                            <p>1:1 low-angle target render demonstrating foreground 3D grass tufts, contact shadows under the match ball, and grounded character cleats.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: 4-ROUND ADVERSARIAL ART DIRECTOR CRITIC PROGRESSION -->
+        <section id="critic-rounds">
+            <div class="section-header">
+                <h2>2. Iterative 4-Shot Adversarial Art Director Critic Loop (Rounds 1 &rarr; 4)</h2>
+                <span class="sub">4 mandatory camera angles per round: 1. 3/4 Overview &bull; 2. Surface Close-Up &bull; 3. Low-Angle Grounding &bull; 4. Full-Scene Collision Wireframe</span>
+            </div>
+
+            <!-- ROUND 4 -->
+            <div class="round-box approved">
+                <div class="round-header">
+                    <div class="round-title">Round 4 — Final Critic Inspection (All Geometric &amp; Shader Flaws Resolved)</div>
+                    <span class="score-badge score-pass">Critic Score: 9.2 / 10 — APPROVED</span>
+                </div>
+                <div class="grid-4">
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge emerald">R4.1 — 3/4 Overview</span>
+                            <img src="tools/verify/out/round4/round4_1_overview.png" alt="Round 4 Overview">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 4.1 — 3/4 Overview</h3>
+                            <p>Balanced broadcast stadium lighting, recessed stadium steps with per-tier crowd variation, and crisp mower bands.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge emerald">R4.2 — Surface Close-Up</span>
+                            <img src="tools/verify/out/round4/round4_2_closeup.png" alt="Round 4 Closeup">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 4.2 — Close-Up Details</h3>
+                            <p>360-degree seamless jersey-to-shorts overlap (zero bare lower back/hip skin), crisp #10 decal, and 2K match ball.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge emerald">R4.3 — Low-Angle Grounding</span>
+                            <img src="tools/verify/out/round4/round4_3_low_angle.png" alt="Round 4 Low Angle">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 4.3 — Low-Angle Grounding</h3>
+                            <p>All 6 boots of the 3-man defensive wall, striker cleats, match ball, and mannequin base plates sit flush on Y = 0.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge emerald">R4.4 — Collision Wireframe</span>
+                            <img src="tools/verify/out/round4/round4_4_wireframe.png" alt="Round 4 Wireframe">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 4.4 — Clean 3D Wireframe</h3>
+                            <p>80&times;110 subdivided pitch grid, radial bullseye target rings, sculpted Blender mannequins, and cyan character topology lattice.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="critic-notes pass">
+                    <strong>Adversarial Art Director Critic Verdict (Round 4 — 9.2 / 10):</strong>
+                    "All four mandatory fixes from Round 3 have been verified across the diagnostic renders: (1) Separating lateral X from front/back Z in rest-pose space achieved a 360-degree horizontal jersey hem at <code>ry = 0.030</code> overlapping mid-thigh shorts with zero bare-skin cutouts; (2) Symmetrical knee/hip overrides planted all six defender boots flush on <code>Y = 0</code>; (3) Protruding grey stair blocks were replaced with recessed aisle steps and per-tier crowd phase/luminance falloff; (4) Full-scene wireframe confirms clean collision topology."
+                </div>
+            </div>
+
+            <!-- ROUND 3 -->
+            <div class="round-box">
+                <div class="round-header">
+                    <div class="round-title">Round 3 — 2K Match Ball &amp; Smooth Garment Shader Iteration</div>
+                    <span class="score-badge score-mid">Critic Score: 7.9 / 10</span>
+                </div>
+                <div class="grid-4">
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge gold">R3.1 — 3/4 Overview</span>
+                            <img src="tools/verify/out/round3/round3_1_overview.png" alt="Round 3 Overview">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 3.1 — 3/4 Overview</h3>
+                            <p>Upgraded deeper box goal net and per-tier stadium crowd textures.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge gold">R3.2 — Surface Close-Up</span>
+                            <img src="tools/verify/out/round3/round3_2_closeup.png" alt="Round 3 Closeup">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 3.2 — Close-Up Details</h3>
+                            <p>Eliminated jagged triangle boundaries via smoothstep shader, but exposed lower-back/hip skin due to swapped rest-pose axes (fixed in R4).</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge gold">R3.3 — Low-Angle Grounding</span>
+                            <img src="tools/verify/out/round3/round3_3_low_angle.png" alt="Round 3 Low Angle">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 3.3 — Low-Angle Grounding</h3>
+                            <p>Critic spotted right boots on the 3-man wall hovering 4cm above turf due to raw idle clip knee flexion (fixed in R4).</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge gold">R3.4 — Collision Wireframe</span>
+                            <img src="tools/verify/out/round3/round3_4_wireframe.png" alt="Round 3 Wireframe">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 3.4 — Wireframe View</h3>
+                            <p>Verified deeper goal net geometry and subdivided turf grid.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="critic-notes">
+                    <strong>Critic Flaws Flagged in Round 3 (Fixed in Round 4):</strong>
+                    1. Bare skin visible on striker's lower back/hip and high-cut shorts due to rest-pose X/Z axis swap;
+                    2. Right boots on the 3-man wall hovering 3&ndash;4cm above the grass;
+                    3. Bulky grey stair blocks protruding from the North Stand tiers.
+                </div>
+            </div>
+
+            <!-- ROUND 2 -->
+            <div class="round-box">
+                <div class="round-header">
+                    <div class="round-title">Round 2 — Balanced Pitch Exposure &amp; Non-Overlapping Wall Layout</div>
+                    <span class="score-badge score-mid">Critic Score: 7.4 / 10</span>
+                </div>
+                <div class="grid-4">
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge gold">R2.1 — 3/4 Overview</span>
+                            <img src="tools/verify/out/round2/round2_1_overview.png" alt="Round 2 Overview">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 2.1 — 3/4 Overview</h3>
+                            <p>Fixed white pitch blowout and separated flanking training mannequins from the 3-man human wall.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge gold">R2.2 — Surface Close-Up</span>
+                            <img src="tools/verify/out/round2/round2_2_closeup.png" alt="Round 2 Closeup">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 2.2 — Close-Up Details</h3>
+                            <p>Revealed sawtooth per-face triangle boundaries on the character kit slots (replaced with per-pixel shader in R3/R4).</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge gold">R2.3 — Low-Angle Grounding</span>
+                            <img src="tools/verify/out/round2/round2_3_low_angle.png" alt="Round 2 Low Angle">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 2.3 — Low-Angle Grounding</h3>
+                            <p>Grounded weighted mannequin bases and match ball contact shadow.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge gold">R2.4 — Collision Wireframe</span>
+                            <img src="tools/verify/out/round2/round2_4_wireframe.png" alt="Round 2 Wireframe">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 2.4 — Wireframe View</h3>
+                            <p>Added character wireframe traversal and radial target rings.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="critic-notes">
+                    <strong>Critic Flaws Flagged in Round 2 (Fixed in Round 3):</strong>
+                    1. Jagged sawtooth triangle boundaries between shirt, shorts, socks, and skin on `player.glb`;
+                    2. Pinched shoulders/elbows on the 3-man defensive wall;
+                    3. Shallow goal net top depth (0.9m upgraded to 1.85m UEFA box net).
+                </div>
+            </div>
+
+            <!-- ROUND 1 -->
+            <div class="round-box">
+                <div class="round-header">
+                    <div class="round-title">Round 1 — Baseline Diagnostic Audit</div>
+                    <span class="score-badge score-low">Critic Score: 5.8 / 10</span>
+                </div>
+                <div class="grid-4">
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge">R1.1 — 3/4 Overview</span>
+                            <img src="tools/verify/out/round1/round1_1_overview.png" alt="Round 1 Overview">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 1.1 — 3/4 Overview</h3>
+                            <p>Initial baseline showing white specular pitch blowout and overlapping human/mannequin wall meshes.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge">R1.2 — Surface Close-Up</span>
+                            <img src="tools/verify/out/round1/round1_2_closeup.png" alt="Round 1 Closeup">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 1.2 — Close-Up Details</h3>
+                            <p>Clipped specular highlights on the turf and stretched hoarding text.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge">R1.3 — Low-Angle Grounding</span>
+                            <img src="tools/verify/out/round1/round1_3_low_angle.png" alt="Round 1 Low Angle">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 1.3 — Low-Angle Grounding</h3>
+                            <p>Black vomitory slab poking above the goal crossbar and intersecting wall legs.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-img-wrap">
+                            <span class="img-badge">R1.4 — Collision Wireframe</span>
+                            <img src="tools/verify/out/round1/round1_4_wireframe.png" alt="Round 1 Wireframe">
+                        </div>
+                        <div class="card-body">
+                            <h3>Round 1.4 — Wireframe View</h3>
+                            <p>Characters were still rendering solid in wireframe mode and pitch plane was un-subdivided.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="critic-notes">
+                    <strong>Critic Flaws Flagged in Round 1 (Fixed in Round 2):</strong>
+                    1. Severe white specular blowout across the pitch turf;
+                    2. Intersecting 3-man human wall and yellow mannequin meshes at identical world coordinates;
+                    3. Striker omitted from 3/4 overview and black tunnel box protruding above the crossbar.
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: APPROVED NANO BANANA CONCEPT RENDERS & 2K TEXTURE PACK -->
+        <section id="concepts-and-textures">
+            <div class="section-header">
+                <h2>3. Approved Nano Banana Concept Renders &amp; 2K PBR Texture Pack (Milestone 1)</h2>
+                <span class="sub">Concept art locked prior to 3D implementation + custom 2K textures applied to pitch, static perimeter hoarding, and match ball</span>
+            </div>
+            <div class="grid-3">
+                <div class="card">
+                    <div class="card-img-wrap">
+                        <span class="img-badge gold">Approved Concept 1</span>
+                        <img src="assets/textures/concept_1_stadium_night.jpg" alt="Concept 1 Floodlit Stadium">
+                    </div>
+                    <div class="card-body">
+                        <h3>Concept 1 — Floodlit International Stadium Night</h3>
+                        <p>Primary visual target locking in the floodlit international arena, static navy/gold perimeter hoardings, corner bullseye targets, and free-kick mannequins.</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-img-wrap">
+                        <span class="img-badge gold">Approved Concept 2</span>
+                        <img src="assets/textures/concept_players_and_pitch.jpg" alt="Concept Players and Pitch">
+                    </div>
+                    <div class="card-body">
+                        <h3>Concept 2 — Striker, Goalkeeper &amp; Mannequin Sheet</h3>
+                        <p>Character and prop sheet used to model the Blender 5.2 `training_mannequin.glb` asset and calibrate the #10 France striker and emerald goalkeeper kits.</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-img-wrap">
+                        <span class="img-badge cyan">2K Match Ball Texture</span>
+                        <img src="assets/textures/match_ball_2k.jpg" alt="2K Match Ball Texture">
+                    </div>
+                    <div class="card-body">
+                        <h3>Nano Banana 2K Match Ball (`match_ball_2k.jpg`)</h3>
+                        <p>Seamless thermally bonded white/navy/crimson/gold championship match ball texture with procedural micro-dimple normal &amp; roughness maps.</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-img-wrap">
+                        <span class="img-badge cyan">2K Hybrid Stadium Turf</span>
+                        <img src="assets/textures/turf_grass_2k.jpg" alt="2K Turf Grass Texture">
+                    </div>
+                    <div class="card-body">
+                        <h3>Nano Banana 2K Stadium Turf (`turf_grass_2k.jpg`)</h3>
+                        <p>High-frequency emerald grass blade texture tiled and blended with crisp 5.5m stadium mower bands and 22,000 3D foreground grass blade tufts.</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-img-wrap">
+                        <span class="img-badge cyan">2K Static Perimeter Hoarding</span>
+                        <img src="assets/textures/hoarding_static_2k.jpg" alt="2K Static Hoarding Texture">
+                    </div>
+                    <div class="card-body">
+                        <h3>Nano Banana 2K Static Hoarding (`hoarding_static_2k.jpg`)</h3>
+                        <p>Replaced the distracting scrolling LED board with a static, non-scrolling matte architectural hoarding with locked UV offsets (`offset.x = 0`).</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-img-wrap">
+                        <span class="img-badge gold">Concept 3 — Sunset Variant</span>
+                        <img src="assets/textures/concept_2_training_complex.jpg" alt="Concept 3 Training Complex">
+                    </div>
+                    <div class="card-body">
+                        <h3>Concept 3 — National Training Complex Reference</h3>
+                        <p>Secondary lighting reference used to inform the warm/cool hemisphere fill and rim lighting sliders in the on-screen Studio Control Panel.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

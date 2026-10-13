@@ -24,19 +24,19 @@ composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 const renderPass = new THREE.RenderPass(scene, camera);
 composer.addPass(renderPass);
 
-// Fine-Tuned UnrealBloomPass (Broadcast floodlight & specular radiance)
+// Fine-Tuned UnrealBloomPass (Broadcast floodlight & specular radiance without turf/kit blowout)
 const bloomPass = new THREE.UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.32,   // strength — balanced broadcast floodlight radiance without scene fogging
-    0.45,   // radius — sharp optical halo around luminaire banks
-    0.85    // threshold — highlights only floodlight emitters, metallic specular glints, and digital hoardings
+    0.14,   // strength — subtle halo on floodlight towers only
+    0.35,   // radius — sharp optical halo around luminaire banks
+    0.94    // threshold — prevents turf, white balls, and yellow kits from blooming
 );
 composer.addPass(bloomPass);
 
 // Soft Cinematic Broadcast Vignette (Subtle telephoto lens falloff)
 const vignettePass = new THREE.ShaderPass(THREE.VignetteShader);
-vignettePass.uniforms['offset'].value = 1.08;
-vignettePass.uniforms['darkness'].value = 1.10;
+vignettePass.uniforms['offset'].value = 1.04;
+vignettePass.uniforms['darkness'].value = 1.05;
 composer.addPass(vignettePass);
 
 // Sharp FXAA Anti-Aliasing (Synchronized to true backbuffer resolution)
@@ -61,48 +61,45 @@ world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, postPhysMat, { 
 world.addContactMaterial(new CANNON.ContactMaterial(ballPhysMat, netPhysMat, { friction: 0.98, restitution: 0.0 }));
 
 // Matchday Broadcast Stadium Floodlighting & Character Illumination
-const hemiLight = new THREE.HemisphereLight(0xf0f6ff, 0x1e3a1f, 0.72); // 5600K sky daylight tungsten with rich turf bounce
+const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x0d2614, 0.65);
 scene.add(hemiLight);
 
-const ambientLight = new THREE.AmbientLight(0x334155, 0.40); // Stadium bowl shadow fill
+const ambientLight = new THREE.AmbientLight(0x1e293b, 0.25);
 scene.add(ambientLight);
 
-// Dedicated High-Intensity Goalmouth Key Light (Brightens Goalkeeper Face, Kit & Gloves)
-const goalKeyLight = new THREE.DirectionalLight(0xfffbf0, 1.25);
-goalKeyLight.position.set(0, 18, -4);
-goalKeyLight.target.position.set(0, 1.2, -20);
+// Primary Stadium Directional Key Light with High-Resolution 2048x2048 Orthographic Shadow Frustum
+const goalKeyLight = new THREE.DirectionalLight(0xfff8eb, 1.35);
+goalKeyLight.position.set(16, 34, 10);
+goalKeyLight.target.position.set(0, 0.5, -14);
+goalKeyLight.castShadow = true;
+goalKeyLight.shadow.mapSize.width = 2048;
+goalKeyLight.shadow.mapSize.height = 2048;
+goalKeyLight.shadow.camera.near = 5;
+goalKeyLight.shadow.camera.far = 85;
+goalKeyLight.shadow.camera.left = -18;
+goalKeyLight.shadow.camera.right = 18;
+goalKeyLight.shadow.camera.top = 18;
+goalKeyLight.shadow.camera.bottom = -18;
+goalKeyLight.shadow.bias = -0.0004;
 scene.add(goalKeyLight);
 scene.add(goalKeyLight.target);
 
-// 4-Point Stadium Floodlight Mast Arrays (5600K Daylight Tungsten: 0xf1f6ff)
-// Cross-pitch lighting vectors producing realistic quad-shadows and specular gleams on aluminum posts & damp pitch
+// 4-Point Stadium Floodlight Mast Arrays (Subtle cross-pitch rim/fill without washing out turf shadows)
 const mastFloodlights = [];
-const createMastFloodlight = (x, y, z, tx, ty, tz, castShadow = true, intensity = 1.65) => {
-    const spot = new THREE.SpotLight(0xf1f6ff, intensity, 140, Math.PI / 3.4, 0.38, 1.05);
+const createMastFloodlight = (x, y, z, tx, ty, tz, castShadow = false, intensity = 0.26) => {
+    const spot = new THREE.SpotLight(0xe0f2fe, intensity, 140, Math.PI / 3.2, 0.55, 1.2);
     spot.position.set(x, y, z);
     spot.target.position.set(tx, ty, tz);
-    if (castShadow) {
-        spot.castShadow = true;
-        spot.shadow.mapSize.width = 1024;
-        spot.shadow.mapSize.height = 1024;
-        spot.shadow.bias = -0.0004;
-        spot.shadow.camera.near = 12;
-        spot.shadow.camera.far = 135;
-    }
+    spot.castShadow = false;
     scene.add(spot);
     scene.add(spot.target);
     mastFloodlights.push(spot);
     return spot;
 };
 
-// 4 Corner Mast Floodlights:
-// NW Mast Array (-38, 33, -44) -> Cross-pitch targeting pitch & goalmouth right channel
-const floodlightNW = createMastFloodlight(-38, 33, -44, 2.5, 0.4, -18, true, 1.55);
-// NE Mast Array (38, 33, -44) -> Cross-pitch targeting pitch & goalmouth left channel
-const floodlightNE = createMastFloodlight(38, 33, -44, -2.5, 0.4, -18, true, 1.55);
-// SW Mast Array (-38, 33, 26) -> Cross-pitch forward targeting penalty area and front of posts
-const floodlightSW = createMastFloodlight(-38, 33, 26, 2.0, 1.2, -19.5, true, 1.70);
-// SE Mast Array (38, 33, 26) -> Cross-pitch forward targeting penalty area and front of posts
-const floodlightSE = createMastFloodlight(38, 33, 26, -2.0, 1.2, -19.5, true, 1.70);
+const floodlightNW = createMastFloodlight(-38, 33, -44, 2.5, 0.4, -18, false, 0.24);
+const floodlightNE = createMastFloodlight(38, 33, -44, -2.5, 0.4, -18, false, 0.24);
+const floodlightSW = createMastFloodlight(-38, 33, 26, 2.0, 1.2, -19.5, false, 0.26);
+const floodlightSE = createMastFloodlight(38, 33, 26, -2.0, 1.2, -19.5, false, 0.26);
 window.mastFloodlights = mastFloodlights;
 
