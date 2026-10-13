@@ -1,41 +1,63 @@
 // ============================================================================
-// 3. PITCH, CHALK MARKINGS & GOAL FRAME
+// 3. PITCH, CHALK MARKINGS & TACTICAL SPOT RING
 // ============================================================================
 function generateTurf() {
     const canvas = document.createElement('canvas');
     canvas.width = 2048; canvas.height = 2048;
     const ctx = canvas.getContext('2d');
-    const base = ctx.createLinearGradient(0, 0, 0, 2048);
-    base.addColorStop(0, '#164e24'); base.addColorStop(1, '#0e3818');
-    ctx.fillStyle = base; ctx.fillRect(0, 0, 2048, 2048);
 
-    const stripeCount = 28;
-    const sH = 2048 / stripeCount;
-    for (let i = 0; i < stripeCount; i++) {
-        ctx.fillStyle = i % 2 === 0 ? 'rgba(38, 128, 54, 0.28)' : 'rgba(10, 48, 18, 0.22)';
-        ctx.fillRect(0, i * sH, 2048, sH);
+    // Rich UEFA/FIFA stadium hybrid grass base
+    const base = ctx.createLinearGradient(0, 0, 0, 2048);
+    base.addColorStop(0, '#195c27');
+    base.addColorStop(0.5, '#155122');
+    base.addColorStop(1, '#11431b');
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, 2048, 2048);
+
+    // Wide horizontal mower bands (creates crisp 5.5m stadium bands)
+    const hBands = 16;
+    const bandH = 2048 / hBands;
+    for (let i = 0; i < hBands; i++) {
+        ctx.fillStyle = i % 2 === 0 ? 'rgba(52, 168, 74, 0.22)' : 'rgba(8, 38, 14, 0.20)';
+        ctx.fillRect(0, i * bandH, 2048, bandH);
     }
+
+    // Subtle longitudinal mower lanes leading the eye toward the goalmouth
+    const vBands = 12;
+    const bandW = 2048 / vBands;
+    for (let j = 0; j < vBands; j++) {
+        ctx.fillStyle = j % 2 === 0 ? 'rgba(64, 185, 86, 0.08)' : 'rgba(6, 32, 12, 0.08)';
+        ctx.fillRect(j * bandW, 0, bandW, 2048);
+    }
+
+    // Fine organic grass blade micro-grain
     const idata = ctx.getImageData(0, 0, 2048, 2048);
     const d = idata.data;
     for (let i = 0; i < d.length; i += 4) {
-        const n = (Math.random() - 0.5) * 16;
-        d[i] = Math.min(255, Math.max(0, d[i] + n));
-        d[i+1] = Math.min(255, Math.max(0, d[i+1] + n * 1.3));
-        d[i+2] = Math.min(255, Math.max(0, d[i+2] + n));
+        const n = (Math.random() - 0.5) * 14;
+        d[i] = Math.min(255, Math.max(0, d[i] + n * 0.8));
+        d[i + 1] = Math.min(255, Math.max(0, d[i + 1] + n * 1.25));
+        d[i + 2] = Math.min(255, Math.max(0, d[i + 2] + n * 0.7));
     }
     ctx.putImageData(idata, 0, 0);
 
-    ctx.lineWidth = 1.35;
-    for (let b = 0; b < 12000; b++) {
+    // Directional grass blades catching floodlights
+    ctx.lineWidth = 1.4;
+    for (let b = 0; b < 14000; b++) {
         const bx = Math.random() * 2048, by = Math.random() * 2048;
         const len = 3 + Math.random() * 6;
-        const ang = -Math.PI / 2 + (Math.random() - 0.5) * 0.7;
-        ctx.strokeStyle = Math.random() > 0.65 ? 'rgba(62, 172, 76, 0.24)' : 'rgba(18, 64, 25, 0.3)';
-        ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + Math.cos(ang) * len, by + Math.sin(ang) * len); ctx.stroke();
+        const ang = -Math.PI / 2 + (Math.random() - 0.5) * 0.65;
+        ctx.strokeStyle = Math.random() > 0.6 ? 'rgba(86, 204, 102, 0.22)' : 'rgba(14, 54, 21, 0.26)';
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(bx + Math.cos(ang) * len, by + Math.sin(ang) * len);
+        ctx.stroke();
     }
     const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(10, 10);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(4, 5);
+    tex.anisotropy = 8;
     return tex;
 }
 
@@ -62,44 +84,56 @@ function generateChalkDecal() {
     const goalLineY = 512, centerX = 1024, pxPerMeter = 51.2;
 
     function drawChalk(x1, y1, x2, y2, width) {
-        ctx.save(); ctx.lineCap = 'round';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)'; ctx.lineWidth = width * 1.8;
+        ctx.save();
+        ctx.lineCap = 'square';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)';
+        ctx.lineWidth = width * 2.1;
         ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)'; ctx.lineWidth = width;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.98)';
+        ctx.lineWidth = width * 1.25;
         ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
         ctx.restore();
     }
 
-    const regLineWidth = 12 * 0.0512 * 10;
+    const regLineWidth = 12 * 0.0512 * 12.5;
+    // Goal line
     drawChalk(0, goalLineY, 2048, goalLineY, regLineWidth);
+
+    // 6-yard Goal Area
     const hG = 9.16 * pxPerMeter, dG = 5.5 * pxPerMeter;
     drawChalk(centerX - hG, goalLineY, centerX - hG, goalLineY + dG, regLineWidth);
     drawChalk(centerX + hG, goalLineY, centerX + hG, goalLineY + dG, regLineWidth);
     drawChalk(centerX - hG, goalLineY + dG, centerX + hG, goalLineY + dG, regLineWidth);
 
+    // 18-yard Penalty Area
     const hP = 20.16 * pxPerMeter, dP = 16.5 * pxPerMeter;
     drawChalk(centerX - hP, goalLineY, centerX - hP, goalLineY + dP, regLineWidth);
     drawChalk(centerX + hP, goalLineY, centerX + hP, goalLineY + dP, regLineWidth);
     drawChalk(centerX - hP, goalLineY + dP, centerX + hP, goalLineY + dP, regLineWidth);
 
+    // 11m Penalty Spot
     const spotY = goalLineY + 11 * pxPerMeter;
-    ctx.save(); ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.beginPath(); ctx.arc(centerX, spotY, 0.11 * pxPerMeter * 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
+    ctx.beginPath();
+    ctx.arc(centerX, spotY, 0.14 * pxPerMeter * 1.9, 0, Math.PI * 2);
+    ctx.fill();
 
+    // Penalty D-Arc
     const dRad = 9.15 * pxPerMeter;
     const dy = (goalLineY + dP) - spotY;
     const sAng = Math.acos(dy / dRad);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)'; ctx.lineWidth = regLineWidth;
-    ctx.beginPath(); ctx.arc(centerX, spotY, dRad, sAng, Math.PI - sAng, false); ctx.stroke(); ctx.restore();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)';
+    ctx.lineWidth = regLineWidth * 2.1;
+    ctx.beginPath(); ctx.arc(centerX, spotY, dRad, sAng, Math.PI - sAng, false); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.98)';
+    ctx.lineWidth = regLineWidth * 1.25;
+    ctx.beginPath(); ctx.arc(centerX, spotY, dRad, sAng, Math.PI - sAng, false); ctx.stroke();
+    ctx.restore();
 
-    // Goalmouth wear
-    const gkWear = ctx.createRadialGradient(centerX, goalLineY, 25, centerX, goalLineY, 320);
-    gkWear.addColorStop(0, 'rgba(84, 58, 28, 0.65)');
-    gkWear.addColorStop(0.6, 'rgba(56, 42, 22, 0.35)');
-    gkWear.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = gkWear; ctx.beginPath(); ctx.ellipse(centerX, goalLineY, 320, 60, 0, 0, Math.PI * 2); ctx.fill();
-
-    return new THREE.CanvasTexture(canvas);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.anisotropy = 8;
+    return tex;
 }
 
 // Procedural PBR Texture Loader & Pitch Turf Maps
@@ -119,9 +153,9 @@ const pitchGeo = new THREE.PlaneGeometry(80, 110);
 const pitchMat = new THREE.MeshStandardMaterial({
     map: generateTurf(),
     normalMap: turfNormalTex,
-    normalScale: new THREE.Vector2(0.85, 0.85),
+    normalScale: new THREE.Vector2(0.75, 0.75),
     roughnessMap: turfRoughnessTex,
-    roughness: 0.78,
+    roughness: 0.72,
     metalness: 0.04
 });
 const pitchMesh = new THREE.Mesh(pitchGeo, pitchMat);
@@ -142,11 +176,10 @@ const chalkGeo = new THREE.PlaneGeometry(40, 40);
 const chalkMat = new THREE.MeshBasicMaterial({
     map: generateChalkDecal(),
     transparent: true,
-    opacity: 0.92,
+    opacity: 0.96,
     depthWrite: false
 });
 const chalkMesh = new THREE.Mesh(chalkGeo, chalkMat);
 chalkMesh.rotation.x = -Math.PI / 2;
 chalkMesh.position.set(0, 0.02, -10);
 scene.add(chalkMesh);
-

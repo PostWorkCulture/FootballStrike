@@ -218,7 +218,7 @@
         // 3. RESET HANDLERS
         // ====================================================================
         resetStriker(spotX, spotZ, isPenalty, currentMode) {
-            strikerState.active = (currentMode !== 'targets');
+            strikerState.active = (global.cameraViewMode !== 'first_person');
             strikerState.phase = 'idle';
             strikerState.phaseTimer = 0;
             strikerState.celebrating = false;
@@ -226,20 +226,20 @@
 
             strikerState.spotPos.set(spotX, 0, spotZ);
 
-            // Natural right-footed approach angle: 3 steps behind and to left of ball
-            const approachAngle = isPenalty ? 0.32 : 0.45;
-            const runUpDistance = 2.15;
-            const offsetX = -Math.sin(approachAngle) * runUpDistance;
-            const offsetZ = Math.cos(approachAngle) * runUpDistance;
-
-            strikerState.startPos.set(spotX + offsetX, 0, spotZ + offsetZ);
-            strikerState.midPos.set(spotX + offsetX * 0.45, 0, spotZ + offsetZ * 0.45);
-            strikerState.plantPos.set(spotX - 0.28, 0, spotZ + 0.05);
+            // Over-the-shoulder 3rd-person framing (like Football Strike):
+            // Striker stands to the left of the ball at z = spotZ + 0.08 so his full head & #10 back
+            // sit cleanly below the top-left HUD scoreboard without obstructing the goal mouth.
+            const approachAngle = isPenalty ? 0.34 : 0.40;
+            strikerState.startPos.set(spotX - 0.88, 0, spotZ + 0.08);
+            strikerState.midPos.set(spotX - 0.62, 0, spotZ + 0.04);
+            strikerState.plantPos.set(spotX - 0.36, 0, spotZ + 0.02);
 
             if (strikerState.group) {
                 strikerState.group.position.copy(strikerState.startPos);
-                // Face ball and goal
-                strikerState.rotAngle = Math.PI - approachAngle;
+                strikerState.group.scale.set(0.90, 0.90, 0.90);
+                // Inner model in 07_characters.js already faces -Z at rotation.y = 0;
+                // negative yaw angles him ~20 deg toward the ball and goal
+                strikerState.rotAngle = -approachAngle;
                 strikerState.group.rotation.set(0, strikerState.rotAngle, 0);
                 strikerState.group.visible = strikerState.active;
             }
@@ -447,6 +447,16 @@
             global.gkDiveType = gkState.diveType;
         },
 
+        startManualGoalkeeperDive(targetWorldX, targetWorldY, flightTime) {
+            this.startGoalkeeperDive(
+                targetWorldX,
+                targetWorldY,
+                85,
+                flightTime || 0.50,
+                { gkReactionTime: 0.01, gkSkillBase: 1.15, gkDiveDurationMult: 0.78 }
+            );
+        },
+
         startWallJump() {
             wallState.jumping = true;
             wallState.jumpTimer = 0;
@@ -485,15 +495,15 @@
             strikerState.phaseTimer += dt;
 
             if (strikerState.phase === 'celebrate') {
-                // Goal celebration: jubilant sprint with double fist-pump
+                // Goal celebration: jubilant fist-pump on left flank (never blocking goal view)
                 const celTime = strikerState.phaseTimer * 4.8;
-                const forwardHop = Math.sin(celTime * 0.5) * 0.65;
-                const bounce = Math.max(0, Math.sin(celTime) * 0.42);
+                const forwardHop = Math.sin(celTime * 0.5) * 0.45;
+                const bounce = Math.max(0, Math.sin(celTime) * 0.28);
 
-                strikerState.group.position.x = strikerState.spotPos.x + 0.45;
-                strikerState.group.position.z = strikerState.spotPos.z - 0.60 - forwardHop;
+                strikerState.group.position.x = strikerState.spotPos.x - 0.62;
+                strikerState.group.position.z = strikerState.spotPos.z - 0.40 - forwardHop;
                 strikerState.group.position.y = bounce;
-                strikerState.group.rotation.set(0, Math.PI, 0);
+                strikerState.group.rotation.set(0, -0.25, 0);
 
                 if (strikerState.shadow) {
                     strikerState.shadow.position.set(strikerState.group.position.x, 0.015, strikerState.group.position.z);
@@ -513,10 +523,10 @@
 
             if (strikerState.phase === 'disbelief') {
                 // Despair / disbelief: hands to head
-                strikerState.group.position.x = strikerState.spotPos.x - 0.65;
-                strikerState.group.position.z = strikerState.spotPos.z + 0.35;
+                strikerState.group.position.x = strikerState.spotPos.x - 0.68;
+                strikerState.group.position.z = strikerState.spotPos.z + 0.15;
                 strikerState.group.position.y = 0;
-                strikerState.group.rotation.set(0, Math.PI - 0.25, 0);
+                strikerState.group.rotation.set(0, -0.25, 0);
 
                 if (strikerState.shadow) {
                     strikerState.shadow.position.set(strikerState.group.position.x, 0.015, strikerState.group.position.z);
@@ -587,7 +597,7 @@
 
                 // Plant foot remains firmly planted beside ball
                 strikerState.group.position.set(strikerState.plantPos.x, 0, strikerState.plantPos.z);
-                strikerState.group.rotation.set(0, Math.PI - 0.06, 0);
+                strikerState.group.rotation.set(0, -0.06, 0);
 
                 if (strikerState.shadow) {
                     strikerState.shadow.position.set(strikerState.plantPos.x, 0.015, strikerState.plantPos.z);
@@ -628,8 +638,8 @@
                 const stepZ = strikerState.plantPos.z - fProgress * 0.40;
                 strikerState.group.position.set(stepX, 0, stepZ);
 
-                // Torso rotates counter-clockwise ~42 deg
-                const bodyYaw = Math.PI - 0.06 - fProgress * 0.35;
+                // Torso rotates naturally into follow-through facing goal
+                const bodyYaw = -0.06 + fProgress * 0.32;
                 strikerState.group.rotation.set(0, bodyYaw, 0);
 
                 if (strikerState.shadow) {

@@ -1,5 +1,5 @@
 // ============================================================================
-// 11. INTUITIVE DIRECTIONAL SHOOTING ENGINE & SCREEN BOUNDS PROJECTION
+// 11. INTUITIVE DIRECTIONAL SHOOTING, SWIPE CURVE CANVAS & KEEPER REFLEX ENGINE
 // ============================================================================
 window.getGoalScreenProjected = function getGoalScreenProjected() {
     const pCenter = new THREE.Vector3(0, 1.22, -20.0).project(camera);
@@ -29,15 +29,200 @@ window.getGoalScreenProjected = function getGoalScreenProjected() {
         goalWidthPx: Math.abs(sTopR.x - sTopL.x),
         goalHeightPx: Math.abs((sBotL.y + sBotR.y) * 0.5 - (sTopL.y + sTopR.y) * 0.5)
     };
+};
+
+// ----------------------------------------------------------------------------
+// 2D INTERACTIVE SWIPE CURVE TRAIL RENDERER (<canvas id="swipe-trail">)
+// ----------------------------------------------------------------------------
+let swipeCanvas = null;
+let swipeCtx = null;
+let swipeFadeAlpha = 0;
+let lastCompletedSwipe = [];
+let lastSwipeMeta = { speedKmh: 0, spinRPM: 0, label: '' };
+
+function ensureSwipeCanvas() {
+    if (!swipeCanvas) {
+        swipeCanvas = document.getElementById('swipe-trail');
+        if (swipeCanvas && swipeCanvas.getContext) {
+            swipeCtx = swipeCanvas.getContext('2d');
+            resizeSwipeCanvas();
+        }
+    }
+    return swipeCtx;
 }
+
+function resizeSwipeCanvas() {
+    if (!swipeCanvas || !swipeCanvas.getContext) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    swipeCanvas.width = window.innerWidth * dpr;
+    swipeCanvas.height = window.innerHeight * dpr;
+    if (swipeCtx) swipeCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resizeSwipeCanvas);
+
+function analyzeSwipeCurve(samples) {
+    if (!samples || samples.length < 2) {
+        return { speedKmh: 95, spinRPM: 0, curlBendMeters: 0, powerNorm: 0.65, label: 'DIRECT' };
+    }
+    const first = samples[0];
+    const last = samples[samples.length - 1];
+    const totalDx = last.x - first.x;
+    const totalDy = last.y - first.y;
+    const dt = Math.max(0.04, (last.time - first.time) / 1000);
+    const strokeSpeed = Math.hypot(totalDx, totalDy) / dt;
+
+    let maxDeflection = 0;
+    const chordLen = Math.hypot(totalDx, totalDy);
+    if (chordLen > 10) {
+        for (let i = 1; i < samples.length - 1; i++) {
+            const s = samples[i];
+            const defl = ((s.x - first.x) * (-totalDy) + (s.y - first.y) * totalDx) / chordLen;
+            if (Math.abs(defl) > Math.abs(maxDeflection)) {
+                maxDeflection = defl;
+            }
+        }
+    }
+
+    const fireBoost = (typeof isOnFire !== 'undefined' && isOnFire) ? 1.06 : 1.0;
+    const powerNorm = Math.min(1.0, Math.max(0.48, (strokeSpeed / 950) * fireBoost));
+    const speedKmh = Math.round((88 + powerNorm * 40) * fireBoost);
+
+    let curlBendMeters = 0;
+    let spinRPM = 0;
+    const clampedDefl = Math.max(-120, Math.min(120, maxDeflection));
+    if (Math.abs(clampedDefl) > 10) {
+        const sign = clampedDefl > 0 ? 1 : -1;
+        const normDefl = (Math.abs(clampedDefl) - 10) / 65.0;
+        const bendMag = Math.min(2.8, normDefl * 1.85 + Math.pow(normDefl, 1.35) * 0.55);
+        curlBendMeters = sign * bendMag;
+        spinRPM = Math.round(curlBendMeters * 420);
+    }
+
+    let label = 'LASER DRIVE';
+    if (typeof isOnFire !== 'undefined' && isOnFire) label = '🔥 FIREBALL';
+    else if (spinRPM > 260) label = 'CURL INSWING ↻';
+    else if (spinRPM < -260) label = 'TRIVELA BEND ↺';
+    else if (Math.abs(spinRPM) < 80 && speedKmh >= 108) label = 'KNUCKLEBALL';
+
+    return { speedKmh, spinRPM, curlBendMeters, powerNorm, label };
+}
+
+window.renderSwipeOverlay = function(dt) {
+    const ctx = ensureSwipeCanvas();
+    if (!ctx) return;
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+    const activePts = (swipeSamples && swipeSamples.length >= 2) ? swipeSamples : null;
+    if (!activePts && swipeFadeAlpha <= 0.01) return;
+
+    const pts = activePts || lastCompletedSwipe;
+    if (!pts || pts.length < 2) return;
+
+    const alpha = activePts ? 1.0 : swipeFadeAlpha;
+    if (!activePts) {
+        swipeFadeAlpha = Math.max(0, swipeFadeAlpha - dt * 2.4);
+    }
+
+    const meta = activePts ? analyzeSwipeCurve(pts) : lastSwipeMeta;
+    const isFire = (typeof isOnFire !== 'undefined' && isOnFire);
+    const hasCurl = Math.abs(meta.spinRPM) > 150;
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Draw tapered segmented neon ribbon along swipe points
+    for (let i = 1; i < pts.length; i++) {
+        const p0 = pts[i - 1];
+        const p1 = pts[i];
+        const t = i / (pts.length - 1);
+        const width = 3 + t * 11;
+
+        ctx.beginPath();
+        ctx.moveTo(p0.x, p0.y);
+        ctx.lineTo(p1.x, p1.y);
+
+        if (isFire) {
+            ctx.strokeStyle = `rgba(250, 204, 21, ${alpha * (0.25 + t * 0.7)})`;
+            ctx.shadowColor = 'rgba(249, 115, 22, 0.9)';
+        } else if (hasCurl) {
+            ctx.strokeStyle = `rgba(52, 211, 153, ${alpha * (0.25 + t * 0.7)})`;
+            ctx.shadowColor = 'rgba(16, 185, 129, 0.85)';
+        } else {
+            ctx.strokeStyle = `rgba(56, 189, 248, ${alpha * (0.25 + t * 0.7)})`;
+            ctx.shadowColor = 'rgba(56, 189, 248, 0.85)';
+        }
+        ctx.shadowBlur = 16;
+        ctx.lineWidth = width;
+        ctx.stroke();
+
+        // Bright white core filament
+        ctx.beginPath();
+        ctx.moveTo(p0.x, p0.y);
+        ctx.lineTo(p1.x, p1.y);
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * (0.35 + t * 0.6)})`;
+        ctx.lineWidth = Math.max(1.5, width * 0.36);
+        ctx.stroke();
+    }
+
+    // Draw tip reticle & live shot telemetry pill at the pointer tip
+    const tip = pts[pts.length - 1];
+    ctx.beginPath();
+    ctx.arc(tip.x, tip.y, 10, 0, Math.PI * 2);
+    ctx.fillStyle = isFire ? `rgba(249, 115, 22, ${alpha * 0.9})` : `rgba(56, 189, 248, ${alpha * 0.9})`;
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.stroke();
+
+    if (pts[0].y - tip.y > 18) {
+        const pillText = `${meta.label} • ${meta.speedKmh} KM/H`;
+        ctx.font = '800 12px system-ui, -apple-system, sans-serif';
+        const tw = ctx.measureText(pillText).width + 20;
+        const px = Math.max(12, Math.min(window.innerWidth - tw - 12, tip.x - tw * 0.5));
+        const py = Math.max(24, tip.y - 38);
+
+        ctx.fillStyle = `rgba(9, 13, 22, ${alpha * 0.88})`;
+        ctx.strokeStyle = isFire ? `rgba(250, 204, 21, ${alpha * 0.8})` : `rgba(56, 189, 248, ${alpha * 0.7})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(px, py, tw, 24, 8);
+        } else {
+            ctx.rect(px, py, tw, 24);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(pillText, px + tw * 0.5, py + 12);
+    }
+
+    ctx.restore();
+};
 
 const shotTargetScratch = { x: 0, y: 0, z: 0 };
 let lastShotRecord = null;
 
-window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinRPM = 0, powerNorm = 0.7, curlBendMeters = 0) {
+window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinRPM = 0, powerNorm = 0.7, curlBendMeters = 0, skipAutoKeeperDive = false) {
     if (!isPlaying || !isAiming) return;
     isAiming = false;
     ballInFlight = true;
+
+    if (window.ballSpotRing) window.ballSpotRing.visible = false;
+    if (window.resetBallRibbon) window.resetBallRibbon();
+    if (window.ballRibbonMat) {
+        if (typeof isOnFire !== 'undefined' && isOnFire) {
+            window.ballRibbonMat.color.setHex(0xf97316);
+        } else if (Math.abs(spinRPM) > 160) {
+            window.ballRibbonMat.color.setHex(0x34d399);
+        } else {
+            window.ballRibbonMat.color.setHex(0x38bdf8);
+        }
+    }
 
     const bounds = getGoalScreenProjected();
     const goalPlaneZ = -20.0;
@@ -85,7 +270,8 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     // Knuckleball & Trajectory Classification
     const isKnuckle = Math.abs(spinRPM) < 80 && Math.abs(vz) > 28;
     let style = 'Direct Strike';
-    if (isKnuckle) style = 'Laser Knuckleball';
+    if (typeof isOnFire !== 'undefined' && isOnFire) style = '🔥 Fireball Strike';
+    else if (isKnuckle) style = 'Laser Knuckleball';
     else if (spinRPM > 120) style = 'Curling Inswing';
     else if (spinRPM < -120) style = 'Curling Outswing';
 
@@ -121,20 +307,20 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     }
 
     // Trigger Striker Run-Up, AI Goalkeeper Dive & Wall Jump via PlayerKinematics
-    const isPenalty = (currentGameMode === 'duel' && currentRound === 1) || 
+    const isPenalty = ((currentGameMode === 'duel' || currentGameMode === 'keeper') && currentRound === 1) ||
                       (currentGameMode === 'practice' && practiceSpots[practiceSettings.spotIndex] && practiceSpots[practiceSettings.spotIndex].isPenalty);
-    const allowWall = (currentGameMode === 'duel' && !isPenalty) || 
+    const allowWall = ((currentGameMode === 'duel' || currentGameMode === 'keeper') && !isPenalty) ||
                       (currentGameMode === 'practice' && practiceSettings.wall && !isPenalty);
-    const allowGk = (currentGameMode === 'duel') || 
+    const allowGk = (currentGameMode === 'duel') ||
                     (currentGameMode === 'practice' && practiceSettings.keeper);
 
-    const diff = (typeof difficultySettings !== 'undefined' && difficultySettings[currentDifficulty]) 
-        ? difficultySettings[currentDifficulty] 
+    const diff = (typeof difficultySettings !== 'undefined' && difficultySettings[currentDifficulty])
+        ? difficultySettings[currentDifficulty]
         : { gkReactionTime: 0.09, gkSkillBase: 0.78, gkDiveDurationMult: 1.0 };
 
     if (window.PlayerKinematics) {
         PlayerKinematics.startStrikerRunUp(actualSpeedKmh, spinRPM, powerNorm, curlBendMeters);
-        if (allowGk) {
+        if (allowGk && !skipAutoKeeperDive) {
             PlayerKinematics.startGoalkeeperDive(targetWorldX, targetWorldY, actualSpeedKmh, flightTime, diff);
             gkDiving = true;
             gkDiveTimer = 0;
@@ -152,44 +338,6 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
             wallJumping = true;
             wallJumpTimer = 0;
         }
-    } else {
-        if (allowWall) {
-            wallJumping = true;
-            wallJumpTimer = 0;
-        }
-        if (allowGk) {
-            gkDiving = true;
-            gkDiveTimer = 0;
-            gkStartX = gkGroup.position.x;
-            gkStartY = gkGroup.position.y;
-            gkDiveDuration = Math.min(0.68, Math.max(0.42, flightTime * 0.90)) * (diff.gkDiveDurationMult || 1.0);
-            gkReactionTime = diff.gkReactionTime || 0.09;
-            const speedRatio = Math.min(1.0, actualSpeedKmh / 115);
-            const keeperSkill = Math.max(0.40, (diff.gkSkillBase || 0.78) - speedRatio * 0.18);
-            gkTargetX = Math.max(-3.3, Math.min(3.3, targetWorldX * keeperSkill));
-            const diveDir = (gkTargetX >= gkGroup.position.x) ? 1 : -1;
-
-            if (targetWorldY < 0.95 && Math.abs(gkTargetX) > 1.2) {
-                gkDiveType = 'low_sweep';
-                gkTargetY = 0.28;
-                gkTargetRotZ = diveDir > 0 ? -1.42 : 1.42;
-                setGkPose(diveDir > 0 ? 'low_sweep_right' : 'low_sweep_left');
-            } else if (targetWorldY > 1.65 && Math.abs(gkTargetX) > 1.1) {
-                gkDiveType = 'top_corner_flight';
-                gkTargetY = Math.min(2.35, targetWorldY * 0.96);
-                gkTargetRotZ = diveDir > 0 ? -0.92 : 0.92;
-                setGkPose(diveDir > 0 ? 'dive_right' : 'dive_left');
-            } else {
-                gkDiveType = 'mid_parry';
-                gkTargetY = Math.max(0.85, Math.min(1.85, targetWorldY * 0.90));
-                gkTargetRotZ = diveDir > 0 ? -0.65 : 0.65;
-                if (Math.abs(gkTargetX) > 0.8) {
-                    setGkPose(diveDir > 0 ? 'dive_right' : 'dive_left');
-                } else {
-                    setGkPose('parry');
-                }
-            }
-        }
     }
 
     // Safety timeout for round resolution
@@ -198,6 +346,8 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
         if (ballInFlight && !shotComplete && isPlaying) {
             if (currentGameMode === 'duel' || currentGameMode === 'practice') {
                 finishShot(ballBody.scored ? 'goal' : 'miss', ballBody.scored ? 'GOAL' : 'OFF TARGET', '', ballBody.scored ? '#22c55e' : '#ef4444');
+            } else if (currentGameMode === 'keeper') {
+                finishShot(ballBody.saved ? 'goal' : 'miss', ballBody.saved ? 'SAVED!' : 'GOAL CONCEDED', '', ballBody.saved ? '#22c55e' : '#ef4444');
             } else {
                 finishShot('complete');
                 setTimeout(() => { if (currentGameMode === 'targets' && isPlaying) resetBall(); }, 600);
@@ -206,9 +356,34 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     }, 8000);
 };
 
+// Player-controlled Goalkeeper Reflex Dive (in Keeper Showdown mode)
+window.triggerManualKeeperDive = function(clientX, clientY) {
+    if (currentGameMode !== 'keeper' || !isPlaying || shotComplete) return;
+    const bounds = getGoalScreenProjected();
+    const normX = (clientX - bounds.centerX) / (bounds.goalWidthPx * 0.5);
+    const normY = (bounds.groundY - clientY) / bounds.goalHeightPx;
+
+    const targetWorldX = Math.max(-3.3, Math.min(3.3, normX * 3.66));
+    const targetWorldY = Math.max(0.25, Math.min(2.38, normY * 2.44));
+
+    if (window.PlayerKinematics) {
+        PlayerKinematics.startManualGoalkeeperDive(targetWorldX, targetWorldY, 0.46);
+        gkDiving = true;
+        gkDiveTimer = 0;
+        gkStartX = gkGroup.position.x;
+        gkStartY = gkGroup.position.y;
+        gkDiveDuration = PlayerKinematics.gkState.diveDuration;
+        gkReactionTime = PlayerKinematics.gkState.reactionTime;
+        gkTargetX = PlayerKinematics.gkState.targetX;
+        gkTargetY = PlayerKinematics.gkState.targetY;
+        gkTargetRotZ = PlayerKinematics.gkState.targetRotZ;
+        gkDiveType = PlayerKinematics.gkState.diveType;
+    }
+};
+
 window.addEventListener('pointerdown', (e) => {
     if (!isPlaying) return;
-    if (e.target && e.target.closest && e.target.closest('button, #next-round-btn, #next-shot-btn, #practice-toolbar')) {
+    if (e.target && e.target.closest && e.target.closest('button, select, #next-round-btn, #next-shot-btn, #practice-toolbar')) {
         return;
     }
     if (shotComplete) {
@@ -219,18 +394,43 @@ window.addEventListener('pointerdown', (e) => {
         }
         return;
     }
-    if (!isAiming) return;
     sfx.init();
+
+    // In Keeper Showdown mode, tapping/clicking dives the Goalkeeper immediately!
+    if (currentGameMode === 'keeper') {
+        window.triggerManualKeeperDive(e.clientX, e.clientY);
+        swipeSamples = [{ x: e.clientX, y: e.clientY, time: performance.now() }];
+        return;
+    }
+
+    if (!isAiming) return;
     swipeSamples = [{ x: e.clientX, y: e.clientY, time: performance.now() }];
 });
 
 window.addEventListener('pointermove', (e) => {
-    if (!isPlaying || !isAiming || swipeSamples.length === 0) return;
+    if (!isPlaying || swipeSamples.length === 0) return;
+    if (currentGameMode === 'keeper') {
+        swipeSamples.push({ x: e.clientX, y: e.clientY, time: performance.now() });
+        window.triggerManualKeeperDive(e.clientX, e.clientY);
+        return;
+    }
+    if (!isAiming) return;
     swipeSamples.push({ x: e.clientX, y: e.clientY, time: performance.now() });
 });
 
 window.addEventListener('pointerup', (e) => {
-    if (!isPlaying || !isAiming || swipeSamples.length === 0) {
+    if (!isPlaying || swipeSamples.length === 0) {
+        swipeSamples = [];
+        return;
+    }
+    if (currentGameMode === 'keeper') {
+        window.triggerManualKeeperDive(e.clientX, e.clientY);
+        lastCompletedSwipe = swipeSamples.slice();
+        swipeFadeAlpha = 0.85;
+        swipeSamples = [];
+        return;
+    }
+    if (!isAiming) {
         swipeSamples = [];
         return;
     }
@@ -249,39 +449,11 @@ window.addEventListener('pointerup', (e) => {
     if (totalDy < -15) {
         const dt = Math.max(0.04, (last.time - first.time) / 1000);
         const strokeSpeed = Math.hypot(totalDx, totalDy) / dt;
+        const meta = analyzeSwipeCurve(swipeSamples);
 
-        // Calculate maximum lateral curvature/deflection from chord
-        let maxDeflection = 0;
-        const chordLen = Math.hypot(totalDx, totalDy);
-        if (chordLen > 10) {
-            for (let i = 1; i < swipeSamples.length - 1; i++) {
-                const s = swipeSamples[i];
-                const defl = ((s.x - first.x) * (-totalDy) + (s.y - first.y) * totalDx) / chordLen;
-                if (Math.abs(defl) > Math.abs(maxDeflection)) {
-                    maxDeflection = defl;
-                }
-            }
-        }
-
-        // Snappy, buoyant power response (lighter ball feel)
-        const powerNorm = Math.min(1.0, Math.max(0.48, strokeSpeed / 950));
-        const speedKmh = Math.round(88 + powerNorm * 40); // 88 to 128 km/h
-
-        // Natural Aerodynamic Curl Calculation:
-        // Bowing right (positive deflection) curves right (+X bend, Inswing)
-        // Bowing left (negative deflection) curves left (-X bend, Outswing)
-        let curlBendMeters = 0;
-        let spinRPM = 0;
-        const clampedDefl = Math.max(-120, Math.min(120, maxDeflection));
-
-        if (Math.abs(clampedDefl) > 10) {
-            const sign = clampedDefl > 0 ? 1 : -1;
-            const normDefl = (Math.abs(clampedDefl) - 10) / 65.0;
-            const bendMag = Math.min(2.8, normDefl * 1.85 + Math.pow(normDefl, 1.35) * 0.55);
-            // Sign directly matches swipe arc direction: positive curves right (+X), negative curves left (-X)
-            curlBendMeters = sign * bendMag;
-            spinRPM = Math.round(curlBendMeters * 420); // -1100 to +1100 RPM
-        }
+        lastCompletedSwipe = swipeSamples.slice();
+        lastSwipeMeta = meta;
+        swipeFadeAlpha = 1.0;
 
         const bounds = getGoalScreenProjected();
         let targetScreenX, targetScreenY;
@@ -298,7 +470,13 @@ window.addEventListener('pointerup', (e) => {
             targetScreenX = first.x + t * totalDx;
         }
 
-        window.executeShot(targetScreenX, targetScreenY, speedKmh, spinRPM, powerNorm, curlBendMeters);
+        // Apply subtle stadium crosswind offset on user swipe shots in Duel mode
+        if (currentGameMode === 'duel' && typeof windSpeedKmh !== 'undefined' && windSpeedKmh > 0) {
+            const windDriftPx = (windSpeedKmh / 22) * windDirSign * (bounds.goalWidthPx * 0.14);
+            targetScreenX += windDriftPx;
+        }
+
+        window.executeShot(targetScreenX, targetScreenY, meta.speedKmh, meta.spinRPM, meta.powerNorm, meta.curlBendMeters);
     }
     swipeSamples = [];
 });
@@ -330,4 +508,3 @@ if (document.readyState === 'loading') {
 } else {
     bindNextShotButtons();
 }
-
