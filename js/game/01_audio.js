@@ -109,163 +109,101 @@ class StadiumAudio {
         noise.start(now);
     }
     playPost() {
-        if (!this.ensureAudio()) return;
-        const now = this.ctx.currentTime;
-        // Dual metallic chime
-        [1150, 1720].forEach((freq, i) => {
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(freq, now);
-            gain.gain.setValueAtTime(0.38 / (i + 1), now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-            osc.start(now);
-            osc.stop(now + 0.65);
-        });
+        // Silent synthetic chime removed per user request — only crowd reaction plays on miss
     }
     playShatter() {
-        if (!this.ensureAudio()) return;
-        const now = this.ctx.currentTime;
-        const bufferSize = Math.floor(this.ctx.sampleRate * 0.3);
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.22));
-        }
-        const noise = this.ctx.createBufferSource();
-        noise.buffer = buffer;
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'highpass';
-        filter.frequency.setValueAtTime(2600, now);
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.7, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ctx.destination);
-        noise.start(now);
+        // Silent synthetic shatter hiss removed per user request — only crowd reaction plays
     }
     playNet() {
-        if (!this.ensureAudio()) return;
-        const now = this.ctx.currentTime;
-        const bufferSize = Math.floor(this.ctx.sampleRate * 0.35);
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.35));
-        }
-        const noise = this.ctx.createBufferSource();
-        noise.buffer = buffer;
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(750, now);
-        filter.Q.setValueAtTime(2.2, now);
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.65, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ctx.destination);
-        noise.start(now);
+        // Silent synthetic net hiss removed per user request — only crowd cheer plays on goal
     }
     playCheer() {
         if (!this.ensureAudio()) return;
         const now = this.ctx.currentTime;
-        // Stadium Airhorn Fanfare
-        [220, 330].forEach((freq) => {
-            const horn = this.ctx.createOscillator();
-            const hGain = this.ctx.createGain();
-            horn.type = 'sawtooth';
-            horn.frequency.setValueAtTime(freq, now);
-            hGain.gain.setValueAtTime(0.18, now);
-            hGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-            horn.connect(hGain);
-            hGain.connect(this.ctx.destination);
-            horn.start(now);
-            horn.stop(now + 0.45);
-        });
 
-        // Massive Stadium Crowd Roar
-        const bufferSize = Math.floor(this.ctx.sampleRate * 2.5);
+        // Warm Multi-Band Stadium Crowd Cheer Roar (no harsh sawtooth airhorns!)
+        const duration = 2.4;
+        const bufferSize = Math.floor(this.ctx.sampleRate * duration);
         const buffer = this.ctx.createBuffer(2, bufferSize, this.ctx.sampleRate);
         for (let ch = 0; ch < 2; ch++) {
             const data = buffer.getChannelData(ch);
+            let b0 = 0, b1 = 0, b2 = 0;
             for (let i = 0; i < bufferSize; i++) {
-                data[i] = (Math.random() * 2 - 1) * Math.sin((i / bufferSize) * Math.PI);
+                const white = Math.random() * 2 - 1;
+                b0 = 0.997 * b0 + white * 0.06;
+                b1 = 0.985 * b1 + white * 0.10;
+                b2 = 0.940 * b2 + white * 0.18;
+                const env = Math.sin((i / bufferSize) * Math.PI);
+                data[i] = (b0 + b1 + b2 + white * 0.14) * env * 0.55;
             }
         }
         const roar = this.ctx.createBufferSource();
         roar.buffer = buffer;
+
+        // Crowd vocal formant bandpass (520 Hz rising to 780 Hz "YEAAAAH!" cheer swell)
         const filter = this.ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(1600, now);
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(520, now);
+        filter.frequency.linearRampToValueAtTime(780, now + 0.35);
+        filter.frequency.exponentialRampToValueAtTime(480, now + duration);
+        filter.Q.setValueAtTime(1.15, now);
+
         const gain = this.ctx.createGain();
         gain.gain.setValueAtTime(0.01, now);
-        gain.gain.linearRampToValueAtTime(0.55, now + 0.35);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+        gain.gain.linearRampToValueAtTime(0.58, now + 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
         roar.connect(filter);
         filter.connect(gain);
         gain.connect(this.ctx.destination);
         roar.start(now);
     }
-    playGasp() {
+    playBoo() {
         if (!this.ensureAudio()) return;
         const now = this.ctx.currentTime;
-        // "Oooooh!" Crowd Gasp on Miss or Save
-        const bufferSize = Math.floor(this.ctx.sampleRate * 1.2);
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = (Math.random() * 2 - 1) * Math.sin((i / bufferSize) * Math.PI);
+        // Deep Stadium Crowd "BOOOOO / OOOOOH" Groan on Miss or Save
+        const duration = 1.65;
+        const bufferSize = Math.floor(this.ctx.sampleRate * duration);
+        const buffer = this.ctx.createBuffer(2, bufferSize, this.ctx.sampleRate);
+        for (let ch = 0; ch < 2; ch++) {
+            const data = buffer.getChannelData(ch);
+            let b0 = 0, b1 = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                b0 = 0.996 * b0 + white * 0.08;
+                b1 = 0.980 * b1 + white * 0.12;
+                const env = Math.sin((i / bufferSize) * Math.PI);
+                data[i] = (b0 + b1) * env * 0.65;
+            }
         }
         const noise = this.ctx.createBufferSource();
         noise.buffer = buffer;
+
+        // Low-mid "OOOH / BOOO" vocal formant (dropping from 380 Hz down to 210 Hz)
         const filter = this.ctx.createBiquadFilter();
         filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(750, now);
-        filter.frequency.exponentialRampToValueAtTime(320, now + 1.0);
-        filter.Q.setValueAtTime(2.5, now);
+        filter.frequency.setValueAtTime(380, now);
+        filter.frequency.exponentialRampToValueAtTime(210, now + duration * 0.85);
+        filter.Q.setValueAtTime(2.2, now);
+
         const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.05, now);
-        gain.gain.linearRampToValueAtTime(0.45, now + 0.25);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.15);
+        gain.gain.setValueAtTime(0.02, now);
+        gain.gain.linearRampToValueAtTime(0.52, now + 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
         noise.connect(filter);
         filter.connect(gain);
         gain.connect(this.ctx.destination);
         noise.start(now);
     }
+    playGasp() {
+        this.playBoo();
+    }
     playKeeperSave() {
-        if (!this.ensureAudio()) return;
-        const now = this.ctx.currentTime;
-        // Goalkeeper glove latex foam block
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(120, now);
-        osc.frequency.exponentialRampToValueAtTime(45, now + 0.12);
-        gain.gain.setValueAtTime(0.65, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.14);
+        // Silent synthetic triangle beep removed — crowd boo/groan handles missed/saved shots
     }
     playWhistle() {
-        if (!this.ensureAudio()) return;
-        const now = this.ctx.currentTime;
-        const osc1 = this.ctx.createOscillator();
-        const osc2 = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc1.type = 'sine'; osc1.frequency.setValueAtTime(2850, now);
-        osc2.type = 'sine'; osc2.frequency.setValueAtTime(3120, now);
-        gain.gain.setValueAtTime(0.28, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
-        osc1.connect(gain); osc2.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc1.start(now); osc2.start(now);
-        osc1.stop(now + 0.38); osc2.stop(now + 0.38);
+        // Silent whistle removed so reset doesn't beep after every shot
     }
 }
 const sfx = new StadiumAudio();

@@ -810,10 +810,10 @@
                     <select id="pause-spot-select" class="hud-select" onchange="setPracticeSpotByIndex(this.value)">
                         <option value="0" selected>PROGRESSIVE AUTO</option>
                         <option value="1">PENALTY SPOT (11M)</option>
-                        <option value="2">CENTER FREE KICK (19M)</option>
-                        <option value="3">LEFT ANGLE (21M)</option>
-                        <option value="4">RIGHT ANGLE (21M)</option>
-                        <option value="5">LONG RANGE (26M)</option>
+                        <option value="2">CENTER FREE KICK (15M)</option>
+                        <option value="3">LEFT ANGLE (15.5M)</option>
+                        <option value="4">RIGHT ANGLE (15.5M)</option>
+                        <option value="5">EDGE OF BOX (17.5M)</option>
                     </select>
                 </div>
                 <div class="pause-row">
@@ -905,24 +905,24 @@
                 </div>
                 <div class="studio-section-title">🎥 Camera Angles</div>
                 <div class="studio-row">
-                    <div class="studio-lbl-row"><span>Camera FOV</span><span id="studio-val-camFov" class="studio-val">46</span></div>
-                    <input id="studio-slider-camFov" class="studio-slider" type="range" min="30" max="75" step="1" value="46" oninput="applyStudioSettings({camFov: this.value}, true)">
+                    <div class="studio-lbl-row"><span>Camera FOV</span><span id="studio-val-camFov" class="studio-val">32</span></div>
+                    <input id="studio-slider-camFov" class="studio-slider" type="range" min="24" max="65" step="1" value="32" oninput="applyStudioSettings({camFov: this.value}, true)">
                 </div>
                 <div class="studio-row">
-                    <div class="studio-lbl-row"><span>Camera Distance</span><span id="studio-val-camDist" class="studio-val">3.10</span></div>
-                    <input id="studio-slider-camDist" class="studio-slider" type="range" min="2.0" max="8.0" step="0.05" value="3.1" oninput="applyStudioSettings({camDist: this.value}, true)">
+                    <div class="studio-lbl-row"><span>Camera Distance</span><span id="studio-val-camDist" class="studio-val">2.55</span></div>
+                    <input id="studio-slider-camDist" class="studio-slider" type="range" min="1.8" max="6.0" step="0.05" value="2.55" oninput="applyStudioSettings({camDist: this.value}, true)">
                 </div>
                 <div class="studio-row">
-                    <div class="studio-lbl-row"><span>Camera Height (Y)</span><span id="studio-val-camHeight" class="studio-val">2.15</span></div>
-                    <input id="studio-slider-camHeight" class="studio-slider" type="range" min="0.1" max="4.0" step="0.02" value="2.15" oninput="applyStudioSettings({camHeight: this.value}, true)">
+                    <div class="studio-lbl-row"><span>Camera Height (Y)</span><span id="studio-val-camHeight" class="studio-val">2.02</span></div>
+                    <input id="studio-slider-camHeight" class="studio-slider" type="range" min="0.5" max="4.0" step="0.02" value="2.02" oninput="applyStudioSettings({camHeight: this.value}, true)">
                 </div>
                 <div class="studio-row">
                     <div class="studio-lbl-row"><span>Camera Offset X</span><span id="studio-val-camOffsetX" class="studio-val">0.00</span></div>
                     <input id="studio-slider-camOffsetX" class="studio-slider" type="range" min="-3.0" max="3.0" step="0.02" value="0.0" oninput="applyStudioSettings({camOffsetX: this.value}, true)">
                 </div>
                 <div class="studio-row">
-                    <div class="studio-lbl-row"><span>LookAt Height (Y)</span><span id="studio-val-camLookY" class="studio-val">0.90</span></div>
-                    <input id="studio-slider-camLookY" class="studio-slider" type="range" min="0.2" max="3.0" step="0.02" value="0.90" oninput="applyStudioSettings({camLookY: this.value}, true)">
+                    <div class="studio-lbl-row"><span>LookAt Height (Y)</span><span id="studio-val-camLookY" class="studio-val">0.88</span></div>
+                    <input id="studio-slider-camLookY" class="studio-slider" type="range" min="0.2" max="3.0" step="0.02" value="0.88" oninput="applyStudioSettings({camLookY: this.value}, true)">
                 </div>
                 <div class="studio-btn-row">
                     <button id="studio-wireframe-btn" class="studio-mini-btn" onclick="setWireframeMode(!window.__wireframeMode)">🕸️ Wireframe</button>
@@ -979,25 +979,25 @@
     <script src="js/UnrealBloomPass.js"></script>
 
     <!-- FIFA-Grade Kinematics & Animation Engine -->
-    <script src="js/playerKinematics.js?v=2.1.0"></script>
+    <script src="js/playerKinematics.js?v=2.2.0"></script>
 
     <!-- 3D Hexagonal Spring-Mass Net Cloth Simulation -->
-    <script src="js/netClothPhysics.js?v=1.0.0"></script>
+    <script src="js/netClothPhysics.js?v=1.2.0"></script>
 
     <!-- Core 3D Game Script -->
-    <script src="js/game/00_state.js?v=7.1.0"></script>
-    <script src="js/game/01_audio.js?v=7.1.0"></script>
-    <script src="js/game/02_scene.js?v=7.1.0"></script>
-    <script src="js/game/02_lighting.js?v=7.1.0"></script>
-    <script src="js/game/03_pitch.js?v=7.1.0"></script>
-    <script src="js/game/04_stadium.js?v=7.1.0"></script>
-    <script src="js/game/05_goal.js?v=7.1.0"></script>
-    <script src="js/game/06_ball.js?v=7.1.0"></script>
-    <script src="js/game/07_characters.js?v=7.1.0"></script>
-    <script src="js/game/08_targets.js?v=7.1.0"></script>
-    <script src="js/game/09_gameflow.js?v=7.1.0"></script>
-    <script src="js/game/10_shooting.js?v=7.1.0"></script>
-    <script src="js/game/11_loop.js?v=7.1.0"></script>
+    <script src="js/game/00_state.js?v=7.2.0"></script>
+    <script src="js/game/01_audio.js?v=7.2.0"></script>
+    <script src="js/game/02_scene.js?v=7.2.0"></script>
+    <script src="js/game/02_lighting.js?v=7.2.0"></script>
+    <script src="js/game/03_pitch.js?v=7.2.0"></script>
+    <script src="js/game/04_stadium.js?v=7.2.0"></script>
+    <script src="js/game/05_goal.js?v=7.2.0"></script>
+    <script src="js/game/06_ball.js?v=7.2.0"></script>
+    <script src="js/game/07_characters.js?v=7.2.0"></script>
+    <script src="js/game/08_targets.js?v=7.2.0"></script>
+    <script src="js/game/09_gameflow.js?v=7.2.0"></script>
+    <script src="js/game/10_shooting.js?v=7.2.0"></script>
+    <script src="js/game/11_loop.js?v=7.2.0"></script>
     <script>
         if (window.location.search.indexOf('studio=1') !== -1 && typeof window.togglePauseMenu === 'function') {
             window.togglePauseMenu(true);

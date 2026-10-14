@@ -135,6 +135,7 @@ pbrTextureLoader.load('assets/textures/match_ball_2k.jpg', (loadedTex) => {
 });
 
 const ballMesh = new THREE.Mesh(ballGeo, ballMat);
+ballMesh.scale.setScalar(1.22); // Slightly larger visual match ball so it reads unmistakably on the spot and in flight
 ballMesh.position.set(0, BALL_RADIUS, -9.0);
 ballMesh.castShadow = true;
 const ball = ballMesh;
@@ -142,15 +143,15 @@ window.ball = ball;
 scene.add(ballMesh);
 
 // Ground Contact Shadow & Tactical Aim Ring beneath Ball
-const ballShadowGeo = new THREE.PlaneGeometry(0.68, 0.68);
+const ballShadowGeo = new THREE.PlaneGeometry(0.82, 0.82);
 ballShadowGeo.rotateX(-Math.PI / 2);
 function createBallShadowTex() {
     const c = document.createElement('canvas');
     c.width = 128; c.height = 128;
     const g = c.getContext('2d');
     const r = g.createRadialGradient(64, 64, 6, 64, 64, 60);
-    r.addColorStop(0, 'rgba(2, 6, 23, 0.88)');
-    r.addColorStop(0.55, 'rgba(2, 6, 23, 0.38)');
+    r.addColorStop(0, 'rgba(2, 6, 23, 0.92)');
+    r.addColorStop(0.55, 'rgba(2, 6, 23, 0.45)');
     r.addColorStop(1, 'rgba(2, 6, 23, 0)');
     g.fillStyle = r;
     g.fillRect(0, 0, 128, 128);
@@ -158,18 +159,18 @@ function createBallShadowTex() {
 }
 const ballGroundShadow = new THREE.Mesh(
     ballShadowGeo,
-    new THREE.MeshBasicMaterial({ map: createBallShadowTex(), transparent: true, opacity: 0.85, depthWrite: false })
+    new THREE.MeshBasicMaterial({ map: createBallShadowTex(), transparent: true, opacity: 0.90, depthWrite: false })
 );
 ballGroundShadow.position.set(0, 0.005, -9.0);
 scene.add(ballGroundShadow);
 
 // Glowing Spot Halo Ring (Football Strike / FIFA style)
-const spotRingGeo = new THREE.RingGeometry(0.27, 0.36, 32);
+const spotRingGeo = new THREE.RingGeometry(0.32, 0.44, 32);
 spotRingGeo.rotateX(-Math.PI / 2);
 const spotRingMat = new THREE.MeshBasicMaterial({
     color: 0x38bdf8,
     transparent: true,
-    opacity: 0.72,
+    opacity: 0.88,
     side: THREE.DoubleSide,
     depthWrite: false
 });

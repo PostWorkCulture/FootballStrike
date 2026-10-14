@@ -63,7 +63,7 @@ window.addEventListener('resize', resizeSwipeCanvas);
 
 function analyzeSwipeCurve(samples) {
     if (!samples || samples.length < 2) {
-        return { speedKmh: 95, spinRPM: 0, curlBendMeters: 0, powerNorm: 0.65, label: 'DIRECT', initDx: 0, initDy: -100, endDx: 0, endDy: -100 };
+        return { speedKmh: 95, spinRPM: 0, curlBendMeters: 0, powerNorm: 0.65, label: 'DIRECT', initDx: 0, initDy: -100, endDx: 0, endDy: -100, apexX: 0 };
     }
     const first = samples[0];
     const last = samples[samples.length - 1];
@@ -73,49 +73,75 @@ function analyzeSwipeCurve(samples) {
     const strokeDist = Math.hypot(totalDx, totalDy);
     const strokeSpeed = strokeDist / dt;
 
-    // Measure initial launch tangent (first 35% of swipe) vs final curve hook
-    const splitIdx = Math.max(1, Math.min(samples.length - 1, Math.floor(samples.length * 0.38)));
+    // Measure initial launch tangent (first 40% of swipe) vs final curve hook (last 60% of swipe)
+    const splitIdx = Math.max(1, Math.min(samples.length - 1, Math.floor(samples.length * 0.40)));
     const splitPt = samples[splitIdx];
     const initDx = splitPt.x - first.x;
     const initDy = splitPt.y - first.y;
+    const lateDx = last.x - splitPt.x;
+    const lateDy = last.y - splitPt.y;
 
-    let maxDeflection = 0;
+    // 1. Mid-path perpendicular bow:
+    //    `signedBow > 0`: mid-point is to the LEFT of the chord, meaning the finger bowed left and hooked RIGHT (+X).
+    //    `signedBow < 0`: mid-point is to the RIGHT of the chord, meaning the finger bowed right and hooked LEFT (-X).
+    let maxBow = 0;
+    let apexPt = splitPt;
     if (strokeDist > 12) {
         for (let i = 1; i < samples.length - 1; i++) {
             const s = samples[i];
-            // Positive deflection = bowed left then curved right; Negative = bowed right then curved left
-            const defl = ((s.x - first.x) * (-totalDy) + (s.y - first.y) * totalDx) / strokeDist;
-            if (Math.abs(defl) > Math.abs(maxDeflection)) {
-                maxDeflection = defl;
+            const bow = ((s.x - first.x) * (-totalDy) + (s.y - first.y) * totalDx) / strokeDist;
+            if (Math.abs(bow) > Math.abs(maxBow)) {
+                maxBow = bow;
+                apexPt = s;
             }
         }
     }
 
+    // 2. Angular hook between early tangent and late tangent:
+    //    Positive when the second half of the swipe turns rightward (+X); negative when turning leftward (-X).
+    const initLen = Math.hypot(initDx, initDy) || 1;
+    const lateLen = Math.hypot(lateDx, lateDy) || 1;
+    const turnRightPx = ((lateDx / lateLen) - (initDx / initLen)) * Math.min(180, strokeDist * 0.65);
+
+    // 3. Natural directional curl assist:
+    //    When a player swipes diagonally toward the right or left without drawing an exaggerated C-shape,
+    //    blend a gentle natural bend in the direction of their swipe so the ball visibly curls toward their aim!
+    const diagonalAimCurlPx = (totalDx / Math.max(120, window.innerWidth * 0.25)) * 22;
+
+    // Combined effective curve signal:
+    // Prioritize explicit curve bow/hook if drawn; otherwise follow the natural direction of the swipe!
+    let effectiveCurvePx = (maxBow * 0.65) + (turnRightPx * 0.45);
+    if (Math.abs(effectiveCurvePx) < 12) {
+        effectiveCurvePx += diagonalAimCurlPx;
+    } else if (Math.sign(effectiveCurvePx) !== Math.sign(totalDx) && Math.abs(maxBow) < 22) {
+        // Prevent accidental micro-jitter on a straight diagonal swipe from reversing the expected curl direction!
+        effectiveCurvePx = diagonalAimCurlPx;
+    }
+
     const fireBoost = (typeof isOnFire !== 'undefined' && isOnFire) ? 1.05 : 1.0;
-    // Controlled power curve: combines swipe vertical length and swipe velocity so shots feel weighty and deliberate
     const distFactor = Math.min(1.0, Math.max(0.0, (-totalDy - 20) / (window.innerHeight * 0.42)));
     const velFactor = Math.min(1.0, Math.max(0.0, (strokeSpeed - 220) / 1450));
     const powerNorm = Math.min(1.0, Math.max(0.38, (distFactor * 0.55 + velFactor * 0.45) * fireBoost));
-    const speedKmh = Math.round((80 + powerNorm * 38) * fireBoost);
+    const speedKmh = Math.round((82 + powerNorm * 36) * fireBoost);
 
+    const clampedCurve = Math.max(-135, Math.min(135, effectiveCurvePx));
     let curlBendMeters = 0;
     let spinRPM = 0;
-    const clampedDefl = Math.max(-130, Math.min(130, maxDeflection));
-    if (Math.abs(clampedDefl) > 8) {
-        const sign = clampedDefl > 0 ? 1 : -1;
-        const normDefl = (Math.abs(clampedDefl) - 8) / 62.0;
-        const bendMag = Math.min(2.65, normDefl * 1.75 + Math.pow(normDefl, 1.30) * 0.50);
+    if (Math.abs(clampedCurve) > 4) {
+        const sign = clampedCurve > 0 ? 1 : -1;
+        const normDefl = (Math.abs(clampedCurve) - 4) / 52.0;
+        const bendMag = Math.min(2.75, normDefl * 1.85 + Math.pow(normDefl, 1.25) * 0.55);
         curlBendMeters = sign * bendMag;
-        spinRPM = Math.round(curlBendMeters * 420);
+        spinRPM = Math.round(curlBendMeters * 430);
     }
 
     let label = 'PLACED STRIKE';
     if (typeof isOnFire !== 'undefined' && isOnFire) label = '🔥 FIREBALL';
-    else if (spinRPM > 220) label = 'CURL INSWING ↻';
-    else if (spinRPM < -220) label = 'TRIVELA BEND ↺';
+    else if (spinRPM > 160) label = 'CURL RIGHT ↻';
+    else if (spinRPM < -160) label = 'CURL LEFT ↺';
     else if (Math.abs(spinRPM) < 85 && speedKmh >= 106) label = 'POWER DRIVE';
 
-    return { speedKmh, spinRPM, curlBendMeters, powerNorm, label, initDx, initDy, endDx: totalDx, endDy: totalDy };
+    return { speedKmh, spinRPM, curlBendMeters, powerNorm, label, initDx, initDy, endDx: totalDx, endDy: totalDy, apexX: apexPt.x };
 }
 
 window.renderSwipeOverlay = function(dt) {

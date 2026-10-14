@@ -125,22 +125,32 @@ window.toggleCameraView = function(forceMode) {
 
 function applyCameraFramingForSpot() {
     if (currentGameMode === 'keeper') {
-        camera.position.set(spotX * 0.65, 1.85, spotZ + 2.6);
-        camera.lookAt(0, 0.65, -20.0);
+        camera.fov = 34;
+        camera.updateProjectionMatrix();
+        camera.position.set(spotX * 0.65, 1.85, spotZ + 2.4);
+        camera.lookAt(0, 0.70, -20.0);
         return;
     }
+    const distToGoal = Math.abs(-20.0 - spotZ);
+    // Telephoto FOV (30–33 deg) makes the goal large and commanding while keeping the ball prominently on-screen at ~78% height!
+    const adaptiveFov = Math.max(28, Math.min(33, 33 - Math.max(0, distToGoal - 11.5) * 0.45));
+    if (!window.__studioCameraTouched) {
+        camera.fov = adaptiveFov;
+        camera.updateProjectionMatrix();
+    }
     if (window.cameraViewMode === 'broadcast') {
-        camera.position.set(spotX * 0.92, 2.35, spotZ + 4.1);
-        camera.lookAt(0, 0.85, -20.0);
+        camera.position.set(spotX * 0.92, 1.95, spotZ + 5.8);
+        camera.lookAt(spotX * 0.20, 0.72, -20.0);
     } else if (window.cameraViewMode === 'third_person') {
-        camera.position.set(spotX, 1.95, spotZ + 3.2);
-        camera.lookAt(0, 0.75, -20.0);
+        camera.position.set(spotX, 1.65, spotZ + 4.9);
+        camera.lookAt(spotX * 0.25, 0.68, -20.0);
     } else {
-        // Elevated First-Person Kick Taker perspective:
-        // Positioned at y = 2.15m, z = spotZ + 3.1m looking at y = 0.90m on the goal plane
-        // so the player has a commanding view over the 3-man wall and can clearly see the entire goal and ball!
-        camera.position.set(spotX, 2.15, spotZ + 3.1);
-        camera.lookAt(0, 0.90, -20.0);
+        // First-Person Kick Taker perspective:
+        // Camera at y = 1.62m, z = spotZ + 4.85m looking toward (spotX * 0.25, 0.68, -20.0):
+        // - Places the ball prominently in the lower foreground (~78% screen Y, ~700px on a 900px screen)
+        // - Elevates the camera above the 3-man wall and uses a 31° telephoto lens so the goal & all 5 targets are large and clear!
+        camera.position.set(spotX, 1.62, spotZ + 4.85);
+        camera.lookAt(spotX * 0.25, 0.68, -20.0);
     }
 }
 
@@ -198,10 +208,10 @@ let shotOutcomeTimer = null;
 const practiceSpots = [
     { name: 'Progressive Auto', x: 0, z: -9.0, isPenalty: false, isAuto: true },
     { name: 'Penalty Spot (11m)', x: 0, z: -9.0, isPenalty: true },
-    { name: 'Center Free Kick (19m)', x: 0, z: -0.5, isPenalty: false },
-    { name: 'Left Angle (21m)', x: -4.5, z: 1.0, isPenalty: false },
-    { name: 'Right Angle (21m)', x: 4.5, z: 1.0, isPenalty: false },
-    { name: 'Long Range (26m)', x: 0, z: 6.0, isPenalty: false }
+    { name: 'Center Free Kick (15m)', x: 0, z: -5.5, isPenalty: false },
+    { name: 'Left Angle (15.5m)', x: -2.6, z: -5.2, isPenalty: false },
+    { name: 'Right Angle (15.5m)', x: 2.6, z: -5.2, isPenalty: false },
+    { name: 'Edge of Box (17.5m)', x: 0, z: -2.8, isPenalty: false }
 ];
 
 let practiceSettings = {
@@ -259,7 +269,7 @@ window.togglePracticeOption = function(type) {
             const dxToGoal = -spotX;
             const wallSide = dxToGoal >= 0 ? 1 : -1;
             const wallX = spotX * 0.45 + (wallSide * 0.75);
-            const wallZ = Math.min(-11.0, spotZ - 9.15);
+            const wallZ = Math.min(-12.2, spotZ - 7.2);
             wallGroup.position.set(wallX, 0.0, wallZ);
             wallBodies.forEach((b, idx) => {
                 const cfg = wallDefenderConfigs[idx];
@@ -730,7 +740,7 @@ window.resetBall = function() {
         const dxToGoal = -spotX;
         const wallSide = dxToGoal >= 0 ? 1 : -1;
         const wallX = spotX * 0.45 + (wallSide * 0.75);
-        const wallZ = Math.min(-11.0, spotZ - 9.15);
+        const wallZ = Math.min(-12.2, spotZ - 7.2);
         wallGroup.position.set(wallX, 0.0, wallZ);
         wallBodies.forEach((b, idx) => {
             const cfg = wallDefenderConfigs[idx];

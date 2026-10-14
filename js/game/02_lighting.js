@@ -65,11 +65,11 @@
         netOpacity: 0.82,
         ballRoughness: 0.24,
         // Camera Angles
-        camFov: 46,
-        camDist: 3.1,
-        camHeight: 2.15,
+        camFov: 32,
+        camDist: 4.85,
+        camHeight: 1.62,
         camOffsetX: 0.0,
-        camLookY: 0.90
+        camLookY: 0.68
     };
 
     window.studioSettings = Object.assign({}, DEFAULT_STUDIO_SETTINGS);
