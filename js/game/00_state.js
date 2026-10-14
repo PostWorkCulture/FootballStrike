@@ -30,7 +30,7 @@ try {
 } catch (e) {}
 
 // Camera & Role Configuration
-window.cameraViewMode = 'third_person'; // 'third_person' | 'first_person' | 'broadcast'
+window.cameraViewMode = 'first_person'; // First-person kick taker perspective by default
 let keeperTurnActive = false;
 let aiShotTimer = null;
 let aiAimTarget = { x: 0, y: 1.25 };

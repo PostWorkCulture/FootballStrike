@@ -258,24 +258,33 @@ const flagConfigs = [
     { x: -24.0, y: 7.5, z: -33.0, code: 'ESP', phase: 5.2 },
     { x: 24.5,  y: 7.2, z: -32.5, code: 'GER', phase: 0.8 }
 ];
-const poleMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.6, roughness: 0.4 });
+const poleMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.72, roughness: 0.30 });
+const finialMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.85, roughness: 0.22 });
 flagConfigs.forEach(fc => {
     const flagGroup = new THREE.Group();
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 3.2, 8), poleMat);
-    pole.position.set(-1.1, 0, 0);
-    pole.rotation.z = -0.25;
+    const poleHeight = 3.6;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.045, poleHeight, 10), poleMat);
+    pole.position.set(-1.12, poleHeight * 0.5 - 1.1, 0);
+    pole.rotation.set(0, 0, 0);
     flagGroup.add(pole);
 
-    const fGeo = new THREE.PlaneGeometry(2.2, 1.35, 10, 4);
+    const finial = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 10), finialMat);
+    finial.position.set(-1.12, poleHeight - 1.1 + 0.04, 0);
+    flagGroup.add(finial);
+
+    const fGeo = new THREE.PlaneGeometry(2.2, 1.35, 12, 6);
     const fTex = createNationalFlagTexture(fc.code);
     const fMat = new THREE.MeshStandardMaterial({
         map: fTex,
         side: THREE.DoubleSide,
-        roughness: 0.88,
+        roughness: 0.85,
         metalness: 0.0
     });
     const fMesh = new THREE.Mesh(fGeo, fMat);
-    fMesh.position.set(0, 0.85, 0);
+    // PlaneGeometry is 2.2m wide x 1.35m tall centered at (0, 1.78, 0):
+    // Left hoist edge at x = -1.10 sits flush against the vertical pole at x = -1.12,
+    // and top edge at y = 2.455 sits right below the pole finial at y = 2.54.
+    fMesh.position.set(0, 1.78, 0);
     flagGroup.add(fMesh);
     flagGroup.position.set(fc.x, fc.y, fc.z);
     stadium.add(flagGroup);

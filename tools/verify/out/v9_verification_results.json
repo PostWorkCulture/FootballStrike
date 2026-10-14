@@ -1,0 +1,68 @@
+{
+  "hint_bar_present": false,
+  "difficulty_select": {
+    "exists": true,
+    "value": "semipro",
+    "options": [
+      "amateur",
+      "semipro",
+      "worldclass"
+    ]
+  },
+  "gk_dive_test": {
+    "gkDiving": true,
+    "gkDiveType": "top_corner_flight",
+    "idleVisible": false,
+    "diveRightVisible": true,
+    "diveLeftVisible": false,
+    "parryVisible": false,
+    "gkPosX": "1.32",
+    "gkPosY": "2.00",
+    "gkRotZ": "-0.88"
+  },
+  "gk_left_test": {
+    "gkDiving": true,
+    "diveLeftVisible": true
+  },
+  "practice_ui": {
+    "panelVisible": true,
+    "wallActive": true,
+    "keeperActive": true,
+    "targetsActive": true
+  },
+  "target_info": {
+    "activeTargetsCount": 3,
+    "targets": [
+      {
+        "x": "-2.85",
+        "y": "1.95",
+        "z": "-19.90",
+        "isMoving": false,
+        "hasCables": 0
+      },
+      {
+        "x": "2.85",
+        "y": "1.95",
+        "z": "-19.90",
+        "isMoving": false,
+        "hasCables": 0
+      },
+      {
+        "x": "0.12",
+        "y": "2.02",
+        "z": "-19.90",
+        "isMoving": true,
+        "hasCables": 0
+      }
+    ]
+  },
+  "hit_target_test": {
+    "initialScore": 0,
+    "finalScore": 100,
+    "initialShattered": 0,
+    "finalShattered": 1,
+    "targetHit": true,
+    "particlesSpawned": true
+  },
+  "console_errors": []
+}

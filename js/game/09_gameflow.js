@@ -94,16 +94,20 @@ function updateMatchupBadges() {
     if (awayEl && away) awayEl.innerText = `${TEAM_FLAG_EMOJI[awayKey] || '⚽'} ${away.code}`;
 }
 
-// Camera View Toggle ('third_person' | 'broadcast' | 'first_person')
-window.toggleCameraView = function() {
-    const modes = ['third_person', 'broadcast', 'first_person'];
+// Camera View Toggle ('first_person' | 'third_person' | 'broadcast')
+window.toggleCameraView = function(forceMode) {
+    const modes = ['first_person', 'third_person', 'broadcast'];
     const labels = {
-        third_person: '🎥 3RD PERSON',
-        broadcast: '🎥 TV WIDE',
-        first_person: '🎥 1ST PERSON'
+        first_person: '1ST PERSON (KICK TAKER)',
+        third_person: '3RD PERSON',
+        broadcast: 'TV WIDE'
     };
-    const curIdx = modes.indexOf(window.cameraViewMode || 'third_person');
-    window.cameraViewMode = modes[(curIdx + 1) % modes.length];
+    if (forceMode && modes.indexOf(forceMode) >= 0) {
+        window.cameraViewMode = forceMode;
+    } else {
+        const curIdx = modes.indexOf(window.cameraViewMode || 'first_person');
+        window.cameraViewMode = modes[(curIdx + 1) % modes.length];
+    }
 
     const btn = document.getElementById('camera-view-btn');
     if (btn) btn.innerText = labels[window.cameraViewMode];
@@ -121,21 +125,22 @@ window.toggleCameraView = function() {
 
 function applyCameraFramingForSpot() {
     if (currentGameMode === 'keeper') {
-        // Behind-the-Goalkeeper perspective looking out at the striker & pitch
-        // Wait: keep standard behind-ball broadcast view or elevated keeper angle?
-        // Using elevated behind-ball view with keeper dive reticle ensures getGoalScreenProjected()
-        // works identically for direct click/swipe anywhere on the goal mouth!
-        camera.position.set(spotX * 0.65, 1.65, spotZ + 2.6);
-        camera.lookAt(0, 0.35, -20.0);
+        camera.position.set(spotX * 0.65, 1.85, spotZ + 2.6);
+        camera.lookAt(0, 0.65, -20.0);
         return;
     }
     if (window.cameraViewMode === 'broadcast') {
-        camera.position.set(spotX * 0.92, 1.95, spotZ + 4.1);
-        camera.lookAt(0, -0.15, -20.0);
+        camera.position.set(spotX * 0.92, 2.35, spotZ + 4.1);
+        camera.lookAt(0, 0.85, -20.0);
+    } else if (window.cameraViewMode === 'third_person') {
+        camera.position.set(spotX, 1.95, spotZ + 3.2);
+        camera.lookAt(0, 0.75, -20.0);
     } else {
-        // Standard Hero Over-The-Shoulder / First-Person eye line (preserves exact test geometry)
-        camera.position.set(spotX, 1.45, spotZ + 3.0);
-        camera.lookAt(0, -0.25, -20.0);
+        // Elevated First-Person Kick Taker perspective:
+        // Positioned at y = 2.15m, z = spotZ + 3.1m looking at y = 0.90m on the goal plane
+        // so the player has a commanding view over the 3-man wall and can clearly see the entire goal and ball!
+        camera.position.set(spotX, 2.15, spotZ + 3.1);
+        camera.lookAt(0, 0.90, -20.0);
     }
 }
 
@@ -191,6 +196,7 @@ function updateWindAndFireHUD() {
 let shotOutcomeTimer = null;
 
 const practiceSpots = [
+    { name: 'Progressive Auto', x: 0, z: -9.0, isPenalty: false, isAuto: true },
     { name: 'Penalty Spot (11m)', x: 0, z: -9.0, isPenalty: true },
     { name: 'Center Free Kick (19m)', x: 0, z: -0.5, isPenalty: false },
     { name: 'Left Angle (21m)', x: -4.5, z: 1.0, isPenalty: false },
@@ -202,27 +208,39 @@ let practiceSettings = {
     targets: true,
     wall: true,
     keeper: true,
+    spotMode: 'auto',
     spotIndex: 0
 };
+window.practiceSettings = practiceSettings;
+window.isPaused = false;
+
+window.togglePauseMenu = function(forceState) {
+    const modal = document.getElementById('pause-modal');
+    if (!modal) return;
+    const nextState = (typeof forceState === 'boolean') ? forceState : (modal.style.display === 'none' || !modal.style.display);
+    window.isPaused = nextState;
+    modal.style.display = nextState ? 'flex' : 'none';
+};
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isPlaying) {
+        window.togglePauseMenu();
+    }
+});
 
 window.togglePracticeMenu = function() {
-    const panel = document.getElementById('practice-menu-panel');
-    const arrow = document.getElementById('practice-menu-arrow');
-    if (!panel) return;
-    const isShown = panel.style.display !== 'none';
-    panel.style.display = isShown ? 'none' : 'flex';
-    if (arrow) arrow.innerText = isShown ? '▾' : '▴';
+    window.togglePauseMenu();
 };
 
 window.togglePracticeOption = function(type) {
     if (practiceSettings[type] === undefined) return;
     practiceSettings[type] = !practiceSettings[type];
 
-    const btn = document.getElementById(`toggle-${type}-btn`);
-    if (btn) {
+    // Sync all matching toggle buttons (in Pause Menu and any legacy hooks)
+    document.querySelectorAll(`[data-toggle-opt="${type}"], #toggle-${type}-btn`).forEach(btn => {
         btn.innerText = practiceSettings[type] ? 'ON' : 'OFF';
         btn.classList.toggle('active', practiceSettings[type]);
-    }
+    });
 
     if (type === 'targets') {
         if (practiceSettings.targets) {
@@ -232,43 +250,68 @@ window.togglePracticeOption = function(type) {
             activeTargets = [];
         }
     } else if (type === 'wall') {
-        const isPenalty = practiceSpots[practiceSettings.spotIndex] && practiceSpots[practiceSettings.spotIndex].isPenalty;
+        const isPenalty = (spotZ <= -8.0) ||
+                          (practiceSettings.spotMode === 'fixed' && practiceSpots[practiceSettings.spotIndex] && practiceSpots[practiceSettings.spotIndex].isPenalty);
         const allowWall = practiceSettings.wall && !isPenalty;
         wallGroup.visible = allowWall;
+        if (window.trainingPropsGroup) window.trainingPropsGroup.visible = practiceSettings.wall;
         if (allowWall) {
+            const dxToGoal = -spotX;
+            const wallSide = dxToGoal >= 0 ? 1 : -1;
+            const wallX = spotX * 0.45 + (wallSide * 0.75);
+            const wallZ = Math.min(-11.0, spotZ - 9.15);
+            wallGroup.position.set(wallX, 0.0, wallZ);
             wallBodies.forEach((b, idx) => {
                 const cfg = wallDefenderConfigs[idx];
-                b.position.set(wallGroup.position.x + cfg.xOffset, 0.95, wallGroup.position.z);
+                b.position.set(wallX + cfg.xOffset, 0.95, wallZ);
                 b.collisionResponse = 1;
             });
         } else {
+            wallGroup.position.set(0, -999, 0);
             wallBodies.forEach(b => {
                 b.position.set(0, -999, 0);
                 b.collisionResponse = 0;
             });
         }
     } else if (type === 'keeper') {
-        gkGroup.visible = practiceSettings.keeper;
-        if (gkShadow) gkShadow.visible = practiceSettings.keeper;
-        if (practiceSettings.keeper) {
-            gkBodyCollider.position.copy(gkGroup.position);
-            gkBodyCollider.position.y += 1.15;
-            if (gkShadow) gkShadow.position.set(gkGroup.position.x, 0.015, gkGroup.position.z);
+        const allowGk = practiceSettings.keeper;
+        gkGroup.visible = allowGk;
+        if (gkShadow) gkShadow.visible = allowGk;
+        if (allowGk) {
+            const isPenalty = (spotZ <= -8.0) ||
+                              (practiceSettings.spotMode === 'fixed' && practiceSpots[practiceSettings.spotIndex] && practiceSpots[practiceSettings.spotIndex].isPenalty);
+            const allowWall = practiceSettings.wall && !isPenalty;
+            const wallSide = (-spotX >= 0) ? 1 : -1;
+            const gkStartXPos = allowWall ? (-wallSide * 0.95) : 0;
+            gkGroup.position.set(gkStartXPos, 0.0, -19.6);
+            gkBodyCollider.position.set(gkStartXPos, 1.15, -19.6);
+            if (gkShadow) gkShadow.position.set(gkStartXPos, 0.004, -19.6);
         } else {
+            gkGroup.position.set(0, -999, 0);
             gkBodyCollider.position.set(0, -999, 0);
             if (gkShadow) gkShadow.position.set(0, -999, 0);
         }
     }
 };
 
-window.cyclePracticeSpot = function() {
-    practiceSettings.spotIndex = (practiceSettings.spotIndex + 1) % practiceSpots.length;
+window.setPracticeSpotByIndex = function(idx) {
+    const parsedIdx = parseInt(idx, 10) || 0;
+    practiceSettings.spotIndex = parsedIdx % practiceSpots.length;
     const spot = practiceSpots[practiceSettings.spotIndex];
+    practiceSettings.spotMode = spot.isAuto ? 'auto' : 'fixed';
+
     const btn = document.getElementById('practice-spot-btn');
-    if (btn) {
-        btn.innerText = spot.name.split(' ')[0];
+    if (btn) btn.innerText = spot.name;
+    const sel = document.getElementById('pause-spot-select');
+    if (sel && Number(sel.value) !== practiceSettings.spotIndex) {
+        sel.value = String(practiceSettings.spotIndex);
     }
     resetBall();
+};
+
+window.cyclePracticeSpot = function() {
+    const nextIdx = (practiceSettings.spotIndex + 1) % practiceSpots.length;
+    window.setPracticeSpotByIndex(nextIdx);
 };
 
 function finishShot(outcome, bannerMain, bannerSub, bannerColor) {
@@ -290,33 +333,7 @@ function finishShot(outcome, bannerMain, bannerSub, bannerColor) {
         bestStreak = Math.max(bestStreak, streak);
         drillLevel = Math.min(5, 1 + Math.floor(streak / 2));
 
-        // In unified progressive training mode, check if shot also hit or passed through a corner bullseye ring
-        let targetBonus = 0;
-        let hitGoldenRing = false;
-        if (activeTargets && activeTargets.length > 0 && typeof ballMesh !== 'undefined') {
-            for (let i = 0; i < activeTargets.length; i++) {
-                const t = activeTargets[i];
-                if (!t.active) continue;
-                const dx = ballMesh.position.x - t.mesh.position.x;
-                const dy = ballMesh.position.y - t.mesh.position.y;
-                const dist2D = Math.hypot(dx, dy);
-                if (dist2D < (t.config.radius + ballRadius * 1.15)) {
-                    t.active = false;
-                    hitGoldenRing = !!t.isGolden;
-                    const mult = isOnFire ? 2 : 1;
-                    targetBonus = (hitGoldenRing ? 250 : 100) * mult;
-                    targetsShattered++;
-                    sfx.playShatter();
-                    createShatterFX(t.mesh.position.x, t.mesh.position.y, t.mesh.position.z, hitGoldenRing);
-                    scene.remove(t.mesh);
-                    world.removeBody(t.body);
-                    activeTargets.splice(i, 1);
-                    spawnRandomTarget();
-                    break;
-                }
-            }
-        }
-
+        const targetBonus = (typeof ballBody !== 'undefined' && ballBody.targetBonusPts) ? ballBody.targetBonusPts : 0;
         const goalBasePts = 100 * (isOnFire ? 2 : 1);
         const totalShotPts = goalBasePts + targetBonus;
         score += totalShotPts;
@@ -327,13 +344,16 @@ function finishShot(outcome, bannerMain, bannerSub, bannerColor) {
             localStorage.setItem('fs_training_high_score', String(highScore));
         } catch (e) {}
 
-        if (targetBonus > 0) {
-            bannerMain = `PERFECT TOP BINS! +${totalShotPts}`;
+        // Only say TOP BIN if 11_loop.js verified the ball crossed inside the upper corner of the goal mouth!
+        const wasTopBin = (bannerMain && bannerMain.indexOf('TOP BIN') >= 0) || (typeof ballBody !== 'undefined' && ballBody.hitTargetCorner);
+        if (targetBonus > 0 && wasTopBin) {
+            bannerMain = `TOP BIN GOAL! +${totalShotPts}`;
             bannerSub = `DRILL LVL ${drillLevel} • STREAK x${streak}`;
             bannerColor = '#facc15';
-            if (window.spawnFloatingScorePopup && typeof ballMesh !== 'undefined') {
-                window.spawnFloatingScorePopup(ballMesh.position.x, ballMesh.position.y + 0.25, -19.9, `+${totalShotPts} COMBO!`, '#facc15');
-            }
+        } else if (targetBonus > 0) {
+            bannerMain = `TARGET GOAL! +${totalShotPts}`;
+            bannerSub = `DRILL LVL ${drillLevel} • STREAK x${streak}`;
+            bannerColor = '#38bdf8';
         } else if (isUnifiedTraining && bannerMain && bannerMain.indexOf('+') < 0) {
             bannerMain = `${bannerMain} +${totalShotPts}`;
             bannerSub = `DRILL LVL ${drillLevel} • STREAK x${streak}`;
@@ -364,7 +384,6 @@ function finishShot(outcome, bannerMain, bannerSub, bannerColor) {
 
     if (window.PlayerKinematics) {
         if (currentGameMode === 'keeper') {
-            // In Keeper mode, 'goal' means the Keeper SAVED the shot; 'miss' means AI scored
             PlayerKinematics.setStrikerOutcome(outcome === 'goal' ? 'miss' : 'goal');
         } else {
             PlayerKinematics.setStrikerOutcome(outcome === 'goal' ? 'goal' : 'miss');
@@ -374,7 +393,6 @@ function finishShot(outcome, bannerMain, bannerSub, bannerColor) {
     if (currentGameMode === 'duel' || currentGameMode === 'keeper') {
         const pillSlot = (currentRound - 1) % maxDuelShots;
         duelResults[pillSlot] = outcome;
-        // Simulate AI opponent's simultaneous round shot in 1v1 Duel
         if (currentGameMode === 'duel' && duelAiResults[pillSlot] === undefined) {
             const diff = difficultySettings[currentDifficulty] || difficultySettings.semipro;
             const aiRoll = ((currentRound * 0.37 + (outcome === 'goal' ? 0.21 : 0.43)) % 1.0);
@@ -409,9 +427,9 @@ function finishShot(outcome, bannerMain, bannerSub, bannerColor) {
     }
 
     // Seamless auto-advance to next progressive training drill ball
-    const advanceDelay = (!window.__forceLegacyMode && requestedMode === 'training') ? 2200 : 3400;
+    const advanceDelay = (!window.__forceLegacyMode && requestedMode === 'training') ? 2100 : 3400;
     shotOutcomeTimer = setTimeout(() => {
-        if (shotComplete && isPlaying) {
+        if (shotComplete && isPlaying && !window.isPaused) {
             triggerNextShot();
         }
     }, advanceDelay);
@@ -421,9 +439,13 @@ function spawnTargets() {
     activeTargets.forEach(t => { scene.remove(t.mesh); world.removeBody(t.body); });
     activeTargets = [];
 
+    if (!practiceSettings.targets && currentGameMode !== 'targets') {
+        window.targets = activeTargets;
+        return;
+    }
+
     if (currentGameMode === 'targets') {
-        // Keep live Goalkeeper in goal alongside hanging corner Target Bullseyes for rich progressive drill visuals
-        const showGkInTargets = !window.__forceLegacyMode;
+        const showGkInTargets = !window.__forceLegacyMode && practiceSettings.keeper;
         wallGroup.visible = false;
         wallBodies.forEach(b => { b.collisionResponse = 0; });
         gkGroup.visible = showGkInTargets;
@@ -431,22 +453,11 @@ function spawnTargets() {
         gkBodyCollider.collisionResponse = 0;
         [0, 1, 2, 3, 4].forEach(slotId => spawnSingleTarget(slotId));
     } else if (currentGameMode === 'practice') {
-        wallGroup.visible = practiceSettings.wall;
-        wallBodies.forEach(b => { b.collisionResponse = practiceSettings.wall ? 1 : 0; });
-        gkGroup.visible = practiceSettings.keeper;
-        if (gkShadow) gkShadow.visible = practiceSettings.keeper;
-        gkBodyCollider.collisionResponse = 0;
         if (practiceSettings.targets) {
             [0, 1, 2, 3, 4].forEach(slotId => spawnSingleTarget(slotId));
         }
     } else {
-        // Unified Progressive International Training & Duel Mode:
-        // Simultaneously spawn all 4 Corner Bullseye Targets (TL, TR, BL, BR) + 1 Golden Bullseye
-        // together with the live Goalkeeper (#1) and Progressive Mannequin Wall!
-        gkGroup.visible = true;
-        if (gkShadow) gkShadow.visible = true;
-        gkBodyCollider.collisionResponse = 0;
-        if (!window.__forceLegacyMode) {
+        if (!window.__forceLegacyMode && practiceSettings.targets) {
             [0, 1, 2, 3, 4].forEach(slotId => spawnSingleTarget(slotId));
         }
     }
@@ -596,7 +607,13 @@ window.resetBall = function() {
     let isPenalty = false;
     let spotLabel = 'PENALTY SPOT (11M)';
 
-    if (currentGameMode === 'duel' || currentGameMode === 'keeper') {
+    if (practiceSettings.spotMode === 'fixed' && practiceSettings.spotIndex > 0) {
+        const spot = practiceSpots[practiceSettings.spotIndex];
+        spotX = spot.x;
+        spotZ = spot.z;
+        isPenalty = !!spot.isPenalty;
+        spotLabel = spot.name ? spot.name.toUpperCase() : 'TRAINING';
+    } else if (currentGameMode === 'duel' || currentGameMode === 'keeper' || currentGameMode === 'training') {
         const spotIdx = (currentRound - 1) % freeKickSpots.length;
         const spot = freeKickSpots[spotIdx];
         spotX = spot.x;
@@ -604,7 +621,7 @@ window.resetBall = function() {
         isPenalty = !!spot.isPenalty;
         spotLabel = spot.label || 'FREE KICK';
     } else if (currentGameMode === 'practice') {
-        const spot = practiceSpots[practiceSettings.spotIndex];
+        const spot = practiceSpots[practiceSettings.spotIndex || 1];
         spotX = spot.x;
         spotZ = spot.z;
         isPenalty = !!spot.isPenalty;
@@ -620,13 +637,9 @@ window.resetBall = function() {
 
     drillLevel = Math.min(5, Math.max(1, 1 + Math.floor(Math.max(streak, currentRound - 1) / 2)));
     const isProgTraining = !window.__forceLegacyMode && (requestedMode === 'training' || currentGameMode === 'duel');
-    if (isProgTraining) {
-        const tierDiffMap = ['amateur', 'semipro', 'semipro', 'worldclass', 'worldclass'];
-        window.setDifficulty(tierDiffMap[Math.min(4, drillLevel - 1)]);
-    }
     const trackerLbl = document.getElementById('tracker-label');
     if (trackerLbl && isProgTraining) {
-        trackerLbl.innerText = `DRILL LVL ${drillLevel} • ${spotLabel}`;
+        trackerLbl.innerText = spotLabel;
     }
 
     rollWindForRound();
@@ -636,6 +649,9 @@ window.resetBall = function() {
     ballBody.angularVelocity.set(0, 0, 0);
     ballMesh.position.copy(ballBody.position);
     ballMesh.quaternion.copy(ballBody.quaternion);
+    if (window.prevBallPos) {
+        window.prevBallPos.copy(ballBody.position);
+    }
 
     if (window.ballGroundShadow) {
         window.ballGroundShadow.position.set(spotX, 0.004, spotZ);
@@ -658,16 +674,21 @@ window.resetBall = function() {
     ballBody.saved = false;
     ballBody.blocked = false;
     ballBody.inNet = false;
+    ballBody.targetBonusPts = 0;
+    ballBody.hitTargetCorner = false;
     shotComplete = false;
     if (netClothPhysics) {
         netClothPhysics.reset();
     }
 
-    // Replenish Corner Bullseye Targets in Unified Progressive Training mode if any were shattered
-    if (!window.__forceLegacyMode && (requestedMode === 'training' || currentGameMode === 'duel') && activeTargets.length < 5) {
+    // Replenish Corner Bullseye Targets ONLY if practiceSettings.targets is ON
+    if (practiceSettings.targets && !window.__forceLegacyMode && (requestedMode === 'training' || currentGameMode === 'duel') && activeTargets.length < 5) {
         if (typeof window.spawnTrainingDrillTargets === 'function') {
             window.spawnTrainingDrillTargets();
         }
+    } else if (!practiceSettings.targets && activeTargets.length > 0) {
+        activeTargets.forEach(t => { scene.remove(t.mesh); world.removeBody(t.body); });
+        activeTargets = [];
     }
 
     // Reset Goalkeeper & Wall Postures (100% Grounded at y = 0.0)
@@ -697,13 +718,14 @@ window.resetBall = function() {
         s.material.opacity = 0.78;
     });
 
-    const allowWall = ((currentGameMode === 'duel' || currentGameMode === 'keeper') && (!isPenalty || spotZ >= -6.5)) ||
-                      (currentGameMode === 'practice' && practiceSettings.wall && !isPenalty);
-    const allowGk = (currentGameMode === 'duel' || currentGameMode === 'keeper') ||
-                    (currentGameMode === 'targets' && !window.__forceLegacyMode) ||
-                    (currentGameMode === 'practice' && practiceSettings.keeper);
+    // Respect practiceSettings.wall and practiceSettings.keeper persistently across every shot!
+    const allowWall = practiceSettings.wall && (!isPenalty && spotZ > -8.0) && (currentGameMode !== 'targets');
+    const allowGk = practiceSettings.keeper && (currentGameMode !== 'targets' || !window.__forceLegacyMode);
 
     wallGroup.visible = allowWall;
+    if (window.trainingPropsGroup) {
+        window.trainingPropsGroup.visible = practiceSettings.wall;
+    }
     if (allowWall) {
         const dxToGoal = -spotX;
         const wallSide = dxToGoal >= 0 ? 1 : -1;
@@ -766,7 +788,6 @@ window.resetBall = function() {
     isAiming = true;
     sfx.playWhistle();
 
-    // If in Goalkeeper Showdown mode, schedule the AI Striker's shot automatically!
     if (currentGameMode === 'keeper' && isPlaying) {
         scheduleAiStrikerShot();
     }
@@ -787,7 +808,6 @@ window.setupTrainingShowcaseShot = function() {
     }
     window.resetBall();
 
-    // Compact hero staging so Overview, Close-Up, Low-Angle, and Wireframe cameras frame Striker + Ball + Wall + Keeper + Goal together
     spotX = -1.10;
     spotZ = -8.20;
     ballBody.position.set(spotX, ballRadius, spotZ);
@@ -826,7 +846,7 @@ window.setupTrainingShowcaseShot = function() {
 window.setCleanViewportMode = function(enabled) {
     const clean = !!enabled;
     document.body.classList.toggle('clean-viewport', clean);
-    const ids = ['hud', 'menu', 'results-modal', 'practice-toolbar', 'studio-panel', 'studio-toggle-btn', 'swipe-trail'];
+    const ids = ['hud', 'menu', 'results-modal', 'pause-modal', 'practice-toolbar', 'studio-panel', 'studio-toggle-btn', 'swipe-trail'];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = clean ? 'none' : '';
@@ -851,7 +871,6 @@ window.setWireframeMode = function(enabled) {
 
 function scheduleAiStrikerShot() {
     if (aiShotTimer) clearTimeout(aiShotTimer);
-    // Pick a challenging corner target on the goal plane
     const corners = [
         { x: -2.45, y: 1.85, curl: 1.1, spin: 460 },
         { x: 2.45, y: 1.85, curl: -1.1, spin: -460 },
@@ -863,7 +882,6 @@ function scheduleAiStrikerShot() {
     aiAimTarget.x = pick.x;
     aiAimTarget.y = pick.y;
 
-    // Show early visual anticipation reticle on the goal plane so Keeper player can react & dive!
     aiShotTimer = setTimeout(() => {
         if (!isPlaying || currentGameMode !== 'keeper' || shotComplete) return;
         const bounds = window.getGoalScreenProjected();
@@ -877,7 +895,6 @@ function scheduleAiStrikerShot() {
             reticle.style.display = 'flex';
         }
 
-        // Launch AI Striker shot without auto-diving the Goalkeeper (player controls Keeper!)
         window.executeShot(screenX, screenY, 96, pick.spin, 0.78, pick.curl, true);
     }, 950);
 }
@@ -891,16 +908,19 @@ window.selectMode = function(mode) {
     sfx.startAmbient();
     requestedMode = mode || 'training';
 
-    // Route 'training' into 'duel' engine so 11_loop.js runs full Goalkeeper + Wall + Striker kinematics
-    // while keeping 'practice', 'targets', and 'keeper' compatible with legacy automated verification suites.
     if (requestedMode === 'training') {
         currentGameMode = 'duel';
     } else {
         currentGameMode = requestedMode;
     }
 
-    document.getElementById('menu').style.display = 'none';
-    document.getElementById('results-modal').style.display = 'none';
+    const menuEl = document.getElementById('menu');
+    if (menuEl) menuEl.style.display = 'none';
+    const resModal = document.getElementById('results-modal');
+    if (resModal) resModal.style.display = 'none';
+    const pauseModal = document.getElementById('pause-modal');
+    if (pauseModal) pauseModal.style.display = 'none';
+    window.isPaused = false;
     document.getElementById('hud').style.display = 'block';
     isPlaying = true;
     score = 0;
@@ -923,54 +943,29 @@ window.selectMode = function(mode) {
     if (aiShotTimer) clearTimeout(aiShotTimer);
 
     const practiceToolbar = document.getElementById('practice-toolbar');
-    const aiVsBox = document.getElementById('ai-vs-box');
+    if (practiceToolbar) practiceToolbar.style.display = 'none';
 
     if (currentGameMode === 'duel' || currentGameMode === 'keeper') {
-        if (practiceToolbar) {
-            practiceToolbar.style.display = (requestedMode === 'training') ? 'flex' : 'none';
-        }
-        if (aiVsBox) aiVsBox.style.display = (currentGameMode === 'duel') ? 'flex' : 'none';
         currentRound = 1;
         duelResults = [];
         duelAiResults = [];
-        document.getElementById('tracker-label').innerText =
-            (currentGameMode === 'keeper') ? 'KEEPER SAVE' : 'DRILL LVL 1 • PENALTY SPOT (11M)';
-        document.getElementById('shot-pills').style.display = 'flex';
-        document.getElementById('timer-display').style.display = 'none';
+        const trackerLbl = document.getElementById('tracker-label');
+        if (trackerLbl) {
+            trackerLbl.innerText = (currentGameMode === 'keeper') ? 'KEEPER SAVE' : 'STAGE 1 • PENALTY SPOT (11M)';
+        }
+        const shotPills = document.getElementById('shot-pills');
+        if (shotPills) shotPills.style.display = 'flex';
+        const timerDisp = document.getElementById('timer-display');
+        if (timerDisp) timerDisp.style.display = 'none';
         updateDuelPills();
     } else if (currentGameMode === 'practice') {
-        if (practiceToolbar) practiceToolbar.style.display = 'flex';
-        if (aiVsBox) aiVsBox.style.display = 'none';
-        document.getElementById('tracker-label').innerText = 'PRACTICE';
-        document.getElementById('shot-pills').style.display = 'none';
-        document.getElementById('timer-display').style.display = 'none';
+        const trackerLbl = document.getElementById('tracker-label');
+        if (trackerLbl) trackerLbl.innerText = 'PRACTICE';
     } else {
-        // 'targets' mode: Endless Progressive Target + Keeper Training (no forced Game Over interruption unless legacy override)
-        if (practiceToolbar) practiceToolbar.style.display = 'none';
-        if (aiVsBox) aiVsBox.style.display = 'none';
         currentRound = 1;
         targetRaceTimeLeft = 45;
-        document.getElementById('tracker-label').innerText = window.__forceLegacyMode ? 'TIME' : 'PROGRESSIVE TARGET DRILL';
-        document.getElementById('shot-pills').style.display = 'none';
-        document.getElementById('timer-display').style.display = 'block';
-        document.getElementById('timer-display').style.color = '#38bdf8';
-        document.getElementById('timer-display').innerText = window.__forceLegacyMode ? '45s' : `STREAK x${streak}`;
-
-        if (window.__forceLegacyMode) {
-            targetRaceTimer = setInterval(() => {
-                if (!isPlaying) { clearInterval(targetRaceTimer); return; }
-                targetRaceTimeLeft--;
-                document.getElementById('timer-display').innerText = targetRaceTimeLeft + 's';
-                if (targetRaceTimeLeft <= 5 && targetRaceTimeLeft > 0) {
-                    sfx.playWhistle();
-                    document.getElementById('timer-display').style.color = '#ef4444';
-                }
-                if (targetRaceTimeLeft <= 0) {
-                    clearInterval(targetRaceTimer);
-                    showMatchResults('TARGET RACE COMPLETE!');
-                }
-            }, 1000);
-        }
+        const trackerLbl = document.getElementById('tracker-label');
+        if (trackerLbl) trackerLbl.innerText = window.__forceLegacyMode ? 'TIME' : 'PROGRESSIVE TARGET DRILL';
     }
 
     spawnTargets();
@@ -978,21 +973,17 @@ window.selectMode = function(mode) {
 };
 
 window.resetToMenu = function() {
-    isPlaying = false;
-    sfx.stopAmbient();
-    if (targetRaceTimer) clearInterval(targetRaceTimer);
-    if (shotOutcomeTimer) clearTimeout(shotOutcomeTimer);
-    if (aiShotTimer) clearTimeout(aiShotTimer);
-    // Single Unified Mode ('training'): instead of dropping to a multi-mode select screen,
-    // immediately restart a fresh Progressive International Training session unless legacy menu is explicitly requested.
     if (window.__forceLegacyMenu) {
+        isPlaying = false;
+        sfx.stopAmbient();
+        if (targetRaceTimer) clearInterval(targetRaceTimer);
+        if (shotOutcomeTimer) clearTimeout(shotOutcomeTimer);
+        if (aiShotTimer) clearTimeout(aiShotTimer);
         document.getElementById('menu').style.display = 'flex';
         document.getElementById('hud').style.display = 'none';
         document.getElementById('results-modal').style.display = 'none';
-        const practiceToolbar = document.getElementById('practice-toolbar');
-        if (practiceToolbar) practiceToolbar.style.display = 'none';
     } else {
-        window.selectMode('training');
+        window.togglePauseMenu();
     }
 };
 

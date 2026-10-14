@@ -2,6 +2,7 @@
 // 11. INTUITIVE DIRECTIONAL SHOOTING, SWIPE CURVE CANVAS & KEEPER REFLEX ENGINE
 // ============================================================================
 window.getGoalScreenProjected = function getGoalScreenProjected() {
+    camera.updateMatrixWorld(true);
     const pCenter = new THREE.Vector3(0, 1.22, -20.0).project(camera);
     const pTopLeft = new THREE.Vector3(-3.66, 2.44, -20.0).project(camera);
     const pTopRight = new THREE.Vector3(3.66, 2.44, -20.0).project(camera);
@@ -62,49 +63,59 @@ window.addEventListener('resize', resizeSwipeCanvas);
 
 function analyzeSwipeCurve(samples) {
     if (!samples || samples.length < 2) {
-        return { speedKmh: 95, spinRPM: 0, curlBendMeters: 0, powerNorm: 0.65, label: 'DIRECT' };
+        return { speedKmh: 95, spinRPM: 0, curlBendMeters: 0, powerNorm: 0.65, label: 'DIRECT', initDx: 0, initDy: -100, endDx: 0, endDy: -100 };
     }
     const first = samples[0];
     const last = samples[samples.length - 1];
     const totalDx = last.x - first.x;
     const totalDy = last.y - first.y;
-    const dt = Math.max(0.04, (last.time - first.time) / 1000);
-    const strokeSpeed = Math.hypot(totalDx, totalDy) / dt;
+    const dt = Math.max(0.055, (last.time - first.time) / 1000);
+    const strokeDist = Math.hypot(totalDx, totalDy);
+    const strokeSpeed = strokeDist / dt;
+
+    // Measure initial launch tangent (first 35% of swipe) vs final curve hook
+    const splitIdx = Math.max(1, Math.min(samples.length - 1, Math.floor(samples.length * 0.38)));
+    const splitPt = samples[splitIdx];
+    const initDx = splitPt.x - first.x;
+    const initDy = splitPt.y - first.y;
 
     let maxDeflection = 0;
-    const chordLen = Math.hypot(totalDx, totalDy);
-    if (chordLen > 10) {
+    if (strokeDist > 12) {
         for (let i = 1; i < samples.length - 1; i++) {
             const s = samples[i];
-            const defl = ((s.x - first.x) * (-totalDy) + (s.y - first.y) * totalDx) / chordLen;
+            // Positive deflection = bowed left then curved right; Negative = bowed right then curved left
+            const defl = ((s.x - first.x) * (-totalDy) + (s.y - first.y) * totalDx) / strokeDist;
             if (Math.abs(defl) > Math.abs(maxDeflection)) {
                 maxDeflection = defl;
             }
         }
     }
 
-    const fireBoost = (typeof isOnFire !== 'undefined' && isOnFire) ? 1.06 : 1.0;
-    const powerNorm = Math.min(1.0, Math.max(0.48, (strokeSpeed / 950) * fireBoost));
-    const speedKmh = Math.round((88 + powerNorm * 40) * fireBoost);
+    const fireBoost = (typeof isOnFire !== 'undefined' && isOnFire) ? 1.05 : 1.0;
+    // Controlled power curve: combines swipe vertical length and swipe velocity so shots feel weighty and deliberate
+    const distFactor = Math.min(1.0, Math.max(0.0, (-totalDy - 20) / (window.innerHeight * 0.42)));
+    const velFactor = Math.min(1.0, Math.max(0.0, (strokeSpeed - 220) / 1450));
+    const powerNorm = Math.min(1.0, Math.max(0.38, (distFactor * 0.55 + velFactor * 0.45) * fireBoost));
+    const speedKmh = Math.round((80 + powerNorm * 38) * fireBoost);
 
     let curlBendMeters = 0;
     let spinRPM = 0;
-    const clampedDefl = Math.max(-120, Math.min(120, maxDeflection));
-    if (Math.abs(clampedDefl) > 10) {
+    const clampedDefl = Math.max(-130, Math.min(130, maxDeflection));
+    if (Math.abs(clampedDefl) > 8) {
         const sign = clampedDefl > 0 ? 1 : -1;
-        const normDefl = (Math.abs(clampedDefl) - 10) / 65.0;
-        const bendMag = Math.min(2.8, normDefl * 1.85 + Math.pow(normDefl, 1.35) * 0.55);
+        const normDefl = (Math.abs(clampedDefl) - 8) / 62.0;
+        const bendMag = Math.min(2.65, normDefl * 1.75 + Math.pow(normDefl, 1.30) * 0.50);
         curlBendMeters = sign * bendMag;
         spinRPM = Math.round(curlBendMeters * 420);
     }
 
-    let label = 'LASER DRIVE';
+    let label = 'PLACED STRIKE';
     if (typeof isOnFire !== 'undefined' && isOnFire) label = '🔥 FIREBALL';
-    else if (spinRPM > 260) label = 'CURL INSWING ↻';
-    else if (spinRPM < -260) label = 'TRIVELA BEND ↺';
-    else if (Math.abs(spinRPM) < 80 && speedKmh >= 108) label = 'KNUCKLEBALL';
+    else if (spinRPM > 220) label = 'CURL INSWING ↻';
+    else if (spinRPM < -220) label = 'TRIVELA BEND ↺';
+    else if (Math.abs(spinRPM) < 85 && speedKmh >= 106) label = 'POWER DRIVE';
 
-    return { speedKmh, spinRPM, curlBendMeters, powerNorm, label };
+    return { speedKmh, spinRPM, curlBendMeters, powerNorm, label, initDx, initDy, endDx: totalDx, endDy: totalDy };
 }
 
 window.renderSwipeOverlay = function(dt) {
@@ -234,8 +245,8 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     const targetWorldX = normX * 3.66;
     const targetWorldY = Math.max(0.25, normY * 2.44);
 
-    // Forward velocity: -24 to -36 m/s (~88 to 130 km/h)
-    const vz = -Math.max(24, speedKmh / 3.6);
+    // Forward velocity: -22.5 to -34 m/s (~81 to 122 km/h)
+    const vz = -Math.max(22.5, speedKmh / 3.6);
     const distZ = Math.abs(goalPlaneZ - ballBody.position.z);
     const flightTime = distZ / Math.abs(vz);
 
@@ -262,6 +273,9 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     window.lastShotRecord = lastShotRecord;
 
     ballBody.velocity.set(shot.vx, shot.vy, shot.vz);
+    if (window.prevBallPos) {
+        window.prevBallPos.copy(ballBody.position);
+    }
 
     // Curvature Deflection (Magnus Spin)
     const omegaY = (spinRPM * Math.PI * 2) / 60;
@@ -269,9 +283,9 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
 
     // Knuckleball & Trajectory Classification
     const isKnuckle = Math.abs(spinRPM) < 80 && Math.abs(vz) > 28;
-    let style = 'Direct Strike';
+    let style = 'Placed Strike';
     if (typeof isOnFire !== 'undefined' && isOnFire) style = '🔥 Fireball Strike';
-    else if (isKnuckle) style = 'Laser Knuckleball';
+    else if (isKnuckle) style = 'Power Knuckleball';
     else if (spinRPM > 120) style = 'Curling Inswing';
     else if (spinRPM < -120) style = 'Curling Outswing';
 
@@ -280,22 +294,26 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     maxSpeedRecord = Math.max(maxSpeedRecord, actualSpeedKmh);
     maxSpinRecord = Math.max(maxSpinRecord, Math.round(Math.abs(spinRPM)));
 
-    document.getElementById('stat-speed').innerText = actualSpeedKmh + ' KM/H';
-    document.getElementById('stat-spin').innerText = Math.round(Math.abs(spinRPM)) + ' RPM';
-    document.getElementById('stat-style').innerText = style;
-    document.getElementById('telemetry').classList.add('visible');
+    const speedEl = document.getElementById('stat-speed');
+    const spinEl = document.getElementById('stat-spin');
+    const styleEl = document.getElementById('stat-style');
+    const telEl = document.getElementById('telemetry');
+    if (speedEl) speedEl.innerText = actualSpeedKmh + ' KM/H';
+    if (spinEl) spinEl.innerText = Math.round(Math.abs(spinRPM)) + ' RPM';
+    if (styleEl) styleEl.innerText = style;
+    if (telEl) telEl.classList.add('visible');
 
     sfx.playKick(powerNorm);
 
     // Camera screen shake on powerful shots (FIFA-style impact)
-    if (powerNorm > 0.75) {
-        const shakeIntensity = (powerNorm - 0.75) * 0.08;
+    if (powerNorm > 0.78) {
+        const shakeIntensity = (powerNorm - 0.78) * 0.06;
         const origX = camera.position.x;
         const origY = camera.position.y;
         let shakeTime = 0;
         const shakeInterval = setInterval(() => {
             shakeTime += 16;
-            if (shakeTime > 200) {
+            if (shakeTime > 180) {
                 camera.position.x = origX;
                 camera.position.y = origY;
                 clearInterval(shakeInterval);
@@ -306,13 +324,11 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
         }, 16);
     }
 
-    // Trigger Striker Run-Up, AI Goalkeeper Dive & Wall Jump via PlayerKinematics
-    const isPenalty = ((currentGameMode === 'duel' || currentGameMode === 'keeper') && currentRound === 1) ||
-                      (currentGameMode === 'practice' && practiceSpots[practiceSettings.spotIndex] && practiceSpots[practiceSettings.spotIndex].isPenalty);
-    const allowWall = ((currentGameMode === 'duel' || currentGameMode === 'keeper') && !isPenalty) ||
-                      (currentGameMode === 'practice' && practiceSettings.wall && !isPenalty);
-    const allowGk = (currentGameMode === 'duel') ||
-                    (currentGameMode === 'practice' && practiceSettings.keeper);
+    // Trigger Striker Run-Up, AI Goalkeeper Dive & Wall Jump via PlayerKinematics (always respecting practiceSettings toggles!)
+    const isPenalty = (spotZ <= -8.0) ||
+                      (practiceSettings.spotMode === 'fixed' && practiceSpots[practiceSettings.spotIndex] && practiceSpots[practiceSettings.spotIndex].isPenalty);
+    const allowWall = practiceSettings.wall && !isPenalty && (currentGameMode !== 'targets');
+    const allowGk = practiceSettings.keeper && (currentGameMode !== 'targets');
 
     const diff = (typeof difficultySettings !== 'undefined' && difficultySettings[currentDifficulty])
         ? difficultySettings[currentDifficulty]
@@ -344,7 +360,7 @@ window.executeShot = function(targetScreenX, targetScreenY, speedKmh = 95, spinR
     if (shotSafetyTimer) clearTimeout(shotSafetyTimer);
     shotSafetyTimer = setTimeout(() => {
         if (ballInFlight && !shotComplete && isPlaying) {
-            if (currentGameMode === 'duel' || currentGameMode === 'practice') {
+            if (currentGameMode === 'duel' || currentGameMode === 'practice' || currentGameMode === 'training') {
                 finishShot(ballBody.scored ? 'goal' : 'miss', ballBody.scored ? 'GOAL' : 'OFF TARGET', '', ballBody.scored ? '#22c55e' : '#ef4444');
             } else if (currentGameMode === 'keeper') {
                 finishShot(ballBody.saved ? 'goal' : 'miss', ballBody.saved ? 'SAVED!' : 'GOAL CONCEDED', '', ballBody.saved ? '#22c55e' : '#ef4444');
@@ -382,8 +398,8 @@ window.triggerManualKeeperDive = function(clientX, clientY) {
 };
 
 window.addEventListener('pointerdown', (e) => {
-    if (!isPlaying) return;
-    if (e.target && e.target.closest && e.target.closest('button, select, #next-round-btn, #next-shot-btn, #practice-toolbar')) {
+    if (!isPlaying || window.isPaused) return;
+    if (e.target && e.target.closest && e.target.closest('button, select, input, #pause-modal, #pause-btn, #next-round-btn, #next-shot-btn, #practice-toolbar, #studio-panel')) {
         return;
     }
     if (shotComplete) {
@@ -408,7 +424,7 @@ window.addEventListener('pointerdown', (e) => {
 });
 
 window.addEventListener('pointermove', (e) => {
-    if (!isPlaying || swipeSamples.length === 0) return;
+    if (!isPlaying || window.isPaused || swipeSamples.length === 0) return;
     if (currentGameMode === 'keeper') {
         swipeSamples.push({ x: e.clientX, y: e.clientY, time: performance.now() });
         window.triggerManualKeeperDive(e.clientX, e.clientY);
@@ -419,7 +435,7 @@ window.addEventListener('pointermove', (e) => {
 });
 
 window.addEventListener('pointerup', (e) => {
-    if (!isPlaying || swipeSamples.length === 0) {
+    if (!isPlaying || window.isPaused || swipeSamples.length === 0) {
         swipeSamples = [];
         return;
     }
@@ -445,10 +461,8 @@ window.addEventListener('pointerup', (e) => {
     const totalDx = last.x - first.x;
     const totalDy = last.y - first.y;
 
-    // Minimum upward gesture: at least 15px upward
-    if (totalDy < -15) {
-        const dt = Math.max(0.04, (last.time - first.time) / 1000);
-        const strokeSpeed = Math.hypot(totalDx, totalDy) / dt;
+    // Minimum upward gesture: at least 18px upward
+    if (totalDy < -18) {
         const meta = analyzeSwipeCurve(swipeSamples);
 
         lastCompletedSwipe = swipeSamples.slice();
@@ -456,23 +470,65 @@ window.addEventListener('pointerup', (e) => {
         swipeFadeAlpha = 1.0;
 
         const bounds = getGoalScreenProjected();
-        let targetScreenX, targetScreenY;
+        const halfGoalW = Math.max(80, bounds.goalWidthPx * 0.5);
 
-        if (last.y <= bounds.groundY + 30) {
-            // Full swipe directly onto or above the goal
-            targetScreenX = last.x;
-            targetScreenY = last.y;
+        // ====================================================================
+        // FOOTBALL STRIKE (MINICLIP) WEIGHTED SWIPE-TO-GOAL MAPPING
+        // ====================================================================
+        // 1. If the user drags their finger directly onto the goal mouth area,
+        //    blend their endpoint directly with soft post-magnetism so aiming at
+        //    a corner target hits it reliably without flying 10m wide.
+        // 2. If the user performs a shorter upward flick from the ball in the lower
+        //    half of the screen, map horizontal displacement (`totalDx`) with damped
+        //    angular sensitivity + soft tanh post compression so normal swipes stay
+        //    inside the posts unless deliberately whipped hard outside (>42 deg).
+        let rawNormX;
+        const endedNearGoalY = (last.y <= bounds.groundY + bounds.goalHeightPx * 0.35) &&
+                               (last.y >= bounds.crossbarY - bounds.goalHeightPx * 0.65);
+
+        if (endedNearGoalY) {
+            rawNormX = (last.x - bounds.centerX) / halfGoalW;
         } else {
-            // Quick upward flick: project ray to goal height with buoyant lift
-            const elevationNorm = Math.min(1.18, Math.max(0.26, strokeSpeed / 900));
-            targetScreenY = bounds.groundY - elevationNorm * bounds.goalHeightPx;
-            const t = (targetScreenY - first.y) / totalDy;
-            targetScreenX = first.x + t * totalDx;
+            // Relative horizontal drag damped against screen width / goal width
+            const dragSensitivity = Math.max(halfGoalW * 1.35, window.innerWidth * 0.24);
+            const startOffsetNorm = ((first.x - bounds.centerX) / halfGoalW) * 0.30;
+            rawNormX = startOffsetNorm + (totalDx / dragSensitivity);
         }
 
-        // Apply subtle stadium crosswind offset on user swipe shots in Duel mode
-        if (currentGameMode === 'duel' && typeof windSpeedKmh !== 'undefined' && windSpeedKmh > 0) {
-            const windDriftPx = (windSpeedKmh / 22) * windDirSign * (bounds.goalWidthPx * 0.14);
+        // Soft magnetic compression inside [-0.96, +0.96] (within the 3.66m posts):
+        // Shots aimed up to |rawNormX| = 1.12 compress smoothly inside the goal frame (|normX| <= 0.94),
+        // while only wild extreme angles (|rawNormX| > 1.20) miss wide outside the post!
+        const signX = rawNormX >= 0 ? 1 : -1;
+        const absX = Math.abs(rawNormX);
+        let compressedNormX;
+        if (absX <= 1.12) {
+            compressedNormX = signX * (absX / 1.12) * 0.92;
+        } else {
+            compressedNormX = signX * (0.92 + (absX - 1.12) * 0.65);
+        }
+
+        // Elevation mapping:
+        // If finger ends on the goal mouth vertically, respect that height with gentle clamping;
+        // otherwise map upward drag length & power smoothly from low driven (0.22) to top corner (0.86).
+        let normY;
+        if (endedNearGoalY) {
+            const rawNormY = (bounds.groundY - last.y) / Math.max(40, bounds.goalHeightPx);
+            if (rawNormY <= 1.05) {
+                normY = Math.max(0.14, rawNormY * 0.90);
+            } else {
+                normY = 0.94 + (rawNormY - 1.05) * 0.45;
+            }
+        } else {
+            const dragUpNorm = Math.min(1.25, Math.max(0.15, -totalDy / (window.innerHeight * 0.44)));
+            normY = 0.16 + dragUpNorm * 0.68;
+        }
+
+        let targetScreenX = bounds.centerX + compressedNormX * halfGoalW;
+        let targetScreenY = bounds.groundY - normY * bounds.goalHeightPx;
+
+        // Subtle crosswind drift in higher progressive stages
+        if (typeof windSpeedKmh !== 'undefined' && windSpeedKmh > 0) {
+            const windDriftPx = (windSpeedKmh / 22) * windDirSign * (bounds.goalWidthPx * 0.08);
             targetScreenX += windDriftPx;
         }
 

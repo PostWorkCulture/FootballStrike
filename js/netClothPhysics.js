@@ -480,17 +480,18 @@
                 ballLocalY = ballBody.position.y;
                 ballLocalZ = ballBody.position.z - this.goalZ;
 
-                if (ballLocalZ <= 0.15 && ballLocalZ >= -2.6 && Math.abs(ballLocalX) <= 3.8 && ballLocalY <= 2.6) {
+                const insideMouth = Math.abs(ballLocalX) <= 3.55 && ballLocalY >= 0.04 && ballLocalY <= 2.35;
+                if (insideMouth && ballLocalZ <= 0.15 && ballLocalZ >= -2.6) {
                     isBallInGoalVolume = true;
                 }
 
-                if (ballBody.velocity.z < 0 && (ballLocalZ <= -1.80 || ballBody.inNet)) {
+                if (ballBody.velocity.z < 0 && ((insideMouth && ballLocalZ <= -1.80) || ballBody.inNet)) {
                     isBallInGoalVolume = true;
                     contactOccurred = true;
                 }
             }
 
-            // 2. Deterministic Entrapment
+            // 2. Deterministic Entrapment (only when ball has actually entered the goal!)
             if (contactOccurred || (ballBody && ballBody.inNet)) {
                 if (!this.activeContact) {
                     this.triggerImpact(ballBody.position.x, ballBody.position.y, ballBody.position.z,

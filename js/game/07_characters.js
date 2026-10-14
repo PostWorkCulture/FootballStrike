@@ -335,10 +335,11 @@ const strikerShadow = new THREE.Mesh(strikerShadowGeo, strikerShadowMat);
     strikerShadow.add(sBootAo);
 });
 strikerShadow.position.set(-1.15, 0.004, -7.85);
-strikerShadow.visible = true;
+strikerShadow.visible = false;
 scene.add(strikerShadow);
 
 strikerGroup.position.set(-1.15, 0.0, -7.85);
+strikerGroup.visible = false;
 scene.add(strikerGroup);
 
 const strikerPoseModels = {

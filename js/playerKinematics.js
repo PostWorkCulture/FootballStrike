@@ -389,7 +389,10 @@
         // 4. ACTION TRIGGER METHODS
         // ====================================================================
         startStrikerRunUp(speedKmh, spinRPM, powerNorm, curlBendMeters) {
-            strikerState.active = true;
+            const isFirstPerson = (global.cameraViewMode === 'first_person');
+            strikerState.active = !isFirstPerson;
+            if (strikerState.group) strikerState.group.visible = !isFirstPerson;
+            if (strikerState.shadow) strikerState.shadow.visible = !isFirstPerson;
             strikerState.speedKmh = speedKmh;
             strikerState.spinRPM = spinRPM;
             strikerState.powerNorm = powerNorm;

@@ -2,6 +2,7 @@
 // 12. MAIN RENDER, ANIMATION & ZERO-REBOUND PHYSICS LOOP
 // ============================================================================
 const clock = new THREE.Clock();
+window.prevBallPos = new THREE.Vector3(0, 0.22, -9.0);
 
 function updateSimulation(dt) {
     if (window.__diagCam) {
@@ -11,7 +12,14 @@ function updateSimulation(dt) {
         camera.lookAt(window.__diagCam.look[0], window.__diagCam.look[1], window.__diagCam.look[2]);
         return;
     }
+    if (window.isPaused) {
+        return;
+    }
     const time = clock.getElapsedTime();
+
+    const prevX = ballBody ? ballBody.position.x : 0;
+    const prevY = ballBody ? ballBody.position.y : 0.22;
+    const prevZ = ballBody ? ballBody.position.z : -9.0;
 
     world.step(PHYSICS_STEP, dt, 8);
     updateCharacterAnimators(dt);
@@ -41,7 +49,9 @@ function updateSimulation(dt) {
             const orig = wf.orig;
             for (let vi = 0; vi < posAttr.count; vi++) {
                 const ox = orig[vi * 3];
-                const wave = Math.sin(time * 5.2 * windFactor - ox * 2.4 + wf.phase) * ((ox + 1.1) * 0.09);
+                // Pin hoist edge at ox = -1.10 to wave = 0 so the flag stays locked to the vertical pole
+                const distFromPole = Math.max(0, ox + 1.10);
+                const wave = Math.sin(time * 5.2 * windFactor - ox * 2.4 + wf.phase) * (distFromPole * 0.085);
                 posAttr.setZ(vi, wave);
             }
             posAttr.needsUpdate = true;
@@ -76,28 +86,27 @@ function updateSimulation(dt) {
     }
 
     if (currentGameMode === 'duel' || currentGameMode === 'keeper' || currentGameMode === 'practice' || currentGameMode === 'training') {
-        const isPenalty = ((currentGameMode === 'duel' || currentGameMode === 'keeper') && currentRound === 1) ||
-                          (currentGameMode === 'training' && spotZ <= -8.0) ||
-                          (currentGameMode === 'practice' && practiceSpots[practiceSettings.spotIndex] && practiceSpots[practiceSettings.spotIndex].isPenalty);
-        const allowWall = ((currentGameMode === 'duel' || currentGameMode === 'keeper' || currentGameMode === 'training') && !isPenalty) ||
-                          (currentGameMode === 'practice' && practiceSettings.wall && !isPenalty);
-        const allowGk = (currentGameMode === 'duel' || currentGameMode === 'keeper' || currentGameMode === 'training') ||
-                        (currentGameMode === 'practice' && practiceSettings.keeper);
+        const isPenalty = (spotZ <= -8.0) ||
+                          (practiceSettings.spotMode === 'fixed' && practiceSpots[practiceSettings.spotIndex] && practiceSpots[practiceSettings.spotIndex].isPenalty);
+        const allowWall = practiceSettings.wall && !isPenalty;
+        const allowGk = practiceSettings.keeper;
 
         if (window.PlayerKinematics) {
-            if (allowWall) {
+            if (allowWall && wallGroup.visible) {
                 PlayerKinematics.updateWall(dt, time, allowWall);
             }
-            if (allowGk) {
+            if (allowGk && gkGroup.visible) {
                 PlayerKinematics.updateGoalkeeper(dt, time, ballMesh, ballInFlight);
             }
         }
 
-        // Check Goalkeeper Save Block
-        if (ballInFlight && !ballBody.scored && !ballBody.saved) {
+        // Check Goalkeeper Save Block (only when Goalkeeper is enabled, visible, and ball is inside the goal mouth!)
+        if (allowGk && gkGroup.visible && ballInFlight && !ballBody.scored && !ballBody.saved) {
             const distGk = ballMesh.position.distanceTo(gkBodyCollider.position);
-            const saveRadius = (currentGameMode === 'keeper') ? 1.42 : 1.25;
-            if (distGk < saveRadius && Math.abs(ballMesh.position.z - (-19.6)) < 0.90) {
+            const saveRadius = (currentGameMode === 'keeper') ? 1.42 : 1.12;
+            const inGoalMouthX = Math.abs(ballMesh.position.x) <= 3.56;
+            const inGoalMouthY = ballMesh.position.y >= 0.04 && ballMesh.position.y <= 2.38;
+            if (distGk < saveRadius && inGoalMouthX && inGoalMouthY && Math.abs(ballMesh.position.z - (-19.6)) < 0.55) {
                 ballBody.saved = true;
                 sfx.playKeeperSave();
 
@@ -118,21 +127,21 @@ function updateSimulation(dt) {
                     streak = 0;
                     updateHUD();
                     sfx.playGasp();
-                    finishShot('miss', 'SAVED', '', '#f59e0b');
+                    finishShot('miss', 'SAVED BY KEEPER', '', '#f59e0b');
                 }
             }
         }
     }
 
     // Moving Sweeper Bullseye Oscillation (Target Race & Training Mode)
-    if (currentGameMode === 'targets' || currentGameMode === 'training') {
+    if (practiceSettings.targets && (currentGameMode === 'targets' || currentGameMode === 'training' || currentGameMode === 'duel')) {
         const diff = (typeof difficultySettings !== 'undefined' && difficultySettings[currentDifficulty])
             ? difficultySettings[currentDifficulty]
             : { targetSpeedMult: 1.0 };
-        const sweepSpeed = 2.2 * diff.targetSpeedMult;
+        const sweepSpeed = 2.0 * diff.targetSpeedMult;
         activeTargets.forEach(t => {
             if (t.isMoving && t.active) {
-                const moveX = t.originX + Math.sin(time * sweepSpeed) * 1.6;
+                const moveX = t.originX + Math.sin(time * sweepSpeed) * 1.45;
                 t.mesh.position.x = moveX;
                 t.body.position.x = moveX;
             }
@@ -163,64 +172,60 @@ function updateSimulation(dt) {
         }
     }
 
-    // Target Race, Training & Practice: Bullseye Collision Detection
-    const checkTargets = currentGameMode === 'targets' || currentGameMode === 'training' || (currentGameMode === 'practice' && practiceSettings.targets);
-    if (checkTargets && ballInFlight) {
-        for (let i = 0; i < activeTargets.length; i++) {
-            const t = activeTargets[i];
-            if (!t.active) continue;
-            const dist = ballMesh.position.distanceTo(t.mesh.position);
-            if (dist < (t.config.radius + ballRadius * 0.85)) {
-                t.active = false;
-                const ringAccuracy = dist / (t.config.radius + ballRadius);
-                const isGolden = !!t.isGolden;
-                const mult = (typeof isOnFire !== 'undefined' && isOnFire) ? 2 : 1;
+    // Corner Target Bullseye Collision Detection (Only when ball is strictly inside the goal frame opening!)
+    const checkTargets = practiceSettings.targets && (currentGameMode === 'targets' || currentGameMode === 'training' || currentGameMode === 'duel' || currentGameMode === 'practice');
+    if (checkTargets && ballInFlight && !ballBody.saved && !ballBody.blocked) {
+        const insideFrameNow = (Math.abs(ballMesh.position.x) <= 3.52 && ballMesh.position.y >= 0.08 && ballMesh.position.y <= 2.34);
+        if (insideFrameNow) {
+            for (let i = 0; i < activeTargets.length; i++) {
+                const t = activeTargets[i];
+                if (!t.active) continue;
+                const dist = ballMesh.position.distanceTo(t.mesh.position);
+                if (dist < (t.config.radius + ballRadius * 0.70)) {
+                    t.active = false;
+                    const ringAccuracy = dist / (t.config.radius + ballRadius);
+                    const isGolden = !!t.isGolden;
+                    const mult = (typeof isOnFire !== 'undefined' && isOnFire) ? 2 : 1;
 
-                let bannerTxt = isGolden ? 'LUCKY RING! +75' : 'OUTER RING! +25';
-                let pts = (isGolden ? 75 : 25) * mult;
-                let bannerCol = isGolden ? '#facc15' : '#ffffff';
-                if (ringAccuracy < 0.35) {
-                    pts = (isGolden ? 250 : 100) * mult;
-                    bannerTxt = isGolden ? `★ LUCKY GOLD! +${pts}` : `BULLSEYE! +${pts}`;
-                    bannerCol = isGolden ? '#facc15' : '#dc2626';
-                    fireballCharge = Math.min(100, fireballCharge + (isGolden ? 100 : 50));
-                    if (fireballCharge >= 100) isOnFire = true;
-                } else if (ringAccuracy < 0.68) {
-                    pts = (isGolden ? 150 : 50) * mult;
-                    bannerTxt = isGolden ? `GOLD RING! +${pts}` : `INNER RING! +${pts}`;
-                    bannerCol = '#fbbf24';
-                    fireballCharge = Math.min(100, fireballCharge + 35);
+                    let pts = (isGolden ? 150 : 75) * mult;
+                    let bannerCol = isGolden ? '#facc15' : '#38bdf8';
+                    if (ringAccuracy < 0.40) {
+                        pts = (isGolden ? 250 : 150) * mult;
+                        bannerCol = '#facc15';
+                        fireballCharge = Math.min(100, fireballCharge + (isGolden ? 100 : 50));
+                        if (fireballCharge >= 100) isOnFire = true;
+                    } else {
+                        fireballCharge = Math.min(100, fireballCharge + 35);
+                    }
+
+                    targetsShattered++;
+                    ballBody.targetBonusPts = (ballBody.targetBonusPts || 0) + pts;
+                    ballBody.hitTargetCorner = (Math.abs(t.mesh.position.x) > 2.0 && t.mesh.position.y > 1.5);
+
+                    sfx.playShatter();
+                    createShatterFX(t.mesh.position.x, t.mesh.position.y, t.mesh.position.z, isGolden);
+                    if (window.spawnFloatingScorePopup) {
+                        window.spawnFloatingScorePopup(t.mesh.position.x, t.mesh.position.y, t.mesh.position.z, `🎯 +${pts}`, bannerCol);
+                    }
+
+                    scene.remove(t.mesh);
+                    world.removeBody(t.body);
+                    activeTargets.splice(i, 1);
+                    spawnRandomTarget();
+
+                    if (currentGameMode === 'targets') {
+                        streak++;
+                        highestStreak = Math.max(highestStreak, streak);
+                        score += pts;
+                        updateHUD();
+                        if (typeof updateWindAndFireHUD === 'function') updateWindAndFireHUD();
+                        showBanner(`TARGET HIT! +${pts}`, 'BULLSEYE SHATTERED', bannerCol);
+                        ballBody.velocity.z *= 0.25;
+                        ballBody.velocity.x *= 0.5;
+                        setTimeout(() => { if (currentGameMode === 'targets' && isPlaying) resetBall(); }, 700);
+                    }
+                    break;
                 }
-
-                streak++;
-                highestStreak = Math.max(highestStreak, streak);
-                targetsShattered++;
-                score += pts;
-                updateHUD();
-                if (typeof updateWindAndFireHUD === 'function') updateWindAndFireHUD();
-
-                sfx.playShatter();
-                sfx.playCheer();
-                createShatterFX(t.mesh.position.x, t.mesh.position.y, t.mesh.position.z, isGolden);
-                if (window.spawnFloatingScorePopup) {
-                    window.spawnFloatingScorePopup(t.mesh.position.x, t.mesh.position.y, t.mesh.position.z, `+${pts}`, bannerCol);
-                }
-                showBanner(bannerTxt, pts >= 100 ? 'PINPOINT STRIKE' : '', bannerCol);
-
-                scene.remove(t.mesh);
-                world.removeBody(t.body);
-                activeTargets.splice(i, 1);
-                spawnRandomTarget();
-
-                ballBody.velocity.z *= 0.2;
-                ballBody.velocity.x *= 0.5;
-                if (currentGameMode === 'targets') {
-                    setTimeout(() => { if (currentGameMode === 'targets' && isPlaying) resetBall(); }, 700);
-                } else if (currentGameMode === 'practice' || currentGameMode === 'training') {
-                    ballBody.scored = true;
-                    finishShot('goal', bannerTxt, '', '#38bdf8');
-                }
-                break;
             }
         }
     }
@@ -239,12 +244,25 @@ function updateSimulation(dt) {
     }
 
     // ========================================================================
-    // ZERO-REBOUND GOAL NET ENTRAPMENT & POSITIONAL HARD LOCK
+    // STRICT GOAL-LINE PLANE CROSSING DETECTION & ZERO-REBOUND NET ENTRAPMENT
     // ========================================================================
-    const entersGoal = (ballBody.position.z <= -19.95 && ballBody.position.z >= -22.5 &&
-                       Math.abs(ballBody.position.x) <= 3.70 && ballBody.position.y <= 2.50);
+    // Goal posts are at x = ±3.66 (inner edge ~3.55m), crossbar at y = 2.44 (inner edge ~2.35m), z = -20.0.
+    // A shot ONLY enters the goal if it crosses z = -20.0 from front (prevZ > -20.05) to back (currZ <= -20.0)
+    // strictly inside the inner post & crossbar opening!
+    let crossedGoalMouth = false;
+    let crossX = ballBody.position.x;
+    let crossY = ballBody.position.y;
+    if (!ballBody.inNet && !ballBody.saved && !ballBody.blocked && prevZ > -20.08 && ballBody.position.z <= -19.98 && ballBody.velocity.z < 0) {
+        const dz = ballBody.position.z - prevZ;
+        const frac = Math.abs(dz) > 1e-5 ? Math.max(0, Math.min(1, (-20.0 - prevZ) / dz)) : 1.0;
+        crossX = prevX + (ballBody.position.x - prevX) * frac;
+        crossY = prevY + (ballBody.position.y - prevY) * frac;
+        if (Math.abs(crossX) <= 3.54 && crossY >= 0.05 && crossY <= 2.34) {
+            crossedGoalMouth = true;
+        }
+    }
 
-    if (entersGoal || ballBody.inNet) {
+    if (crossedGoalMouth || ballBody.inNet) {
         ballBody.inNet = true;
 
         if (!ballBody.scored && !ballBody.saved) {
@@ -253,19 +271,19 @@ function updateSimulation(dt) {
             updateHUD();
             sfx.playNet();
             slowMo = true;
-            setTimeout(() => { slowMo = false; }, 600);
-            triggerNetBillow(ballBody.position.x, ballBody.position.y);
+            setTimeout(() => { slowMo = false; }, 550);
+            triggerNetBillow(crossX, crossY);
 
             if (currentGameMode === 'keeper') {
                 sfx.playGasp();
                 finishShot('miss', 'GOAL CONCEDED', '', '#ef4444');
             } else {
                 sfx.playCheer();
-                const isTopCorner = (Math.abs(ballBody.position.x) > 2.35 && ballBody.position.y > 1.65);
-                if (isTopCorner && window.spawnFloatingScorePopup) {
-                    window.spawnFloatingScorePopup(ballBody.position.x, ballBody.position.y, -20.0, '★ TOP BIN! ★', '#facc15');
+                const isTopBin = (Math.abs(crossX) >= 2.25 && crossY >= 1.62 && Math.abs(crossX) <= 3.54 && crossY <= 2.34);
+                if (isTopBin && window.spawnFloatingScorePopup) {
+                    window.spawnFloatingScorePopup(crossX, crossY, -20.0, '★ TOP BIN! ★', '#facc15');
                 }
-                finishShot('goal', isTopCorner ? 'TOP CORNER GOAL!' : 'GOAL', '', '#22c55e');
+                finishShot('goal', isTopBin ? 'TOP BIN GOAL!' : 'GOAL!', '', isTopBin ? '#facc15' : '#22c55e');
             }
         }
 
@@ -313,8 +331,9 @@ function updateSimulation(dt) {
     }
 
     // Duel, Keeper, Training & Practice: Check Off-Target Miss (passed goal plane without scoring or save)
-    if ((currentGameMode === 'duel' || currentGameMode === 'keeper' || currentGameMode === 'practice' || currentGameMode === 'training') && ballInFlight && !ballBody.inNet && !ballBody.saved && !ballBody.scored) {
-        if (ballBody.position.z < -20.05 || (ballBody.position.z < -13.0 && ballBody.velocity.length() < 0.25 && ballBody.position.y <= ballRadius + 0.05)) {
+    if ((currentGameMode === 'duel' || currentGameMode === 'keeper' || currentGameMode === 'practice' || currentGameMode === 'training') && ballInFlight && !shotComplete && !ballBody.inNet && !ballBody.saved && !ballBody.scored) {
+        if (ballBody.position.z < -20.12 || (ballBody.position.z < -12.5 && ballBody.velocity.length() < 0.35 && ballBody.position.y <= ballRadius + 0.06)) {
+            ballInFlight = false;
             if (currentGameMode === 'keeper') {
                 sfx.playCheer();
                 finishShot('goal', 'SHOT WIDE!', '', '#22c55e');
@@ -322,7 +341,8 @@ function updateSimulation(dt) {
                 streak = 0;
                 updateHUD();
                 sfx.playGasp();
-                finishShot('miss', 'OFF TARGET', '', '#ef4444');
+                const missReason = (ballBody.position.y > 2.42) ? 'OVER THE BAR' : 'MISSED WIDE';
+                finishShot('miss', missReason, '', '#ef4444');
             }
         }
     }

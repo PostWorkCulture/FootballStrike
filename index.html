@@ -604,10 +604,85 @@
             letter-spacing: 0.5px;
         }
 
+        /* Clean Single Pause Menu Modal */
+        #pause-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(3, 7, 18, 0.86);
+            backdrop-filter: blur(16px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 80;
+            padding: 20px;
+            pointer-events: auto;
+        }
+        .pause-card {
+            background: #090d16;
+            border: 1px solid rgba(56, 189, 248, 0.38);
+            border-radius: 22px;
+            width: 100%;
+            max-width: 520px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 26px 28px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.92);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .pause-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .pause-title {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            color: #f8fafc;
+            text-transform: uppercase;
+            margin: 0;
+        }
+        .pause-title span {
+            color: #38bdf8;
+        }
+        .pause-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .pause-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 10px 14px;
+        }
+        .pause-row-lbl {
+            font-size: 13px;
+            font-weight: 800;
+            color: #e2e8f0;
+            letter-spacing: 0.3px;
+        }
+        .pause-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
         /* Clean Viewport Mode for 2K Nano Banana Reference Captures */
         body.clean-viewport #menu,
         body.clean-viewport #hud,
         body.clean-viewport #results-modal,
+        body.clean-viewport #pause-modal,
         body.clean-viewport #studio-panel,
         body.clean-viewport #studio-toggle-btn,
         body.clean-viewport .floating-score-popup {
@@ -619,147 +694,26 @@
     <script src="js/three.min.js"></script>
     <script src="js/GLTFLoader.js"></script>
     <script src="js/SkeletonUtils.js"></script>
-    <script src="js/characterAnimator.js?v=2.0.0"></script>
+    <script src="js/characterAnimator.js?v=2.1.0"></script>
     <script src="js/strikePhysics.js?v=1.1.0"></script>
     <script src="js/shotSolver.js?v=1.0.0"></script>
 </head>
 <body>
-    <!-- Top-Right Studio Control Panel Toggle Button -->
-    <button id="studio-toggle-btn" onclick="toggleStudioPanel()">🎛️ STUDIO</button>
+    <!-- Hidden Studio Toggle Hook (accessible via Pause Menu) -->
+    <button id="studio-toggle-btn" style="display: none;" onclick="toggleStudioPanel()">🎛️ STUDIO</button>
 
-    <!-- Sleek Collapsible On-Screen Studio Control Panel -->
-    <div id="studio-panel" class="collapsed">
-        <div class="studio-header">
-            <span class="studio-title">🎛️ STUDIO CONTROL PANEL</span>
-            <button class="studio-mini-btn" style="flex: 0 0 auto; padding: 3px 8px;" onclick="toggleStudioPanel(false)">✕</button>
-        </div>
-
-        <div class="studio-section-title">💡 Lighting</div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Exposure</span><span id="studio-val-exposure" class="studio-val">0.95</span></div>
-            <input id="studio-slider-exposure" class="studio-slider" type="range" min="0.4" max="1.8" step="0.01" value="0.95" oninput="applyStudioSettings({exposure: this.value})">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Hemi Intensity</span><span id="studio-val-hemiIntensity" class="studio-val">1.25</span></div>
-            <input id="studio-slider-hemiIntensity" class="studio-slider" type="range" min="0.2" max="2.5" step="0.05" value="1.25" oninput="applyStudioSettings({hemiIntensity: this.value})">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Sun / Key Intensity</span><span id="studio-val-sunIntensity" class="studio-val">2.20</span></div>
-            <input id="studio-slider-sunIntensity" class="studio-slider" type="range" min="0.5" max="4.0" step="0.05" value="2.2" oninput="applyStudioSettings({sunIntensity: this.value})">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Sun Elevation (Y)</span><span id="studio-val-sunElevation" class="studio-val">38</span></div>
-            <input id="studio-slider-sunElevation" class="studio-slider" type="range" min="10" max="80" step="1" value="38" oninput="applyStudioSettings({sunElevation: this.value})">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Sun Azimuth (X)</span><span id="studio-val-sunAzimuth" class="studio-val">18</span></div>
-            <input id="studio-slider-sunAzimuth" class="studio-slider" type="range" min="-50" max="50" step="1" value="18" oninput="applyStudioSettings({sunAzimuth: this.value})">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Rim Intensity</span><span id="studio-val-rimIntensity" class="studio-val">0.90</span></div>
-            <input id="studio-slider-rimIntensity" class="studio-slider" type="range" min="0.0" max="2.5" step="0.05" value="0.9" oninput="applyStudioSettings({rimIntensity: this.value})">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Fog Density</span><span id="studio-val-fogDensity" class="studio-val">0.0032</span></div>
-            <input id="studio-slider-fogDensity" class="studio-slider" type="range" min="0.000" max="0.015" step="0.0002" value="0.0032" oninput="applyStudioSettings({fogDensity: this.value})">
-        </div>
-
-        <div class="studio-section-title">🌱 Textures & Materials</div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Grass Roughness</span><span id="studio-val-grassRoughness" class="studio-val">0.82</span></div>
-            <input id="studio-slider-grassRoughness" class="studio-slider" type="range" min="0.2" max="1.0" step="0.01" value="0.82" oninput="applyStudioSettings({grassRoughness: this.value})">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Grass Bump</span><span id="studio-val-grassBump" class="studio-val">0.035</span></div>
-            <input id="studio-slider-grassBump" class="studio-slider" type="range" min="0.0" max="0.15" step="0.005" value="0.035" oninput="applyStudioSettings({grassBump: this.value})">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Hoarding Brightness</span><span id="studio-val-hoardingBrightness" class="studio-val">0.90</span></div>
-            <input id="studio-slider-hoardingBrightness" class="studio-slider" type="range" min="0.2" max="1.5" step="0.02" value="0.90" oninput="applyStudioSettings({hoardingBrightness: this.value})">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Net Opacity</span><span id="studio-val-netOpacity" class="studio-val">0.78</span></div>
-            <input id="studio-slider-netOpacity" class="studio-slider" type="range" min="0.2" max="1.0" step="0.02" value="0.78" oninput="applyStudioSettings({netOpacity: this.value})">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Ball Roughness</span><span id="studio-val-ballRoughness" class="studio-val">0.22</span></div>
-            <input id="studio-slider-ballRoughness" class="studio-slider" type="range" min="0.05" max="0.8" step="0.01" value="0.22" oninput="applyStudioSettings({ballRoughness: this.value})">
-        </div>
-
-        <div class="studio-section-title">🎥 Camera Angles</div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Camera FOV</span><span id="studio-val-camFov" class="studio-val">46</span></div>
-            <input id="studio-slider-camFov" class="studio-slider" type="range" min="30" max="75" step="1" value="46" oninput="applyStudioSettings({camFov: this.value}, true)">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Camera Distance</span><span id="studio-val-camDist" class="studio-val">3.60</span></div>
-            <input id="studio-slider-camDist" class="studio-slider" type="range" min="2.0" max="8.0" step="0.05" value="3.6" oninput="applyStudioSettings({camDist: this.value}, true)">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Camera Height (Y)</span><span id="studio-val-camHeight" class="studio-val">1.52</span></div>
-            <input id="studio-slider-camHeight" class="studio-slider" type="range" min="0.1" max="4.0" step="0.02" value="1.52" oninput="applyStudioSettings({camHeight: this.value}, true)">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>Camera Offset X</span><span id="studio-val-camOffsetX" class="studio-val">-0.18</span></div>
-            <input id="studio-slider-camOffsetX" class="studio-slider" type="range" min="-3.0" max="3.0" step="0.02" value="-0.18" oninput="applyStudioSettings({camOffsetX: this.value}, true)">
-        </div>
-        <div class="studio-row">
-            <div class="studio-lbl-row"><span>LookAt Height (Y)</span><span id="studio-val-camLookY" class="studio-val">1.32</span></div>
-            <input id="studio-slider-camLookY" class="studio-slider" type="range" min="0.2" max="3.0" step="0.02" value="1.32" oninput="applyStudioSettings({camLookY: this.value}, true)">
-        </div>
-
-        <div class="studio-btn-row">
-            <button id="studio-wireframe-btn" class="studio-mini-btn" onclick="setWireframeMode(!window.__wireframeMode)">🕸️ Wireframe</button>
-            <button id="studio-clean-btn" class="studio-mini-btn" onclick="setCleanViewportMode(!window.__cleanViewportMode)">📷 Clean View</button>
-        </div>
-        <button id="studio-copy-btn" onclick="copyStudioSettingsToClipboard()">📋 Copy Settings as JSON</button>
-    </div>
-
-    <!-- Single-Mode International Training Menu -->
-    <div id="menu">
-        <div class="title-logo">FOOTBALL STRIKE <span>INTERNATIONAL TRAINING</span></div>
-        <div class="sub-tag">Progressive Combined Pro Drill • Corner Bullseyes, Free-Kick Mannequins & Live Diving Goalkeeper</div>
-
-        <!-- 8-Nation National Team Kit Selector -->
-        <div id="team-selector" class="locker-bar">
-            <span class="locker-lbl">👕 SELECT NATIONAL KIT:</span>
-            <button class="team-pill-btn active" onclick="selectTeamKit(0)">🇫🇷 FRANCE</button>
-            <button class="team-pill-btn" onclick="selectTeamKit(1)">🇧🇷 BRAZIL</button>
-            <button class="team-pill-btn" onclick="selectTeamKit(2)">🇦🇷 ARGENTINA</button>
-            <button class="team-pill-btn" onclick="selectTeamKit(3)">🏴󠁧󠁢󠁥󠁮󠁧󠁿 ENGLAND</button>
-            <button class="team-pill-btn" onclick="selectTeamKit(4)">🇪🇸 SPAIN</button>
-            <button class="team-pill-btn" onclick="selectTeamKit(5)">🇩🇪 GERMANY</button>
-            <button class="team-pill-btn" onclick="selectTeamKit(6)">🇵🇹 PORTUGAL</button>
-            <button class="team-pill-btn" onclick="selectTeamKit(7)">🇺🇸 USA</button>
-        </div>
-
-        <!-- Single Hero International Training CTA Card -->
+    <!-- Single-Mode Start Overlay (auto-dismissed on load into Training) -->
+    <div id="menu" style="display: none;">
+        <div class="title-logo">FOOTBALL STRIKE <span>TRAINING</span></div>
         <div class="hero-training-card">
-            <span class="mode-badge" style="background: rgba(56, 189, 248, 0.18); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.45); margin-bottom: 0;">★ FIFA PRO UNIFIED TRAINING MODE</span>
-            <h3 style="font-size: 26px; font-weight: 900; margin: 2px 0; color: #f8fafc; letter-spacing: 0.6px;">INTERNATIONAL TRAINING ARENA</h3>
-            <p style="font-size: 13.5px; color: #cbd5e1; margin: 0; line-height: 1.55;">
-                Master pinpoint top-corner curlers and knuckleballs from 11m penalty spots out to 22m free-kick angles. Shatter corner bullseyes, bend around the 3D mannequin wall, and beat the diving goalkeeper to build your streak.
-            </p>
-            <div class="hero-training-features">
-                <span class="hero-feature-pill">🎯 Corner Bullseyes</span>
-                <span class="hero-feature-pill">🛡️ 3D Mannequin Wall</span>
-                <span class="hero-feature-pill">🧤 Live Diving Keeper</span>
-                <span class="hero-feature-pill">🔥 Endless Streak & High Score</span>
-            </div>
-            <button id="start-training-btn" class="btn-hero-training" onclick="selectMode('training')">⚽ START INTERNATIONAL TRAINING</button>
+            <button id="start-training-btn" class="btn-hero-training" onclick="selectMode('training')">⚽ START TRAINING</button>
         </div>
-
-        <!-- Hidden DOM-compatible hooks so legacy diagnostic scripts inspecting mode labels or duel-round never throw null errors -->
         <div style="display: none;" aria-hidden="true">
             <span id="duel-round">1</span>
-            <button onclick="selectMode('duel')">FREE KICK DUEL</button>
-            <button onclick="selectMode('targets')">TARGET RACE</button>
-            <button onclick="selectMode('keeper')">KEEPER SHOWDOWN</button>
-            <button onclick="selectMode('practice')">PRACTICE ARENA</button>
         </div>
     </div>
 
-    <!-- Gameplay HUD -->
+    <!-- Clean Uncluttered Gameplay HUD -->
     <div id="hud">
         <!-- 2D Interactive Swipe Curve Canvas -->
         <canvas id="swipe-trail"></canvas>
@@ -768,113 +722,59 @@
         <div id="keeper-target-reticle">DIVE!</div>
 
         <div class="header-bar">
-            <!-- Left: Broadcast 1v1 Matchup & Score Card (Solid Black) -->
-            <div id="score-box" class="hud-score-card">
+            <!-- Left: Compact Training Score & Streak Pill -->
+            <div id="score-box" class="hud-score-card" style="padding: 8px 16px; gap: 14px;">
                 <div>
                     <span id="home-team-badge" class="team-flag-pill">🇫🇷 FRA</span>
-                    <span id="score-label" style="font-size: 10px; text-transform: uppercase; color: #94a3b8; font-weight: 800; display: block; letter-spacing: 0.5px;">GOALS</span>
-                    <span id="score-display" class="score-val">0</span>
+                    <span id="score-label" style="font-size: 10px; text-transform: uppercase; color: #94a3b8; font-weight: 800; display: block; letter-spacing: 0.5px;">SCORE (STREAK x0)</span>
+                    <span id="score-display" class="score-val" style="font-size: 22px;">0</span>
                 </div>
-                <div id="ai-vs-box" style="display: flex; align-items: center; gap: 12px; padding-left: 14px; border-left: 1px solid rgba(255,255,255,0.14);">
+                <div id="ai-vs-box" style="display: flex; align-items: center; padding-left: 12px; border-left: 1px solid rgba(255,255,255,0.14);">
                     <div>
-                        <span id="away-team-badge" class="team-flag-pill" style="background: rgba(250, 204, 21, 0.15); border-color: rgba(250, 204, 21, 0.35);">🇧🇷 BRA</span>
-                        <span style="font-size: 10px; text-transform: uppercase; color: #94a3b8; font-weight: 800; display: block; letter-spacing: 0.5px;">RIVAL AI</span>
-                        <span id="ai-score-display" class="score-val" style="color: #facc15; text-shadow: 0 0 14px rgba(250, 204, 21, 0.4);">0</span>
+                        <span style="font-size: 9px; text-transform: uppercase; color: #94a3b8; font-weight: 800; display: block; letter-spacing: 0.5px;">BEST STREAK</span>
+                        <span id="ai-score-display" class="score-val" style="font-size: 20px; color: #facc15;">x0</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Difficulty & Camera View Card -->
-            <div class="hud-difficulty-card">
-                <div style="display: flex; gap: 6px; align-items: center;">
-                    <div>
-                        <span style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; display: block;">DIFFICULTY</span>
-                        <select id="difficulty-select" class="hud-select" onchange="setDifficulty(this.value)">
-                            <option value="amateur">AMATEUR</option>
-                            <option value="semipro" selected>SEMI-PRO</option>
-                            <option value="worldclass">WORLD CLASS</option>
-                        </select>
-                    </div>
-                    <div>
-                        <span style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; display: block;">CAMERA</span>
-                        <button id="camera-view-btn" class="hud-select" style="color: #f8fafc; border-color: rgba(255,255,255,0.25);" onclick="toggleCameraView()">🎥 3RD PERSON</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Central Round Indicator + Wind & Fireball Meter (Solid Black) -->
-            <div id="round-tracker" class="hud-tracker-card">
-                <span id="tracker-label" style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">ROUND</span>
-                <div id="shot-pills" style="display: flex; gap: 6px;"></div>
-                <span id="timer-display" style="font-size: 18px; font-weight: 800; color: #38bdf8; display: none;">45s</span>
-
-                <div class="wind-fire-cluster">
+            <!-- Center: Compact Spot & Wind Pill -->
+            <div id="round-tracker" class="hud-tracker-card" style="padding: 8px 16px; gap: 12px;">
+                <span id="tracker-label" style="font-size: 11px; font-weight: 800; color: #e2e8f0; text-transform: uppercase; letter-spacing: 0.5px;">STAGE 1 • PENALTY SPOT (11M)</span>
+                <div id="shot-pills" style="display: flex; gap: 5px;"></div>
+                <span id="timer-display" style="font-size: 16px; font-weight: 800; color: #38bdf8; display: none;">45s</span>
+                <div class="wind-fire-cluster" style="min-width: 105px;">
                     <div class="wind-row">
                         <span style="color: #64748b;">WIND</span>
                         <span id="wind-val" style="color: #94a3b8;">CALM 0 KM/H</span>
                     </div>
-                    <div class="wind-row">
-                        <span id="fire-status-lbl" style="color: #94a3b8;">⚡ CHARGE 0%</span>
-                    </div>
                     <div class="fire-bar-bg">
                         <div id="fire-bar-fill"></div>
                     </div>
+                    <span id="fire-status-lbl" style="display: none;">⚡ CHARGE 0%</span>
                 </div>
             </div>
 
-            <!-- Combined Top-Right Menu & Telemetry Unit (Solid Black Background) -->
-            <div id="top-right-hud" class="top-right-unit">
+            <!-- Right: Clean Pause Button & Shot Telemetry Pill -->
+            <div id="top-right-hud" class="top-right-unit" style="width: auto; min-width: 175px; padding: 8px 12px; gap: 6px;">
                 <div class="unit-actions-row">
-                    <button id="exit-btn" class="btn-unit-exit" onclick="resetToMenu()">EXIT MENU</button>
+                    <button id="exit-btn" class="btn-unit-exit" onclick="togglePauseMenu(true)">⏸ PAUSE / OPTIONS</button>
                     <button id="next-shot-btn" class="btn-unit-next" onclick="triggerNextShot()">
-                        <span>NEXT SHOT</span>
-                        <span style="font-size: 14px;">➔</span>
+                        <span>NEXT BALL</span>
+                        <span style="font-size: 13px;">➔</span>
                     </button>
                 </div>
-                <div class="unit-divider"></div>
-                <div id="telemetry" class="unit-telemetry">
-                    <div class="unit-stat-row">
-                        <span class="unit-stat-lbl">SHOT SPEED</span>
-                        <span class="unit-stat-num" style="color: #38bdf8;" id="stat-speed">0 KM/H</span>
-                    </div>
-                    <div class="unit-stat-row">
-                        <span class="unit-stat-lbl">BALL SPIN</span>
-                        <span class="unit-stat-num" style="color: #fbbf24;" id="stat-spin">0 RPM</span>
-                    </div>
-                    <div class="unit-stat-row">
-                        <span class="unit-stat-lbl">TRAJECTORY</span>
-                        <span class="unit-stat-num" style="color: #34d399;" id="stat-style">Direct</span>
-                    </div>
+                <div id="telemetry" class="unit-telemetry" style="flex-direction: row; gap: 12px; justify-content: space-between; padding-top: 2px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <span class="unit-stat-num" style="font-size: 11px; color: #38bdf8;" id="stat-speed">0 KM/H</span>
+                    <span class="unit-stat-num" style="font-size: 11px; color: #fbbf24;" id="stat-spin">0 RPM</span>
+                    <span class="unit-stat-num" style="font-size: 11px; color: #34d399;" id="stat-style">Ready</span>
                 </div>
             </div>
         </div>
 
-        <!-- Practice Mode Dropdown Toolbar (Compact Minimal Footprint) -->
-        <div id="practice-toolbar" style="display: none; position: absolute; top: 92px; left: 18px; z-index: 25;">
-            <button id="practice-menu-btn" class="practice-dropdown-btn" onclick="togglePracticeMenu()">
-                <span>⚙️ DRILL OPTIONS</span>
-                <span id="practice-menu-arrow">▾</span>
-            </button>
-            <div id="practice-menu-panel" class="practice-menu-panel" style="display: none;">
-                <div class="drill-opt-row">
-                    <span>🎯 Targets</span>
-                    <button id="toggle-targets-btn" class="drill-toggle-pill active" onclick="togglePracticeOption('targets')">ON</button>
-                </div>
-                <div class="drill-opt-row">
-                    <span>🛡️ Defensive Wall</span>
-                    <button id="toggle-wall-btn" class="drill-toggle-pill active" onclick="togglePracticeOption('wall')">ON</button>
-                </div>
-                <div class="drill-opt-row">
-                    <span>🧤 Goalkeeper</span>
-                    <button id="toggle-keeper-btn" class="drill-toggle-pill active" onclick="togglePracticeOption('keeper')">ON</button>
-                </div>
-                <div class="drill-opt-row">
-                    <span>📍 Spot</span>
-                    <button id="practice-spot-btn" class="drill-toggle-pill" onclick="cyclePracticeSpot()">Center</button>
-                </div>
-                <div style="height: 1px; background: rgba(255,255,255,0.12); margin: 4px 0;"></div>
-                <button class="btn-action" style="width: 100%; padding: 6px; font-size: 11px; background: rgba(239, 68, 68, 0.25); border-color: #ef4444;" onclick="resetBall()">🔄 Reset Ball</button>
-            </div>
+        <!-- Hidden legacy practice toolbar hook (kept display:none for automated test scripts) -->
+        <div id="practice-toolbar" style="display: none;" aria-hidden="true">
+            <button id="practice-spot-btn" onclick="cyclePracticeSpot()">Progressive Auto</button>
+            <span id="away-team-badge">🇧🇷 BRA</span>
         </div>
 
         <!-- Dynamic Impact Banner (Positioned Directly Above Goal Crossbar) -->
@@ -884,14 +784,166 @@
         </div>
     </div>
 
+    <!-- Single Clean Pause Menu Modal (All Game, Drill, Camera, Kit & Studio Options in One Place) -->
+    <div id="pause-modal">
+        <div class="pause-card">
+            <div class="pause-header">
+                <h2 class="pause-title">⏸ PAUSE & <span>TRAINING OPTIONS</span></h2>
+                <button class="studio-mini-btn" style="flex: 0 0 auto; padding: 6px 12px; font-size: 12px;" onclick="togglePauseMenu(false)">✕ RESUME</button>
+            </div>
+
+            <div class="pause-grid">
+                <div class="pause-row">
+                    <span class="pause-row-lbl">🛡️ Defensive Wall</span>
+                    <button id="toggle-wall-btn" data-toggle-opt="wall" class="drill-toggle-pill active" onclick="togglePracticeOption('wall')">ON</button>
+                </div>
+                <div class="pause-row">
+                    <span class="pause-row-lbl">🧤 Goalkeeper</span>
+                    <button id="toggle-keeper-btn" data-toggle-opt="keeper" class="drill-toggle-pill active" onclick="togglePracticeOption('keeper')">ON</button>
+                </div>
+                <div class="pause-row">
+                    <span class="pause-row-lbl">🎯 Corner Targets</span>
+                    <button id="toggle-targets-btn" data-toggle-opt="targets" class="drill-toggle-pill active" onclick="togglePracticeOption('targets')">ON</button>
+                </div>
+                <div class="pause-row">
+                    <span class="pause-row-lbl">📍 Kick Location</span>
+                    <select id="pause-spot-select" class="hud-select" onchange="setPracticeSpotByIndex(this.value)">
+                        <option value="0" selected>PROGRESSIVE AUTO</option>
+                        <option value="1">PENALTY SPOT (11M)</option>
+                        <option value="2">CENTER FREE KICK (19M)</option>
+                        <option value="3">LEFT ANGLE (21M)</option>
+                        <option value="4">RIGHT ANGLE (21M)</option>
+                        <option value="5">LONG RANGE (26M)</option>
+                    </select>
+                </div>
+                <div class="pause-row">
+                    <span class="pause-row-lbl">⚡ Keeper Difficulty</span>
+                    <select id="difficulty-select" class="hud-select" onchange="setDifficulty(this.value)">
+                        <option value="amateur">AMATEUR</option>
+                        <option value="semipro" selected>SEMI-PRO</option>
+                        <option value="worldclass">WORLD CLASS</option>
+                    </select>
+                </div>
+                <div class="pause-row">
+                    <span class="pause-row-lbl">🎥 Camera View</span>
+                    <button id="camera-view-btn" class="hud-select" style="color: #f8fafc; border-color: rgba(56,189,248,0.45);" onclick="toggleCameraView()">1ST PERSON (KICK TAKER)</button>
+                </div>
+            </div>
+
+            <!-- National Team Kit Selector inside Pause Menu -->
+            <div id="team-selector" class="locker-bar" style="margin-bottom: 0; padding: 10px 12px;">
+                <span class="locker-lbl" style="width: 100%; text-align: center; margin-bottom: 4px;">👕 NATIONAL KIT</span>
+                <button class="team-pill-btn active" onclick="selectTeamKit(0)">🇫🇷 FRA</button>
+                <button class="team-pill-btn" onclick="selectTeamKit(1)">🇧🇷 BRA</button>
+                <button class="team-pill-btn" onclick="selectTeamKit(2)">🇦🇷 ARG</button>
+                <button class="team-pill-btn" onclick="selectTeamKit(3)">🏴󠁧󠁢󠁥󠁮󠁧󠁿 ENG</button>
+                <button class="team-pill-btn" onclick="selectTeamKit(4)">🇪🇸 ESP</button>
+                <button class="team-pill-btn" onclick="selectTeamKit(5)">🇩🇪 GER</button>
+                <button class="team-pill-btn" onclick="selectTeamKit(6)">🇵🇹 POR</button>
+                <button class="team-pill-btn" onclick="selectTeamKit(7)">🇺🇸 USA</button>
+            </div>
+
+            <!-- Collapsible Studio Lighting / Camera Tuning Panel inside Pause Menu -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button class="studio-mini-btn" onclick="toggleStudioPanel()">🎛️ Advanced Lighting & Camera Sliders</button>
+            </div>
+
+            <div id="studio-panel" class="collapsed" style="position: static; width: 100%; max-height: 240px; box-shadow: none;">
+                <div class="studio-header">
+                    <span class="studio-title">🎛️ STUDIO LIGHTING & CAMERA</span>
+                    <button class="studio-mini-btn" style="flex: 0 0 auto; padding: 3px 8px;" onclick="toggleStudioPanel(false)">✕</button>
+                </div>
+                <div class="studio-section-title">💡 Lighting</div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Exposure</span><span id="studio-val-exposure" class="studio-val">0.82</span></div>
+                    <input id="studio-slider-exposure" class="studio-slider" type="range" min="0.4" max="1.8" step="0.01" value="0.82" oninput="applyStudioSettings({exposure: this.value})">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Hemi Intensity</span><span id="studio-val-hemiIntensity" class="studio-val">0.65</span></div>
+                    <input id="studio-slider-hemiIntensity" class="studio-slider" type="range" min="0.2" max="2.5" step="0.05" value="0.65" oninput="applyStudioSettings({hemiIntensity: this.value})">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Sun / Key Intensity</span><span id="studio-val-sunIntensity" class="studio-val">1.35</span></div>
+                    <input id="studio-slider-sunIntensity" class="studio-slider" type="range" min="0.5" max="4.0" step="0.05" value="1.35" oninput="applyStudioSettings({sunIntensity: this.value})">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Sun Elevation (Y)</span><span id="studio-val-sunElevation" class="studio-val">34</span></div>
+                    <input id="studio-slider-sunElevation" class="studio-slider" type="range" min="10" max="80" step="1" value="34" oninput="applyStudioSettings({sunElevation: this.value})">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Sun Azimuth (X)</span><span id="studio-val-sunAzimuth" class="studio-val">16</span></div>
+                    <input id="studio-slider-sunAzimuth" class="studio-slider" type="range" min="-50" max="50" step="1" value="16" oninput="applyStudioSettings({sunAzimuth: this.value})">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Rim Intensity</span><span id="studio-val-rimIntensity" class="studio-val">0.55</span></div>
+                    <input id="studio-slider-rimIntensity" class="studio-slider" type="range" min="0.0" max="2.5" step="0.05" value="0.55" oninput="applyStudioSettings({rimIntensity: this.value})">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Fog Density</span><span id="studio-val-fogDensity" class="studio-val">0.0032</span></div>
+                    <input id="studio-slider-fogDensity" class="studio-slider" type="range" min="0.000" max="0.015" step="0.0002" value="0.0032" oninput="applyStudioSettings({fogDensity: this.value})">
+                </div>
+                <div class="studio-section-title">🌱 Textures & Materials</div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Grass Roughness</span><span id="studio-val-grassRoughness" class="studio-val">0.92</span></div>
+                    <input id="studio-slider-grassRoughness" class="studio-slider" type="range" min="0.2" max="1.0" step="0.01" value="0.92" oninput="applyStudioSettings({grassRoughness: this.value})">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Grass Bump</span><span id="studio-val-grassBump" class="studio-val">0.030</span></div>
+                    <input id="studio-slider-grassBump" class="studio-slider" type="range" min="0.0" max="0.15" step="0.005" value="0.030" oninput="applyStudioSettings({grassBump: this.value})">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Hoarding Brightness</span><span id="studio-val-hoardingBrightness" class="studio-val">0.88</span></div>
+                    <input id="studio-slider-hoardingBrightness" class="studio-slider" type="range" min="0.2" max="1.5" step="0.02" value="0.88" oninput="applyStudioSettings({hoardingBrightness: this.value})">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Net Opacity</span><span id="studio-val-netOpacity" class="studio-val">0.82</span></div>
+                    <input id="studio-slider-netOpacity" class="studio-slider" type="range" min="0.2" max="1.0" step="0.02" value="0.82" oninput="applyStudioSettings({netOpacity: this.value})">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Ball Roughness</span><span id="studio-val-ballRoughness" class="studio-val">0.24</span></div>
+                    <input id="studio-slider-ballRoughness" class="studio-slider" type="range" min="0.05" max="0.8" step="0.01" value="0.24" oninput="applyStudioSettings({ballRoughness: this.value})">
+                </div>
+                <div class="studio-section-title">🎥 Camera Angles</div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Camera FOV</span><span id="studio-val-camFov" class="studio-val">46</span></div>
+                    <input id="studio-slider-camFov" class="studio-slider" type="range" min="30" max="75" step="1" value="46" oninput="applyStudioSettings({camFov: this.value}, true)">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Camera Distance</span><span id="studio-val-camDist" class="studio-val">3.10</span></div>
+                    <input id="studio-slider-camDist" class="studio-slider" type="range" min="2.0" max="8.0" step="0.05" value="3.1" oninput="applyStudioSettings({camDist: this.value}, true)">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Camera Height (Y)</span><span id="studio-val-camHeight" class="studio-val">2.15</span></div>
+                    <input id="studio-slider-camHeight" class="studio-slider" type="range" min="0.1" max="4.0" step="0.02" value="2.15" oninput="applyStudioSettings({camHeight: this.value}, true)">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>Camera Offset X</span><span id="studio-val-camOffsetX" class="studio-val">0.00</span></div>
+                    <input id="studio-slider-camOffsetX" class="studio-slider" type="range" min="-3.0" max="3.0" step="0.02" value="0.0" oninput="applyStudioSettings({camOffsetX: this.value}, true)">
+                </div>
+                <div class="studio-row">
+                    <div class="studio-lbl-row"><span>LookAt Height (Y)</span><span id="studio-val-camLookY" class="studio-val">0.90</span></div>
+                    <input id="studio-slider-camLookY" class="studio-slider" type="range" min="0.2" max="3.0" step="0.02" value="0.90" oninput="applyStudioSettings({camLookY: this.value}, true)">
+                </div>
+                <div class="studio-btn-row">
+                    <button id="studio-wireframe-btn" class="studio-mini-btn" onclick="setWireframeMode(!window.__wireframeMode)">🕸️ Wireframe</button>
+                    <button id="studio-clean-btn" class="studio-mini-btn" onclick="setCleanViewportMode(!window.__cleanViewportMode)">📷 Clean View</button>
+                </div>
+                <button id="studio-copy-btn" onclick="copyStudioSettingsToClipboard()">📋 Copy Settings as JSON</button>
+            </div>
+
+            <div class="pause-actions">
+                <button class="btn-action" style="flex: 1.4; padding: 13px; background: linear-gradient(135deg, #0284c7, #2563eb);" onclick="togglePauseMenu(false)">▶ RESUME TRAINING</button>
+                <button class="btn-action" style="flex: 1; padding: 13px; background: rgba(239, 68, 68, 0.22); border-color: #ef4444;" onclick="resetBall(); togglePauseMenu(false);">🔄 RESET BALL</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Match Results Summary Modal -->
     <div id="results-modal" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, rgba(15, 23, 42, 0.85) 0%, rgba(3, 7, 18, 0.98) 100%); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 30;">
         <div class="hud-glass" style="padding: 36px 44px; border-radius: 24px; max-width: 480px; width: 90%; text-align: center; border-color: rgba(56, 189, 248, 0.3); box-shadow: 0 20px 50px rgba(0,0,0,0.7);">
-            <div style="font-size: 13px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">Shootout Match Result</div>
-            <h2 id="modal-title" style="font-size: 36px; font-weight: 900; margin: 0 0 16px 0; color: #f8fafc; letter-spacing: 0.5px;">MATCH FINISHED</h2>
-
+            <div style="font-size: 13px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">Training Summary</div>
+            <h2 id="modal-title" style="font-size: 36px; font-weight: 900; margin: 0 0 16px 0; color: #f8fafc; letter-spacing: 0.5px;">SESSION COMPLETE</h2>
             <div style="font-size: 40px; font-weight: 900; color: #facc15; margin-bottom: 24px; text-shadow: 0 0 25px rgba(250, 204, 21, 0.4);" id="modal-final-score">3 / 5 GOALS</div>
-
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 30px; text-align: left;">
                 <div style="background: rgba(255,255,255,0.04); padding: 12px 16px; border-radius: 12px;">
                     <span style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; display: block;">Conversion</span>
@@ -910,10 +962,8 @@
                     <span id="stat-modal-streak" style="font-size: 18px; font-weight: 800; color: #10b981;">Complete</span>
                 </div>
             </div>
-
             <div style="display: flex; gap: 14px;">
-                <button class="btn-action" style="flex: 1; padding: 14px; font-size: 14px;" onclick="restartCurrentMode()">Play Again</button>
-                <button class="btn-action hud-glass" style="flex: 1; padding: 14px; font-size: 14px;" onclick="resetToMenu()">Main Menu</button>
+                <button class="btn-action" style="flex: 1; padding: 14px; font-size: 14px;" onclick="restartCurrentMode()">Continue Training</button>
             </div>
         </div>
     </div>
@@ -929,28 +979,29 @@
     <script src="js/UnrealBloomPass.js"></script>
 
     <!-- FIFA-Grade Kinematics & Animation Engine -->
-    <script src="js/playerKinematics.js?v=2.0.0"></script>
+    <script src="js/playerKinematics.js?v=2.1.0"></script>
 
     <!-- 3D Hexagonal Spring-Mass Net Cloth Simulation -->
     <script src="js/netClothPhysics.js?v=1.0.0"></script>
 
     <!-- Core 3D Game Script -->
-    <script src="js/game/00_state.js?v=7.0.0"></script>
-    <script src="js/game/01_audio.js?v=7.0.0"></script>
-    <script src="js/game/02_scene.js?v=7.0.0"></script>
-    <script src="js/game/02_lighting.js?v=7.0.0"></script>
-    <script src="js/game/03_pitch.js?v=7.0.0"></script>
-    <script src="js/game/04_stadium.js?v=7.0.0"></script>
-    <script src="js/game/05_goal.js?v=7.0.0"></script>
-    <script src="js/game/06_ball.js?v=7.0.0"></script>
-    <script src="js/game/07_characters.js?v=7.0.0"></script>
-    <script src="js/game/08_targets.js?v=7.0.0"></script>
-    <script src="js/game/09_gameflow.js?v=7.0.0"></script>
-    <script src="js/game/10_shooting.js?v=7.0.0"></script>
-    <script src="js/game/11_loop.js?v=7.0.0"></script>
+    <script src="js/game/00_state.js?v=7.1.0"></script>
+    <script src="js/game/01_audio.js?v=7.1.0"></script>
+    <script src="js/game/02_scene.js?v=7.1.0"></script>
+    <script src="js/game/02_lighting.js?v=7.1.0"></script>
+    <script src="js/game/03_pitch.js?v=7.1.0"></script>
+    <script src="js/game/04_stadium.js?v=7.1.0"></script>
+    <script src="js/game/05_goal.js?v=7.1.0"></script>
+    <script src="js/game/06_ball.js?v=7.1.0"></script>
+    <script src="js/game/07_characters.js?v=7.1.0"></script>
+    <script src="js/game/08_targets.js?v=7.1.0"></script>
+    <script src="js/game/09_gameflow.js?v=7.1.0"></script>
+    <script src="js/game/10_shooting.js?v=7.1.0"></script>
+    <script src="js/game/11_loop.js?v=7.1.0"></script>
     <script>
-        if (window.location.search.indexOf('studio=1') !== -1 && typeof window.toggleStudioPanel === 'function') {
-            window.toggleStudioPanel(true);
+        if (window.location.search.indexOf('studio=1') !== -1 && typeof window.togglePauseMenu === 'function') {
+            window.togglePauseMenu(true);
+            if (typeof window.toggleStudioPanel === 'function') window.toggleStudioPanel(true);
         }
     </script>
 </body>

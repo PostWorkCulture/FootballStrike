@@ -66,10 +66,10 @@
         ballRoughness: 0.24,
         // Camera Angles
         camFov: 46,
-        camDist: 3.6,
-        camHeight: 1.52,
-        camOffsetX: -0.18,
-        camLookY: 1.32
+        camDist: 3.1,
+        camHeight: 2.15,
+        camOffsetX: 0.0,
+        camLookY: 0.90
     };
 
     window.studioSettings = Object.assign({}, DEFAULT_STUDIO_SETTINGS);

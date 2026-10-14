@@ -113,10 +113,20 @@
                     shader.uniforms.uIsGk        = uniforms.uIsGk;
                     shader.uniforms.uWireframe   = uniforms.uWireframe;
 
-                    shader.vertexShader = 'varying vec3 vRestPos;\n' + shader.vertexShader.replace(
-                        '#include <begin_vertex>',
-                        '#include <begin_vertex>\nvRestPos = position;'
-                    );
+                    shader.vertexShader = 'varying vec3 vRestPos;\n' + shader.vertexShader
+                        .replace(
+                            '#include <beginnormal_vertex>',
+                            `#include <beginnormal_vertex>
+                            // Uniformly smooth front torso normals across the chest & upper abdomen so directional floodlights shade a flat athletic jersey
+                            if (position.y > 0.22 && position.y < 0.66 && abs(position.x) < 0.19 && position.z > -0.14 && objectNormal.z > -0.1) {
+                                objectNormal = normalize(vec3(position.x * 1.1, 0.06, 1.0));
+                            }`
+                        )
+                        .replace(
+                            '#include <begin_vertex>',
+                            `#include <begin_vertex>
+                            vRestPos = position;`
+                        );
 
                     shader.fragmentShader = `
                         uniform vec3 uSkinColor;
@@ -184,13 +194,12 @@
                             gCol = mix(gCol, uGlovesColor, gloveMask);
                         }
 
-                        // 5. Micro-fabric knit weave & athletic fold shading (matches 2K Nano Banana close-up render)
+                        // 5. Subtle micro-fabric knit weave (removed horizontal sine-wave chest banding)
                         float isFabric = clamp(shirtMask + shortsMask + sockMask, 0.0, 1.0);
                         float weaveX = sin(vRestPos.x * 520.0 + vRestPos.z * 240.0);
                         float weaveY = cos(vRestPos.y * 640.0 - vRestPos.z * 180.0);
-                        float microWeave = 1.0 + (weaveX * weaveY) * 0.045 * isFabric;
-                        float foldShade = 1.0 + 0.06 * sin(vRestPos.y * 38.0 + vRestPos.x * 24.0) * isFabric;
-                        gCol *= microWeave * foldShade;
+                        float microWeave = 1.0 + (weaveX * weaveY) * 0.030 * isFabric;
+                        gCol *= microWeave;
 
                         // 6. High-contrast topology lattice in diagnostic wireframe mode so high-poly skinned characters show crisp mesh lines
                         if (uWireframe > 0.5) {
@@ -205,7 +214,7 @@
                         `
                     );
                 };
-                mat.customProgramCacheKey = () => 'garment_v7_' + this.role;
+                mat.customProgramCacheKey = () => 'garment_v9_' + this.role;
                 mat.needsUpdate = true;
             };
 
@@ -337,7 +346,20 @@
 
         update(dt) {
             this.animTime += dt;
+            if (this.baseQuats) {
+                for (const name in this.baseQuats) {
+                    if (this.bones[name]) {
+                        this.bones[name].quaternion.copy(this.baseQuats[name]);
+                    }
+                }
+            }
             this.mixer.update(dt);
+            if (!this.baseQuats) {
+                this.baseQuats = {};
+                for (const name in this.bones) {
+                    this.baseQuats[name] = this.bones[name].quaternion.clone();
+                }
+            }
             this.applyAthleticPosture();
         }
 
@@ -346,95 +368,60 @@
             if (!b.LeftUpLeg || !b.RightUpLeg) return;
             const pose = this.currentPose || 'idle';
 
+            // Flatten the slight backward arch of Spine1 in the idle animation so the chest stays vertical and flat
+            if (b.Spine1 && pose === 'idle') {
+                applyBoneEulerDelta(b.Spine1, -0.06, 0, 0);
+            }
+
+            // Keep LeftShoulder and RightShoulder at their exact bind-pose clavicle angle (-0.751) so the shoulder caps NEVER hike upward!
+            if (b.LeftShoulder)  b.LeftShoulder.quaternion.set(-0.130, -0.115, -0.751, 0.637);
+            if (b.RightShoulder) b.RightShoulder.quaternion.set(-0.130,  0.115,  0.751, 0.637);
+
             if (this.role === 'gk') {
                 if (pose === 'idle') {
-                    // Wide athletic goalkeeper ready crouch + raised gloves + lateral split-step shuffle
-                    const pulse = Math.sin(this.animTime * 4.2) * 0.03;
-                    const sway = Math.sin(this.animTime * 2.1) * 0.035;
-                    applyBoneEulerDelta(b.LeftUpLeg, -0.22 - pulse, 0, -0.27 + sway * 0.4);
-                    applyBoneEulerDelta(b.RightUpLeg, -0.22 - pulse, 0, 0.27 + sway * 0.4);
-                    applyBoneEulerDelta(b.LeftLeg, 0.36 + pulse * 1.5, 0, 0);
-                    applyBoneEulerDelta(b.RightLeg, 0.36 + pulse * 1.5, 0, 0);
-                    applyBoneEulerDelta(b.Spine, 0.12, sway * 0.5, -sway * 0.35);
-                    applyBoneEulerDelta(b.LeftArm, 0.22, 0, 0.28 + pulse * 0.5);
-                    applyBoneEulerDelta(b.RightArm, 0.22, 0, -0.28 - pulse * 0.5);
-                    applyBoneEulerDelta(b.LeftForeArm, 0.52, 0, 0);
-                    applyBoneEulerDelta(b.RightForeArm, 0.52, 0, 0);
+                    // With bind-pose shoulders (-0.751), LeftArm rz = -0.560 hangs in a clean athletic goalkeeper ready stance
+                    if (b.LeftArm)      b.LeftArm.quaternion.set(0.12, 0.18, -0.560, 0.799);
+                    if (b.RightArm)     b.RightArm.quaternion.set(0.12, -0.18, 0.560, 0.799);
+                    if (b.LeftForeArm)  b.LeftForeArm.quaternion.set(0.34, 0.06, -0.06, 0.937);
+                    if (b.RightForeArm) b.RightForeArm.quaternion.set(0.34, -0.06, 0.06, 0.937);
+
+                    const pulse = Math.sin(this.animTime * 3.6) * 0.015;
+                    applyBoneEulerDelta(b.LeftUpLeg, -0.10 - pulse, 0, -0.12);
+                    applyBoneEulerDelta(b.RightUpLeg, 0.02 - pulse, 0, 0.12);
+                    applyBoneEulerDelta(b.LeftLeg, 0.18 + pulse, 0, 0);
+                    applyBoneEulerDelta(b.RightLeg, -0.18 + pulse, 0, 0);
                 } else if (pose === 'dive_right' || pose === 'dive_left') {
-                    // Top-corner flying fingertip extension: full overhead arm reach, arched spine, and counter-scissor trail leg
-                    applyBoneEulerDelta(b.Spine, -0.08, 0, 0.14);
-                    applyBoneEulerDelta(b.LeftArm, 0.42, 0, 0.94);
-                    applyBoneEulerDelta(b.RightArm, 0.42, 0, -0.94);
-                    applyBoneEulerDelta(b.LeftForeArm, -0.24, 0, 0);
-                    applyBoneEulerDelta(b.RightForeArm, -0.24, 0, 0);
-                    applyBoneEulerDelta(b.LeftUpLeg, -0.18, 0, -0.15);
-                    applyBoneEulerDelta(b.RightUpLeg, 0.12, 0, 0.22);
-                    applyBoneEulerDelta(b.LeftLeg, 0.45, 0, 0);
-                    applyBoneEulerDelta(b.RightLeg, 0.18, 0, 0);
+                    applyBoneEulerDelta(b.Spine, -0.04, 0, 0.08);
                 } else if (pose === 'low_sweep_right' || pose === 'low_sweep_left') {
-                    // Low turf-skimming ground scoop: deep lateral lunge, low sweeping arms, and tucked trail knee
-                    applyBoneEulerDelta(b.Spine, 0.24, 0, 0.18);
-                    applyBoneEulerDelta(b.LeftArm, 0.55, 0.20, 0.62);
-                    applyBoneEulerDelta(b.RightArm, 0.55, -0.20, -0.62);
-                    applyBoneEulerDelta(b.LeftForeArm, 0.12, 0, 0);
-                    applyBoneEulerDelta(b.RightForeArm, 0.12, 0, 0);
-                    applyBoneEulerDelta(b.LeftUpLeg, -0.35, 0, -0.20);
-                    applyBoneEulerDelta(b.RightUpLeg, -0.10, 0, 0.15);
-                    applyBoneEulerDelta(b.LeftLeg, 0.62, 0, 0);
-                    applyBoneEulerDelta(b.RightLeg, 0.25, 0, 0);
-                } else if (pose === 'parry') {
-                    // Explosive two-handed reflex parry punch above chest/head
-                    applyBoneEulerDelta(b.Spine, -0.06, 0, 0);
-                    applyBoneEulerDelta(b.LeftArm, 0.68, 0.22, 0.55);
-                    applyBoneEulerDelta(b.RightArm, 0.68, -0.22, -0.55);
-                    applyBoneEulerDelta(b.LeftForeArm, 0.18, 0, 0);
-                    applyBoneEulerDelta(b.RightForeArm, 0.18, 0, 0);
-                } else if (pose === 'recovery_roll') {
-                    // Athletic turf landing absorption crouch
-                    applyBoneEulerDelta(b.Spine, 0.28, 0, 0);
-                    applyBoneEulerDelta(b.LeftUpLeg, -0.38, 0, -0.18);
-                    applyBoneEulerDelta(b.RightUpLeg, -0.38, 0, 0.18);
-                    applyBoneEulerDelta(b.LeftLeg, 0.65, 0, 0);
-                    applyBoneEulerDelta(b.RightLeg, 0.65, 0, 0);
-                    applyBoneEulerDelta(b.LeftArm, 0.30, 0, 0.25);
-                    applyBoneEulerDelta(b.RightArm, 0.30, 0, -0.25);
+                    applyBoneEulerDelta(b.Spine, 0.12, 0, 0.08);
                 }
             } else if (this.role === 'wall') {
                 if (pose === 'idle') {
-                    // In the raw idle clip, RightLeg is bent +0.42 rad more than LeftLeg (lifting the right boot ~4cm).
+                    // With bind-pose shoulders (-0.751), LeftArm rz = -0.610 hangs straight down along the ribcage with zero shoulder bulge!
+                    if (b.LeftArm)      b.LeftArm.quaternion.set(0.14, 0.21, -0.610, 0.751);
+                    if (b.RightArm)     b.RightArm.quaternion.set(0.14, -0.21, 0.610, 0.751);
+                    if (b.LeftForeArm)  b.LeftForeArm.quaternion.set(0.20, 0.16, -0.16, 0.953);
+                    if (b.RightForeArm) b.RightForeArm.quaternion.set(0.20, -0.16, 0.16, 0.953);
                     // Extend RightLeg (-0.38) and lower RightUpLeg (+0.18) so BOTH boots plant 100% flush on Y = 0!
-                    applyBoneEulerDelta(b.LeftUpLeg, -0.02, 0, -0.05);
-                    applyBoneEulerDelta(b.RightUpLeg, 0.18, 0, 0.05);
+                    applyBoneEulerDelta(b.LeftUpLeg, -0.02, 0, -0.04);
+                    applyBoneEulerDelta(b.RightUpLeg, 0.18, 0, 0.04);
                     applyBoneEulerDelta(b.LeftLeg, 0.04, 0, 0);
                     applyBoneEulerDelta(b.RightLeg, -0.38, 0, 0);
                     applyBoneEulerDelta(b.RightFoot, 0.16, 0, 0);
-
-                    // Authentic free-kick wall stance: upper arms tucked into torso, forearms angled inward across pelvis
-                    applyBoneEulerDelta(b.LeftArm, 0.04, 0.42, 0.14);
-                    applyBoneEulerDelta(b.RightArm, 0.04, -0.42, -0.14);
-                    applyBoneEulerDelta(b.LeftForeArm, 0.28, 0.38, -0.16);
-                    applyBoneEulerDelta(b.RightForeArm, 0.28, -0.38, 0.16);
                 } else if (pose === 'jump') {
-                    // Mid-air wall jump with tucked knees & groin-guard arms
-                    applyBoneEulerDelta(b.LeftUpLeg, -0.24, 0, -0.08);
-                    applyBoneEulerDelta(b.RightUpLeg, -0.12, 0, 0.08);
-                    applyBoneEulerDelta(b.LeftLeg, 0.42, 0, 0);
-                    applyBoneEulerDelta(b.RightLeg, 0.12, 0, 0);
-                    applyBoneEulerDelta(b.LeftArm, 0.06, 0.42, 0.14);
-                    applyBoneEulerDelta(b.RightArm, 0.06, -0.42, -0.14);
-                    applyBoneEulerDelta(b.LeftForeArm, 0.30, 0.38, -0.16);
-                    applyBoneEulerDelta(b.RightForeArm, 0.30, -0.38, 0.16);
+                    applyBoneEulerDelta(b.LeftUpLeg, -0.18, 0, -0.05);
+                    applyBoneEulerDelta(b.RightUpLeg, -0.10, 0, 0.05);
+                    applyBoneEulerDelta(b.LeftLeg, 0.30, 0, 0);
+                    applyBoneEulerDelta(b.RightLeg, 0.10, 0, 0);
                 }
             } else if (this.role === 'striker') {
                 if (pose === 'idle') {
-                    // Iconic wide-legged free-kick / penalty power stance
-                    const breath = Math.sin(this.animTime * 2.5) * 0.015;
-                    applyBoneEulerDelta(b.LeftUpLeg, -0.06, 0, -0.21);
-                    applyBoneEulerDelta(b.RightUpLeg, -0.06, 0, 0.21);
-                    applyBoneEulerDelta(b.LeftLeg, 0.10, 0, 0);
-                    applyBoneEulerDelta(b.RightLeg, 0.10, 0, 0);
-                    applyBoneEulerDelta(b.LeftArm, 0.05, 0, 0.16 + breath);
-                    applyBoneEulerDelta(b.RightArm, 0.05, 0, -0.16 - breath);
+                    if (b.LeftArm)      b.LeftArm.quaternion.set(0.12, 0.18, -0.600, 0.769);
+                    if (b.RightArm)     b.RightArm.quaternion.set(0.12, -0.18, 0.600, 0.769);
+                    applyBoneEulerDelta(b.LeftUpLeg, -0.04, 0, -0.10);
+                    applyBoneEulerDelta(b.RightUpLeg, 0.14, 0, 0.10);
+                    applyBoneEulerDelta(b.LeftLeg, 0.06, 0, 0);
+                    applyBoneEulerDelta(b.RightLeg, -0.32, 0, 0);
                 }
             }
         }
