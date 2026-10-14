@@ -348,23 +348,56 @@
 
             if (this.role === 'gk') {
                 if (pose === 'idle') {
-                    // Wide athletic goalkeeper ready crouch + raised gloves + rhythmic bounce
+                    // Wide athletic goalkeeper ready crouch + raised gloves + lateral split-step shuffle
                     const pulse = Math.sin(this.animTime * 4.2) * 0.03;
-                    applyBoneEulerDelta(b.LeftUpLeg, -0.22 - pulse, 0, -0.27);
-                    applyBoneEulerDelta(b.RightUpLeg, -0.22 - pulse, 0, 0.27);
+                    const sway = Math.sin(this.animTime * 2.1) * 0.035;
+                    applyBoneEulerDelta(b.LeftUpLeg, -0.22 - pulse, 0, -0.27 + sway * 0.4);
+                    applyBoneEulerDelta(b.RightUpLeg, -0.22 - pulse, 0, 0.27 + sway * 0.4);
                     applyBoneEulerDelta(b.LeftLeg, 0.36 + pulse * 1.5, 0, 0);
                     applyBoneEulerDelta(b.RightLeg, 0.36 + pulse * 1.5, 0, 0);
-                    applyBoneEulerDelta(b.Spine, 0.12, 0, 0);
-                    applyBoneEulerDelta(b.LeftArm, 0.22, 0, 0.28);
-                    applyBoneEulerDelta(b.RightArm, 0.22, 0, -0.28);
+                    applyBoneEulerDelta(b.Spine, 0.12, sway * 0.5, -sway * 0.35);
+                    applyBoneEulerDelta(b.LeftArm, 0.22, 0, 0.28 + pulse * 0.5);
+                    applyBoneEulerDelta(b.RightArm, 0.22, 0, -0.28 - pulse * 0.5);
                     applyBoneEulerDelta(b.LeftForeArm, 0.52, 0, 0);
                     applyBoneEulerDelta(b.RightForeArm, 0.52, 0, 0);
-                } else if (pose === 'dive_right' || pose === 'dive_left' || pose === 'low_sweep_right' || pose === 'low_sweep_left') {
-                    // Full outstretched fingertip save reach overhead
-                    applyBoneEulerDelta(b.LeftArm, 0.35, 0, 0.82);
-                    applyBoneEulerDelta(b.RightArm, 0.35, 0, -0.82);
-                    applyBoneEulerDelta(b.LeftForeArm, -0.20, 0, 0);
-                    applyBoneEulerDelta(b.RightForeArm, -0.20, 0, 0);
+                } else if (pose === 'dive_right' || pose === 'dive_left') {
+                    // Top-corner flying fingertip extension: full overhead arm reach, arched spine, and counter-scissor trail leg
+                    applyBoneEulerDelta(b.Spine, -0.08, 0, 0.14);
+                    applyBoneEulerDelta(b.LeftArm, 0.42, 0, 0.94);
+                    applyBoneEulerDelta(b.RightArm, 0.42, 0, -0.94);
+                    applyBoneEulerDelta(b.LeftForeArm, -0.24, 0, 0);
+                    applyBoneEulerDelta(b.RightForeArm, -0.24, 0, 0);
+                    applyBoneEulerDelta(b.LeftUpLeg, -0.18, 0, -0.15);
+                    applyBoneEulerDelta(b.RightUpLeg, 0.12, 0, 0.22);
+                    applyBoneEulerDelta(b.LeftLeg, 0.45, 0, 0);
+                    applyBoneEulerDelta(b.RightLeg, 0.18, 0, 0);
+                } else if (pose === 'low_sweep_right' || pose === 'low_sweep_left') {
+                    // Low turf-skimming ground scoop: deep lateral lunge, low sweeping arms, and tucked trail knee
+                    applyBoneEulerDelta(b.Spine, 0.24, 0, 0.18);
+                    applyBoneEulerDelta(b.LeftArm, 0.55, 0.20, 0.62);
+                    applyBoneEulerDelta(b.RightArm, 0.55, -0.20, -0.62);
+                    applyBoneEulerDelta(b.LeftForeArm, 0.12, 0, 0);
+                    applyBoneEulerDelta(b.RightForeArm, 0.12, 0, 0);
+                    applyBoneEulerDelta(b.LeftUpLeg, -0.35, 0, -0.20);
+                    applyBoneEulerDelta(b.RightUpLeg, -0.10, 0, 0.15);
+                    applyBoneEulerDelta(b.LeftLeg, 0.62, 0, 0);
+                    applyBoneEulerDelta(b.RightLeg, 0.25, 0, 0);
+                } else if (pose === 'parry') {
+                    // Explosive two-handed reflex parry punch above chest/head
+                    applyBoneEulerDelta(b.Spine, -0.06, 0, 0);
+                    applyBoneEulerDelta(b.LeftArm, 0.68, 0.22, 0.55);
+                    applyBoneEulerDelta(b.RightArm, 0.68, -0.22, -0.55);
+                    applyBoneEulerDelta(b.LeftForeArm, 0.18, 0, 0);
+                    applyBoneEulerDelta(b.RightForeArm, 0.18, 0, 0);
+                } else if (pose === 'recovery_roll') {
+                    // Athletic turf landing absorption crouch
+                    applyBoneEulerDelta(b.Spine, 0.28, 0, 0);
+                    applyBoneEulerDelta(b.LeftUpLeg, -0.38, 0, -0.18);
+                    applyBoneEulerDelta(b.RightUpLeg, -0.38, 0, 0.18);
+                    applyBoneEulerDelta(b.LeftLeg, 0.65, 0, 0);
+                    applyBoneEulerDelta(b.RightLeg, 0.65, 0, 0);
+                    applyBoneEulerDelta(b.LeftArm, 0.30, 0, 0.25);
+                    applyBoneEulerDelta(b.RightArm, 0.30, 0, -0.25);
                 }
             } else if (this.role === 'wall') {
                 if (pose === 'idle') {

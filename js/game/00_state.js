@@ -49,14 +49,18 @@ let duelAiResults = []; // AI opponent results: 'goal', 'miss'
 let spotX = 0;
 let spotZ = -9.0;
 const freeKickSpots = [
-    { x: 0, z: -9.0, isPenalty: true, label: 'PENALTY SPOT (11M)' },
-    { x: -3.2, z: -3.5, isPenalty: false, label: 'LEFT PENALTY ARC (16.8M)' },
-    { x: 0, z: -0.5, isPenalty: false, label: 'CENTRAL BOX EDGE (19.5M)' },
-    { x: 3.8, z: -1.5, isPenalty: false, label: 'RIGHT D-ARC (18.9M)' },
-    { x: -4.5, z: 0.5, isPenalty: false, label: 'LEFT CHANNEL (20.5M)' },
-    { x: 4.5, z: 0.5, isPenalty: false, label: 'RIGHT CHANNEL (20.5M)' },
-    { x: -6.2, z: 2.0, isPenalty: false, label: 'WIDE LEFT CURLER (22M)' },
-    { x: 6.2, z: 2.0, isPenalty: false, label: 'WIDE RIGHT CURLER (22M)' }
+    { x: 0.0,  z: -9.0, isPenalty: true,  tier: 1, label: 'STAGE 1 • PENALTY SPOT (11M)' },
+    { x: -2.4, z: -4.5, isPenalty: false, tier: 1, label: 'STAGE 2 • LEFT D-ARC EDGE (15.7M)' },
+    { x: 2.4,  z: -4.5, isPenalty: false, tier: 1, label: 'STAGE 3 • RIGHT D-ARC EDGE (15.7M)' },
+    { x: 0.0,  z: -2.0, isPenalty: false, tier: 2, label: 'STAGE 4 • CENTRAL PENALTY ARC (18M)' },
+    { x: -3.6, z: -1.5, isPenalty: false, tier: 2, label: 'STAGE 5 • LEFT INSWINGER (18.9M)' },
+    { x: 3.6,  z: -1.5, isPenalty: false, tier: 2, label: 'STAGE 6 • RIGHT OUTSWINGER (18.9M)' },
+    { x: 0.0,  z: 0.0,  isPenalty: false, tier: 3, label: 'STAGE 7 • CENTRAL BOX DEAD-BALL (20M)' },
+    { x: -4.8, z: 0.8,  isPenalty: false, tier: 3, label: 'STAGE 8 • LEFT CHANNEL BENDER (21.3M)' },
+    { x: 4.8,  z: 0.8,  isPenalty: false, tier: 4, label: 'STAGE 9 • RIGHT CHANNEL BENDER (21.3M)' },
+    { x: -6.4, z: 2.0,  isPenalty: false, tier: 4, label: 'STAGE 10 • WIDE LEFT CURLER (22.9M)' },
+    { x: 6.4,  z: 2.0,  isPenalty: false, tier: 5, label: 'STAGE 11 • WIDE RIGHT CURLER (22.9M)' },
+    { x: 0.0,  z: 4.5,  isPenalty: false, tier: 5, label: 'STAGE 12 • LONG-RANGE KNUCKLEBALL (24.5M)' }
 ];
 const trainingDrillSpots = freeKickSpots;
 

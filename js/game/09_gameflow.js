@@ -140,7 +140,12 @@ function applyCameraFramingForSpot() {
 }
 
 function rollWindForRound() {
-    if (currentGameMode === 'duel' && currentRound > 1) {
+    const isProgTraining = !window.__forceLegacyMode && (requestedMode === 'training' || currentGameMode === 'duel');
+    if (isProgTraining && drillLevel >= 3) {
+        const tierSpeeds = [0, 0, 8, 14, 19];
+        windSpeedKmh = tierSpeeds[Math.min(4, drillLevel - 1)] || 0;
+        windDirSign = (currentRound % 2 === 0) ? 1 : -1;
+    } else if (currentGameMode === 'duel' && currentRound > 1) {
         const speeds = [0, 9, 14, 18, 22];
         windSpeedKmh = speeds[(currentRound - 1) % speeds.length];
         windDirSign = (currentRound % 2 === 0) ? 1 : -1;
@@ -614,8 +619,13 @@ window.resetBall = function() {
     }
 
     drillLevel = Math.min(5, Math.max(1, 1 + Math.floor(Math.max(streak, currentRound - 1) / 2)));
+    const isProgTraining = !window.__forceLegacyMode && (requestedMode === 'training' || currentGameMode === 'duel');
+    if (isProgTraining) {
+        const tierDiffMap = ['amateur', 'semipro', 'semipro', 'worldclass', 'worldclass'];
+        window.setDifficulty(tierDiffMap[Math.min(4, drillLevel - 1)]);
+    }
     const trackerLbl = document.getElementById('tracker-label');
-    if (trackerLbl && !window.__forceLegacyMode && (requestedMode === 'training' || currentGameMode === 'duel')) {
+    if (trackerLbl && isProgTraining) {
         trackerLbl.innerText = `DRILL LVL ${drillLevel} • ${spotLabel}`;
     }
 
